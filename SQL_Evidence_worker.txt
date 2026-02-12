@@ -1,7 +1,10 @@
-Resultado de A
+## Verificación SQL Server (evidencia)
+Fecha: 2026-02-10
 
-Resultado de B
+- PK confirmada en SQL Server:
+  - pk_name: PK__worker__569F800752AE4C03
+  - pk_column: worker_id
+- Columna `id`: NO existe
+- Índices UNIQUE:
+  - email (worker_email_8183980f_uniq)
 
-Resultado de C
-
-Resultado de D

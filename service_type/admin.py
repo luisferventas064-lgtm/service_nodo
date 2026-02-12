@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ServiceType, ServiceSkill, ProviderServiceType
+from .models import ServiceSkill, ServiceType
 
 
 @admin.register(ServiceType)
@@ -17,18 +17,3 @@ class ServiceSkillAdmin(admin.ModelAdmin):
     search_fields = ("name", "service_type__name")
     ordering = ("service_type__name", "name")
 
-
-@admin.register(ProviderServiceType)
-class ProviderServiceTypeAdmin(admin.ModelAdmin):
-    list_display = (
-        "provider_service_type_id",
-        "provider",
-        "service_type",
-        "price_type",
-        "base_price",
-        "is_active",
-        "created_at",
-    )
-    list_filter = ("price_type", "is_active", "service_type")
-    search_fields = ("provider__email", "provider__company_name", "service_type__name")
-    ordering = ("-created_at",)

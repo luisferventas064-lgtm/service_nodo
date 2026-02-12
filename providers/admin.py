@@ -17,3 +17,12 @@ class ProviderAdmin(admin.ModelAdmin):
     search_fields = ("company_name", "contact_first_name", "contact_last_name", "email", "phone_number")
     ordering = ("-created_at",)
 
+from .models import ProviderServiceArea
+
+
+@admin.register(ProviderServiceArea)
+class ProviderServiceAreaAdmin(admin.ModelAdmin):
+    list_display = ("provider_service_area_id", "provider", "city", "province", "is_active")
+    list_filter = ("province", "is_active")
+    search_fields = ("city", "province", "provider__company_name", "provider__email")
+

@@ -14,8 +14,21 @@ class Job(models.Model):
         COMPLETED = "completed", "Completed"
         CANCELLED = "cancelled", "Cancelled"
         EXPIRED = "expired", "Expired"
+        CONFIRMED = "confirmed", "Confirmed"
+
+    class JobMode(models.TextChoices):
+        ON_DEMAND = "on_demand", "On demand"
+        SCHEDULED = "scheduled", "Scheduled"
+
 
     job_id = models.AutoField(primary_key=True)
+
+    job_mode = models.CharField(
+        max_length=20,
+        choices=JobMode.choices,
+        default=JobMode.SCHEDULED,
+        db_index=True,
+    )
 
     job_status = models.CharField(
         max_length=20,
@@ -59,6 +72,8 @@ class Job(models.Model):
     )
 
     expires_at = models.DateTimeField(blank=True, null=True)
+    next_alert_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    alert_attempts = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -68,3 +83,8 @@ class Job(models.Model):
 
     def __str__(self):
         return f"Job {self.job_id} - {self.job_status} - {self.city}"
+
+
+# Backward-compatible aliases for imports like: from jobs.models import JobStatus
+JobStatus = Job.JobStatus
+JobMode = Job.JobMode

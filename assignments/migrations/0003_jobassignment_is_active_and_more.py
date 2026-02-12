@@ -13,13 +13,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='jobassignment',
-            name='is_active',
-            field=models.BooleanField(default=True),
-        ),
-        migrations.AddConstraint(
-            model_name='jobassignment',
-            constraint=models.UniqueConstraint(condition=models.Q(('is_active', True)), fields=('job',), name='uq_job_assignment_one_active_per_job'),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.AddField(
+                    model_name='jobassignment',
+                    name='is_active',
+                    field=models.BooleanField(default=True),
+                ),
+                migrations.AddConstraint(
+                    model_name='jobassignment',
+                    constraint=models.UniqueConstraint(
+                        condition=models.Q(('is_active', True)),
+                        fields=('job',),
+                        name='uq_job_assignment_one_active_per_job',
+                    ),
+                ),
+            ],
         ),
     ]

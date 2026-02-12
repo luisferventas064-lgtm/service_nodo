@@ -41,3 +41,55 @@ class Provider(models.Model):
         if self.company_name:
             return self.company_name
         return f"{self.contact_first_name} {self.contact_last_name}"
+
+
+class ProviderServiceArea(models.Model):
+    provider_service_area_id = models.AutoField(primary_key=True)
+
+    provider = models.ForeignKey(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        db_column="provider_id",
+    )
+
+    city = models.CharField(max_length=100)
+    province = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "provider_service_area"
+
+    def __str__(self) -> str:
+        return f"{self.provider} - {self.city}, {self.province}"
+
+
+class ProviderServiceType(models.Model):
+    provider_service_type_id = models.AutoField(primary_key=True)
+
+    provider = models.ForeignKey(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        db_column="provider_id",
+        related_name="provider_service_types",
+    )
+
+    service_type = models.ForeignKey(
+        "service_type.ServiceType",
+        on_delete=models.CASCADE,
+        db_column="service_type_id",
+        related_name="provider_service_types",
+    )
+
+    price_type = models.CharField(max_length=20)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "provider_service_type"
+
+    def __str__(self) -> str:
+        return f"{self.provider} - {self.service_type} ({self.price_type})"

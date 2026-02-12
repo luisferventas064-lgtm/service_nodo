@@ -7,14 +7,15 @@ class JobAdmin(admin.ModelAdmin):
     list_display = (
         "job_id",
         "job_status",
+        "job_mode",
+        "alert_attempts",
+        "next_alert_at",
         "selected_provider",
         "service_type",
         "city",
         "province",
         "created_at",
         "schedule_display",
-    
-
     )
 
     list_filter = (

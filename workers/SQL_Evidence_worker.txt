@@ -1,0 +1,15 @@
+Resultado de A
+
+Resultado de B
+
+Resultado de C
+
+Resultado de D
+
+
+## Verificación SQL Server (2026-02-10)
+- INFORMATION_SCHEMA.COLUMNS confirmado vía SSMS.
+- worker_id presente como PK.
+- No existe columna id.
+- Esquema alineado con Django models y admin.
+- Evidencia visual capturada (SSMS).
