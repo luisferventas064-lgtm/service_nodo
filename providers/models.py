@@ -93,3 +93,61 @@ class ProviderServiceType(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider} - {self.service_type} ({self.price_type})"
+class PricingUnit(models.TextChoices):
+    FIXED = "fixed", "Fixed"
+    HOURLY = "hourly", "Hourly"
+    SQM = "sqm", "Per m²"
+    LINEAR_FT = "linear_ft", "Per linear ft"
+    ITEM = "item", "Per item"
+
+
+class ProviderSkillPrice(models.Model):
+    emergency_fee_type = models.CharField(max_length=10, default="none")  # none|fixed|percent
+    emergency_fee_value = models.DecimalField(max_digits=10, decimal_places=2, default="0.00")
+
+    provider_skill_price_id = models.BigAutoField(primary_key=True)
+
+    provider = models.ForeignKey(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        related_name="skill_prices",
+        db_index=True,
+    )
+    service_skill = models.ForeignKey(
+        "service_type.ServiceSkill",
+        on_delete=models.CASCADE,
+        related_name="provider_prices",
+        db_index=True,
+    )
+
+    price_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency_code = models.CharField(max_length=3, default="CAD")
+
+    pricing_unit = models.CharField(
+        max_length=20,
+        choices=PricingUnit.choices,
+        default=PricingUnit.FIXED,
+    )
+    min_qty = models.PositiveSmallIntegerField(default=1)
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "provider_skill_price"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "service_skill"],
+                name="uq_provider_skill_price_provider_skill",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["provider", "is_active"], name="ix_psp_provider_active"),
+            models.Index(fields=["service_skill", "is_active"], name="ix_psp_skill_active"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider_id} / {self.service_skill_id} = {self.price_amount} {self.currency_code}"
+
