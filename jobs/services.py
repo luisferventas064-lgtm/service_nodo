@@ -5,7 +5,20 @@ from datetime import date, datetime, time, timedelta
 from typing import Callable, Optional
 
 from django.db import IntegrityError, models, transaction
-from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    ExpressionWrapper,
+    F,
+    FloatField,
+    IntegerField,
+    OuterRef,
+    Q,
+    Value,
+    When,
+)
+from django.db.models.functions import Cast
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 
@@ -15,6 +28,7 @@ JOB_STATUS_FIELD = "job_status"
 STATUS_POSTED = "posted"
 RETRY_AFTER = timedelta(minutes=5)
 MAX_ACTIVE_JOBS = 3
+LOAD_WEIGHT = 2.0
 MARKETPLACE_RETRY_HOURS = 3
 MARKETPLACE_MIN_LEAD_HOURS = 24
 MARKETPLACE_EXPIRE_BUFFER_HOURS = 6
@@ -283,25 +297,25 @@ def get_broadcast_candidates_for_job(job, limit=10):
     )
 
     qs = qs.annotate(
-        _final_score=F("_score") + F("_cooldown_penalty")
-    )
-
-    active_statuses = [
-        Job.JobStatus.POSTED,
-        Job.JobStatus.HOLD,
-        Job.JobStatus.PENDING_PROVIDER_CONFIRMATION,
-        Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
-        Job.JobStatus.ASSIGNED,
-        Job.JobStatus.IN_PROGRESS,
-    ]
-    qs = qs.annotate(
-        _active_jobs_count=Count(
-            "selected_jobs",
-            filter=Q(selected_jobs__job_status__in=active_statuses),
+        _active_assignments_count=Count(
+            "job_assignments",
+            filter=Q(job_assignments__is_active=True),
             distinct=True,
         )
     )
-    qs = qs.filter(_active_jobs_count__lt=MAX_ACTIVE_JOBS)
+    qs = qs.filter(_active_assignments_count__lt=MAX_ACTIVE_JOBS)
+
+    qs = qs.annotate(
+        _load_penalty=ExpressionWrapper(
+            (Cast(F("_active_assignments_count"), FloatField()) / Value(float(MAX_ACTIVE_JOBS)))
+            * Value(LOAD_WEIGHT),
+            output_field=FloatField(),
+        )
+    )
+
+    qs = qs.annotate(
+        _final_score=F("_score") + F("_cooldown_penalty") + F("_load_penalty")
+    )
 
     qs = qs.order_by("_final_score", "provider_id")
     return list(qs.values_list("provider_id", flat=True)[:limit])
