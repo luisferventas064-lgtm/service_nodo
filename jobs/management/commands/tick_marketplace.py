@@ -18,7 +18,10 @@ class Command(BaseCommand):
         qs = (
             Job.objects.filter(
                 job_mode=Job.JobMode.SCHEDULED,
-                job_status=Job.JobStatus.POSTED,
+                job_status__in=[
+                    Job.JobStatus.POSTED,
+                    Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                ],
                 scheduled_date__isnull=False,
                 scheduled_date__gte=min_date,
             )

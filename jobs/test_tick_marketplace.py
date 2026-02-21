@@ -67,8 +67,10 @@ class MarketplaceTickTests(TestCase):
         r1 = process_marketplace_job(job.job_id)
         self.assertEqual(r1[0], "dispatched_wave")
         self.assertEqual(r1[1], 2)
-
         job.refresh_from_db()
+        self.assertEqual(job.job_status, Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+        self.assertIsNotNone(job.marketplace_search_started_at)
+
         job.next_marketplace_alert_at = timezone.now() - timedelta(minutes=1)
         job.save(update_fields=["next_marketplace_alert_at"])
 
@@ -115,3 +117,29 @@ class MarketplaceTickTests(TestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.marketplace_attempts, 2)
+
+    def test_search_timeout_moves_to_pending_client_decision(self):
+        self._make_provider(1)
+        job = self._make_scheduled_job()
+
+        r1 = process_marketplace_job(job.job_id)
+        self.assertEqual(r1[0], "dispatched_wave")
+
+        job.refresh_from_db()
+        job.marketplace_search_started_at = timezone.now() - timedelta(hours=24, minutes=1)
+        job.next_marketplace_alert_at = timezone.now() - timedelta(minutes=1)
+        job.job_status = Job.JobStatus.WAITING_PROVIDER_RESPONSE
+        job.save(
+            update_fields=[
+                "marketplace_search_started_at",
+                "next_marketplace_alert_at",
+                "job_status",
+            ]
+        )
+
+        r2 = process_marketplace_job(job.job_id)
+        self.assertEqual(r2[0], "pending_client_decision_timeout_24h")
+
+        job.refresh_from_db()
+        self.assertEqual(job.job_status, Job.JobStatus.PENDING_CLIENT_DECISION)
+        self.assertIsNone(job.next_marketplace_alert_at)

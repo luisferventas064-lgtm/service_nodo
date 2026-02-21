@@ -19,6 +19,7 @@ MARKETPLACE_MIN_LEAD_HOURS = 24
 MARKETPLACE_EXPIRE_BUFFER_HOURS = 6
 MARKETPLACE_BATCH_SIZE = 10
 MARKETPLACE_MAX_ATTEMPTS = 6
+MARKETPLACE_SEARCH_TIMEOUT_HOURS = 24
 
 ScheduleFn = Callable[[int, timezone.datetime], None]
 
@@ -337,8 +338,12 @@ def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
         if getattr(job, "job_mode", None) != Job.JobMode.SCHEDULED:
             return ("skip_not_scheduled", 0, 0)
 
-        if getattr(job, "job_status", None) != Job.JobStatus.POSTED:
-            return ("skip_not_posted", 0, 0)
+        allowed_marketplace_statuses = (
+            Job.JobStatus.POSTED,
+            Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+        )
+        if getattr(job, "job_status", None) not in allowed_marketplace_statuses:
+            return ("skip_not_marketplace_status", 0, 0)
 
         scheduled_at = _get_scheduled_datetime(job)
         if scheduled_at is None:
@@ -350,6 +355,17 @@ def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
         if not job.marketplace_expires_at:
             job.marketplace_expires_at = scheduled_at - timedelta(hours=MARKETPLACE_EXPIRE_BUFFER_HOURS)
             job.save(update_fields=["marketplace_expires_at"])
+
+        if job.marketplace_search_started_at:
+            search_deadline = job.marketplace_search_started_at + timedelta(
+                hours=MARKETPLACE_SEARCH_TIMEOUT_HOURS
+            )
+            if now >= search_deadline:
+                Job.objects.filter(job_id=job.job_id).update(
+                    job_status=Job.JobStatus.PENDING_CLIENT_DECISION,
+                    next_marketplace_alert_at=None,
+                )
+                return ("pending_client_decision_timeout_24h", 0, 0)
 
         if now >= job.marketplace_expires_at:
             job.job_status = Job.JobStatus.EXPIRED
@@ -400,10 +416,17 @@ def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
             else:
                 skipped_count += 1
 
+        update_kwargs = {
+            "marketplace_attempts": F("marketplace_attempts") + 1,
+            "next_marketplace_alert_at": job.next_marketplace_alert_at,
+            "marketplace_expires_at": job.marketplace_expires_at,
+        }
+        if created_count > 0 and not job.marketplace_search_started_at:
+            update_kwargs["marketplace_search_started_at"] = now
+            update_kwargs["job_status"] = Job.JobStatus.WAITING_PROVIDER_RESPONSE
+
         Job.objects.filter(pk=job.job_id).update(
-            marketplace_attempts=F("marketplace_attempts") + 1,
-            next_marketplace_alert_at=job.next_marketplace_alert_at,
-            marketplace_expires_at=job.marketplace_expires_at,
+            **update_kwargs,
         )
 
     return ("dispatched_wave", created_count, skipped_count)
