@@ -177,6 +177,45 @@ class Job(models.Model):
         return f"Job {self.job_id} - {self.job_status} - {self.city}"
 
 
+class JobMedia(models.Model):
+    class UploadedBy(models.TextChoices):
+        CLIENT = "client", "Client"
+        PROVIDER = "provider", "Provider"
+
+    class MediaType(models.TextChoices):
+        IMAGE = "image", "Image"
+        VIDEO = "video", "Video"
+
+    class Phase(models.TextChoices):
+        PRE_SERVICE = "pre_service", "Pre-service"
+        IN_PROGRESS = "in_progress", "In-progress"
+        POST_SERVICE = "post_service", "Post-service"
+        DISPUTE = "dispute", "Dispute"
+
+    media_id = models.AutoField(primary_key=True)
+
+    job = models.ForeignKey(
+        "jobs.Job",
+        on_delete=models.CASCADE,
+        db_column="job_id",
+        related_name="media_items",
+    )
+
+    uploaded_by = models.CharField(max_length=10, choices=UploadedBy.choices)
+    media_type = models.CharField(max_length=10, choices=MediaType.choices)
+    phase = models.CharField(max_length=20, choices=Phase.choices, default=Phase.PRE_SERVICE)
+
+    file = models.FileField(upload_to="job_media/%Y/%m/%d/")
+    caption = models.CharField(max_length=255, blank=True, default="")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "jobs_job_media"
+
+    def __str__(self):
+        return f"JobMedia {self.media_id} job={self.job_id} {self.media_type} {self.phase}"
+
+
 # Backward-compatible aliases (si otros archivos importan estos nombres)
 JobStatus = Job.JobStatus
 JobMode = Job.JobMode
