@@ -43,6 +43,10 @@ class MarketplaceDecisionConflict(Exception):
     pass
 
 
+class MarketplaceAcceptConflict(Exception):
+    pass
+
+
 def _get_scheduled_datetime(job: Job):
     if not job.scheduled_date:
         return None
@@ -551,3 +555,44 @@ def apply_client_marketplace_decision(
             return "cancelled"
 
         raise MarketplaceDecisionConflict("INVALID_ACTION")
+
+
+def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
+    now = now or timezone.now()
+
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+
+        if job.job_mode != Job.JobMode.SCHEDULED:
+            raise MarketplaceAcceptConflict("INVALID_JOB_MODE_FOR_MARKETPLACE_ACCEPT")
+
+        if job.job_status != Job.JobStatus.WAITING_PROVIDER_RESPONSE:
+            raise MarketplaceAcceptConflict("INVALID_STATUS_FOR_MARKETPLACE_ACCEPT")
+
+        if not job.marketplace_search_started_at:
+            raise MarketplaceAcceptConflict("MISSING_MARKETPLACE_SEARCH_WINDOW")
+
+        search_deadline = job.marketplace_search_started_at + timedelta(
+            hours=MARKETPLACE_SEARCH_TIMEOUT_HOURS
+        )
+        if now >= search_deadline:
+            raise MarketplaceAcceptConflict("MARKETPLACE_SEARCH_TIMEOUT")
+
+        attempt = (
+            JobBroadcastAttempt.objects.filter(job_id=job.job_id, provider_id=provider_id)
+            .order_by("-created_at")
+            .first()
+        )
+        if not attempt:
+            raise MarketplaceAcceptConflict("BROADCAST_ATTEMPT_NOT_FOUND")
+
+        if attempt.created_at < job.marketplace_search_started_at:
+            raise MarketplaceAcceptConflict("STALE_BROADCAST_ATTEMPT")
+
+        Job.objects.filter(pk=job.job_id).update(
+            selected_provider_id=provider_id,
+            job_status=Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
+            next_marketplace_alert_at=None,
+        )
+
+    return "accepted_marketplace_offer"
