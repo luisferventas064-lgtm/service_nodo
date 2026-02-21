@@ -174,6 +174,7 @@ class Job(models.Model):
     last_tick_attempt_reason = models.CharField(max_length=64, null=True, blank=True)
     marketplace_attempts = models.IntegerField(default=0)
     marketplace_search_started_at = models.DateTimeField(null=True, blank=True)
+    client_confirmation_started_at = models.DateTimeField(null=True, blank=True)
     next_marketplace_alert_at = models.DateTimeField(null=True, blank=True)
     marketplace_expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -12,6 +12,7 @@ from jobs.services import (
     MarketplaceDecisionConflict,
     apply_client_marketplace_decision,
 )
+from providers.models import Provider
 from service_type.models import ServiceType
 
 
@@ -110,3 +111,33 @@ class MarketplaceClientDecisionTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
         self.assertIsNone(job.next_marketplace_alert_at)
+
+    def test_cancel_job_from_pending_client_confirmation(self):
+        job = self._mk_job(status=Job.JobStatus.PENDING_CLIENT_CONFIRMATION)
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Cancel",
+            phone_number="555-888-0001",
+            email="provider.cancel.market@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7N1A1",
+            address_line1="9 Provider St",
+        )
+        job.selected_provider = provider
+        job.client_confirmation_started_at = timezone.now() - timedelta(minutes=5)
+        job.save(update_fields=["selected_provider", "client_confirmation_started_at"])
+
+        result = apply_client_marketplace_decision(
+            job_id=job.job_id,
+            action=MARKETPLACE_ACTION_CANCEL_JOB,
+        )
+        self.assertEqual(result, "cancelled")
+
+        job.refresh_from_db()
+        self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
+        self.assertIsNone(job.next_marketplace_alert_at)
+        self.assertIsNone(job.marketplace_search_started_at)
+        self.assertIsNone(job.client_confirmation_started_at)
+        self.assertIsNone(job.selected_provider_id)

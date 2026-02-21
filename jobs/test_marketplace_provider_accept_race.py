@@ -71,6 +71,7 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.PENDING_CLIENT_CONFIRMATION)
         self.assertEqual(job.selected_provider_id, self.provider.provider_id)
+        self.assertIsNotNone(job.client_confirmation_started_at)
         self.assertIsNone(job.next_marketplace_alert_at)
 
     def test_accept_rejected_if_pending_client_decision(self):

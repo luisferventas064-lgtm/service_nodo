@@ -21,6 +21,7 @@ MARKETPLACE_EXPIRE_BUFFER_HOURS = 6
 MARKETPLACE_BATCH_SIZE = 10
 MARKETPLACE_MAX_ATTEMPTS = 6
 MARKETPLACE_SEARCH_TIMEOUT_HOURS = 24
+CLIENT_CONFIRMATION_TIMEOUT_MINUTES = 60
 MARKETPLACE_ACTION_EXTEND_SEARCH_24H = "extend_search_24h"
 MARKETPLACE_ACTION_EDIT_SCHEDULE_DATE = "edit_schedule_date"
 MARKETPLACE_ACTION_SWITCH_TO_URGENT = "switch_to_urgent"
@@ -545,12 +546,19 @@ def apply_client_marketplace_decision(
             return "switched_to_urgent"
 
         if action == MARKETPLACE_ACTION_CANCEL_JOB:
-            if job.job_status != Job.JobStatus.PENDING_CLIENT_DECISION:
+            allowed_statuses = (
+                Job.JobStatus.PENDING_CLIENT_DECISION,
+                Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
+            )
+            if job.job_status not in allowed_statuses:
                 raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_CANCEL")
 
             Job.objects.filter(pk=job.job_id).update(
                 job_status=Job.JobStatus.CANCELLED,
                 next_marketplace_alert_at=None,
+                marketplace_search_started_at=None,
+                client_confirmation_started_at=None,
+                selected_provider_id=None,
             )
             return "cancelled"
 
@@ -592,7 +600,67 @@ def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
         Job.objects.filter(pk=job.job_id).update(
             selected_provider_id=provider_id,
             job_status=Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
+            client_confirmation_started_at=now,
             next_marketplace_alert_at=None,
         )
 
     return "accepted_marketplace_offer"
+
+
+def process_marketplace_client_confirmation_timeout(job_or_id, *, now=None) -> tuple[str, int]:
+    now = now or timezone.now()
+    job_id = job_or_id.pk if isinstance(job_or_id, Job) else int(job_or_id)
+
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+
+        if job.job_status != Job.JobStatus.PENDING_CLIENT_CONFIRMATION:
+            return ("skip_not_pending_client_confirmation", 0)
+
+        if not job.client_confirmation_started_at:
+            return ("skip_missing_client_confirmation_started_at", 0)
+
+        deadline = job.client_confirmation_started_at + timedelta(
+            minutes=CLIENT_CONFIRMATION_TIMEOUT_MINUTES
+        )
+        if now < deadline:
+            return ("not_due_client_confirmation_timeout", 0)
+
+        Job.objects.filter(pk=job.job_id).update(
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            selected_provider_id=None,
+            client_confirmation_started_at=None,
+            next_marketplace_alert_at=now,
+        )
+    return ("client_confirmation_timeout_reactivated_marketplace", 1)
+
+
+def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
+    now = now or timezone.now()
+
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+
+        if job.job_status != Job.JobStatus.PENDING_CLIENT_CONFIRMATION:
+            raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_CLIENT_CONFIRM")
+
+        if not job.selected_provider_id:
+            raise MarketplaceDecisionConflict("MISSING_SELECTED_PROVIDER")
+
+        if not job.client_confirmation_started_at:
+            raise MarketplaceDecisionConflict("MISSING_CLIENT_CONFIRMATION_WINDOW")
+
+        deadline = job.client_confirmation_started_at + timedelta(
+            minutes=CLIENT_CONFIRMATION_TIMEOUT_MINUTES
+        )
+        if now >= deadline:
+            raise MarketplaceDecisionConflict("CLIENT_CONFIRMATION_TIMEOUT")
+
+        Job.objects.filter(pk=job.job_id).update(
+            job_status=Job.JobStatus.ASSIGNED,
+            next_marketplace_alert_at=None,
+            marketplace_search_started_at=None,
+            client_confirmation_started_at=None,
+        )
+
+    return "client_confirmed_marketplace_provider"
