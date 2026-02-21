@@ -377,3 +377,14 @@ LISTO PARA CONTINUAR MAÑANA
 Cuando abras el nuevo chat, pega este archivo completo y escribe:
 
 Continuamos con B: doble confirmación.
+
+---
+
+PASO 6.6
+
+- marketplace_search_started_at agregado (nullable)
+- PENDING_CLIENT_DECISION agregado
+- Timeout 24h implementado via MARKETPLACE_SEARCH_TIMEOUT_HOURS = 24
+- tick_marketplace ignora pending_client_decision
+- Migracion 0021_* aplicada
+- Tests: 21 OK
