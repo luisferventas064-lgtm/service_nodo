@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Callable, Optional
 
 from django.db import IntegrityError, models, transaction
 from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
+from django.utils.dateparse import parse_date
 from django.utils import timezone
 
 from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt, JobStatus
@@ -20,6 +21,10 @@ MARKETPLACE_EXPIRE_BUFFER_HOURS = 6
 MARKETPLACE_BATCH_SIZE = 10
 MARKETPLACE_MAX_ATTEMPTS = 6
 MARKETPLACE_SEARCH_TIMEOUT_HOURS = 24
+MARKETPLACE_ACTION_EXTEND_SEARCH_24H = "extend_search_24h"
+MARKETPLACE_ACTION_EDIT_SCHEDULE_DATE = "edit_schedule_date"
+MARKETPLACE_ACTION_SWITCH_TO_URGENT = "switch_to_urgent"
+MARKETPLACE_ACTION_CANCEL_JOB = "cancel_job"
 
 ScheduleFn = Callable[[int, timezone.datetime], None]
 
@@ -32,6 +37,10 @@ def default_schedule_fn(job_id: int, run_at):
 class ProcessResult:
     scheduled: bool
     reason: str
+
+
+class MarketplaceDecisionConflict(Exception):
+    pass
 
 
 def _get_scheduled_datetime(job: Job):
@@ -430,3 +439,115 @@ def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
         )
 
     return ("dispatched_wave", created_count, skipped_count)
+
+
+def _coerce_marketplace_date(value) -> date:
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        parsed = parse_date(value)
+        if parsed is not None:
+            return parsed
+    raise MarketplaceDecisionConflict("INVALID_SCHEDULED_DATE")
+
+
+def _validate_marketplace_lead_time(*, scheduled_date: date, scheduled_start_time, now) -> datetime:
+    scheduled_time = scheduled_start_time or time.min
+    scheduled_at = timezone.make_aware(
+        datetime.combine(scheduled_date, scheduled_time),
+        timezone.get_current_timezone(),
+    )
+    if scheduled_at < (now + timedelta(hours=MARKETPLACE_MIN_LEAD_HOURS)):
+        raise MarketplaceDecisionConflict("SCHEDULE_LESS_THAN_24H")
+    return scheduled_at
+
+
+def apply_client_marketplace_decision(
+    *,
+    job_id: int,
+    action: str,
+    payload: Optional[dict] = None,
+    now=None,
+) -> str:
+    payload = payload or {}
+    now = now or timezone.now()
+
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+
+        if action == MARKETPLACE_ACTION_EXTEND_SEARCH_24H:
+            if job.job_status != Job.JobStatus.PENDING_CLIENT_DECISION:
+                raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_EXTEND")
+            if job.job_mode != Job.JobMode.SCHEDULED or not job.scheduled_date:
+                raise MarketplaceDecisionConflict("INVALID_JOB_MODE_FOR_MARKETPLACE")
+
+            _validate_marketplace_lead_time(
+                scheduled_date=job.scheduled_date,
+                scheduled_start_time=job.scheduled_start_time,
+                now=now,
+            )
+
+            Job.objects.filter(pk=job.job_id).update(
+                job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                marketplace_search_started_at=now,
+                next_marketplace_alert_at=now,
+            )
+            return "extended_search"
+
+        if action == MARKETPLACE_ACTION_EDIT_SCHEDULE_DATE:
+            allowed_statuses = (
+                Job.JobStatus.PENDING_CLIENT_DECISION,
+                Job.JobStatus.POSTED,
+                Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            )
+            if job.job_status not in allowed_statuses:
+                raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_EDIT_SCHEDULE")
+            if job.job_mode != Job.JobMode.SCHEDULED:
+                raise MarketplaceDecisionConflict("INVALID_JOB_MODE_FOR_MARKETPLACE")
+
+            new_date = _coerce_marketplace_date(payload.get("scheduled_date"))
+            if new_date <= timezone.localdate():
+                raise MarketplaceDecisionConflict("INVALID_SCHEDULED_DATE")
+
+            scheduled_at = _validate_marketplace_lead_time(
+                scheduled_date=new_date,
+                scheduled_start_time=job.scheduled_start_time,
+                now=now,
+            )
+
+            Job.objects.filter(pk=job.job_id).update(
+                scheduled_date=new_date,
+                job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                marketplace_search_started_at=now,
+                next_marketplace_alert_at=now,
+                marketplace_expires_at=scheduled_at - timedelta(hours=MARKETPLACE_EXPIRE_BUFFER_HOURS),
+            )
+            return "schedule_updated"
+
+        if action == MARKETPLACE_ACTION_SWITCH_TO_URGENT:
+            if job.job_status != Job.JobStatus.PENDING_CLIENT_DECISION:
+                raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_SWITCH_TO_URGENT")
+
+            Job.objects.filter(pk=job.job_id).update(
+                job_mode=Job.JobMode.ON_DEMAND,
+                scheduled_date=None,
+                job_status=Job.JobStatus.POSTED,
+                is_asap=True,
+                next_marketplace_alert_at=None,
+                marketplace_search_started_at=None,
+                marketplace_expires_at=None,
+                marketplace_attempts=0,
+            )
+            return "switched_to_urgent"
+
+        if action == MARKETPLACE_ACTION_CANCEL_JOB:
+            if job.job_status != Job.JobStatus.PENDING_CLIENT_DECISION:
+                raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_CANCEL")
+
+            Job.objects.filter(pk=job.job_id).update(
+                job_status=Job.JobStatus.CANCELLED,
+                next_marketplace_alert_at=None,
+            )
+            return "cancelled"
+
+        raise MarketplaceDecisionConflict("INVALID_ACTION")
