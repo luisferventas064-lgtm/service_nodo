@@ -66,7 +66,7 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
         self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
 
         result = accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
-        self.assertEqual(result, "accepted_marketplace_offer")
+        self.assertEqual(result, "accepted_waiting_client")
 
         job.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.PENDING_CLIENT_CONFIRMATION)
@@ -105,3 +105,11 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
 
         with self.assertRaises(MarketplaceAcceptConflict):
             accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
+
+    def test_accept_idempotent_same_provider(self):
+        job = self._mk_job()
+        self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
+
+        accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
+        res = accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
+        self.assertEqual(res, "already_accepted_waiting_client")

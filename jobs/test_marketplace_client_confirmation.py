@@ -55,7 +55,7 @@ class MarketplaceClientConfirmationTests(TestCase):
         job = self._mk_job(started_delta_minutes=10)
 
         result = confirm_marketplace_provider(job_id=job.job_id)
-        self.assertEqual(result, "client_confirmed_marketplace_provider")
+        self.assertEqual(result, "confirmed")
 
         job.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.ASSIGNED)
@@ -74,7 +74,7 @@ class MarketplaceClientConfirmationTests(TestCase):
         job = self._mk_job(started_delta_minutes=61)
 
         result, updated = process_marketplace_client_confirmation_timeout(job.job_id)
-        self.assertEqual(result, "client_confirmation_timeout_reactivated_marketplace")
+        self.assertEqual(result, "timeout_reopened_marketplace")
         self.assertEqual(updated, 1)
 
         job.refresh_from_db()
@@ -83,6 +83,21 @@ class MarketplaceClientConfirmationTests(TestCase):
         self.assertIsNone(job.selected_provider_id)
         self.assertIsNotNone(job.next_marketplace_alert_at)
 
+    def test_process_client_confirmation_timeout_to_pending_client_decision(self):
+        job = self._mk_job(started_delta_minutes=61)
+        job.marketplace_search_started_at = timezone.now() - timedelta(hours=25)
+        job.save(update_fields=["marketplace_search_started_at"])
+
+        result, updated = process_marketplace_client_confirmation_timeout(job.job_id)
+        self.assertEqual(result, "timeout_to_pending_client_decision")
+        self.assertEqual(updated, 1)
+
+        job.refresh_from_db()
+        self.assertEqual(job.job_status, Job.JobStatus.PENDING_CLIENT_DECISION)
+        self.assertIsNone(job.selected_provider_id)
+        self.assertIsNone(job.client_confirmation_started_at)
+        self.assertIsNone(job.next_marketplace_alert_at)
+
     def test_tick_marketplace_processes_client_confirmation_timeouts(self):
         self._mk_job(started_delta_minutes=61)
         out = io.StringIO()
@@ -90,4 +105,13 @@ class MarketplaceClientConfirmationTests(TestCase):
         call_command("tick_marketplace", stdout=out)
         output = out.getvalue()
         self.assertIn("DUE CLIENT CONFIRMATION TIMEOUTS: 1", output)
-        self.assertIn("client_confirmation_timeout_reactivated_marketplace", output)
+        self.assertIn("timeout_reopened_marketplace", output)
+
+    def test_confirm_idempotent_when_already_assigned(self):
+        job = self._mk_job(started_delta_minutes=10)
+
+        first = confirm_marketplace_provider(job_id=job.job_id)
+        self.assertEqual(first, "confirmed")
+
+        second = confirm_marketplace_provider(job_id=job.job_id)
+        self.assertEqual(second, "already_assigned")

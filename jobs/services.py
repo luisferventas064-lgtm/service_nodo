@@ -574,6 +574,15 @@ def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
         if job.job_mode != Job.JobMode.SCHEDULED:
             raise MarketplaceAcceptConflict("INVALID_JOB_MODE_FOR_MARKETPLACE_ACCEPT")
 
+        if job.job_status == Job.JobStatus.ASSIGNED:
+            raise MarketplaceAcceptConflict("job_already_assigned")
+
+        if (
+            job.job_status == Job.JobStatus.PENDING_CLIENT_CONFIRMATION
+            and job.selected_provider_id == provider_id
+        ):
+            return "already_accepted_waiting_client"
+
         if job.job_status != Job.JobStatus.WAITING_PROVIDER_RESPONSE:
             raise MarketplaceAcceptConflict("INVALID_STATUS_FOR_MARKETPLACE_ACCEPT")
 
@@ -604,7 +613,7 @@ def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
             next_marketplace_alert_at=None,
         )
 
-    return "accepted_marketplace_offer"
+    return "accepted_waiting_client"
 
 
 def process_marketplace_client_confirmation_timeout(job_or_id, *, now=None) -> tuple[str, int]:
@@ -626,13 +635,27 @@ def process_marketplace_client_confirmation_timeout(job_or_id, *, now=None) -> t
         if now < deadline:
             return ("not_due_client_confirmation_timeout", 0)
 
+        search_deadline = None
+        if job.marketplace_search_started_at:
+            search_deadline = job.marketplace_search_started_at + timedelta(
+                hours=MARKETPLACE_SEARCH_TIMEOUT_HOURS
+            )
+        if search_deadline is not None and now >= search_deadline:
+            Job.objects.filter(pk=job.job_id).update(
+                job_status=Job.JobStatus.PENDING_CLIENT_DECISION,
+                selected_provider_id=None,
+                client_confirmation_started_at=None,
+                next_marketplace_alert_at=None,
+            )
+            return ("timeout_to_pending_client_decision", 1)
+
         Job.objects.filter(pk=job.job_id).update(
             job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
             selected_provider_id=None,
             client_confirmation_started_at=None,
             next_marketplace_alert_at=now,
         )
-    return ("client_confirmation_timeout_reactivated_marketplace", 1)
+    return ("timeout_reopened_marketplace", 1)
 
 
 def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
@@ -640,6 +663,9 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
 
     with transaction.atomic():
         job = Job.objects.select_for_update().get(pk=job_id)
+
+        if job.job_status == Job.JobStatus.ASSIGNED:
+            return "already_assigned"
 
         if job.job_status != Job.JobStatus.PENDING_CLIENT_CONFIRMATION:
             raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_CLIENT_CONFIRM")
@@ -663,4 +689,4 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
             client_confirmation_started_at=None,
         )
 
-    return "client_confirmed_marketplace_provider"
+    return "confirmed"
