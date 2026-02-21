@@ -1,4 +1,3 @@
-```python
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,7 +6,7 @@ from typing import Optional
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from assignments.models import JobAssignment
+from assignments.models import AssignmentFee, JobAssignment
 from jobs.models import Job, JobStatus
 
 ACTIVE_VALUE = True
@@ -222,4 +221,13 @@ def complete_job(*, job_id: int, worker_id: int) -> None:
             job_status_snapshot=JobStatus.COMPLETED,
             payload={"assignment_id": assignment.assignment_id},
         )
-```
+
+
+def compute_assignment_fee_off():
+    return {
+        "payer": AssignmentFee.PAYER_NONE,
+        "model": AssignmentFee.MODEL_OFF,
+        "status": AssignmentFee.STATUS_OFF,
+        "amount_cents": 0,
+        "currency": "CAD",
+    }

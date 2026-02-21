@@ -82,3 +82,56 @@ class JobAssignment(models.Model):
                 ).exclude(
                     assignment_id=self.assignment_id
                 ).update(is_active=False)
+
+
+class AssignmentFee(models.Model):
+    PAYER_NONE = "none"
+    PAYER_PROVIDER = "provider"
+    PAYER_CLIENT = "client"
+    PAYER_SPONSOR = "sponsor"
+    PAYER_CHOICES = [
+        (PAYER_NONE, "None"),
+        (PAYER_PROVIDER, "Provider"),
+        (PAYER_CLIENT, "Client"),
+        (PAYER_SPONSOR, "Sponsor"),
+    ]
+
+    MODEL_OFF = "off"
+    MODEL_COMMISSION = "commission"
+    MODEL_SUBSCRIPTION = "subscription"
+    MODEL_ADS = "ads"
+    MODEL_CHOICES = [
+        (MODEL_OFF, "Off"),
+        (MODEL_COMMISSION, "Commission"),
+        (MODEL_SUBSCRIPTION, "Subscription"),
+        (MODEL_ADS, "Ads"),
+    ]
+
+    STATUS_OFF = "off"
+    STATUS_PENDING = "pending"
+    STATUS_CHARGED = "charged"
+    STATUS_WAIVED = "waived"
+    STATUS_CHOICES = [
+        (STATUS_OFF, "Off"),
+        (STATUS_PENDING, "Pending"),
+        (STATUS_CHARGED, "Charged"),
+        (STATUS_WAIVED, "Waived"),
+    ]
+
+    assignment = models.OneToOneField(
+        "assignments.JobAssignment",
+        on_delete=models.CASCADE,
+        related_name="fee",
+    )
+
+    payer = models.CharField(max_length=16, choices=PAYER_CHOICES, default=PAYER_NONE)
+    model = models.CharField(max_length=16, choices=MODEL_CHOICES, default=MODEL_OFF)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_OFF)
+    amount_cents = models.IntegerField(default=0)
+    currency = models.CharField(max_length=3, default="CAD")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "assignment_fee"

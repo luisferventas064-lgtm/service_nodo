@@ -107,6 +107,23 @@ def _activate_marketplace_assignment_for_job(*, job_id: int, provider_id: int) -
     return assignment.assignment_id
 
 
+def _ensure_assignment_fee_off(*, assignment_id: int) -> None:
+    from assignments.models import AssignmentFee
+    from assignments.services import compute_assignment_fee_off
+
+    fee_data = compute_assignment_fee_off()
+    AssignmentFee.objects.get_or_create(
+        assignment_id=assignment_id,
+        defaults={
+            "payer": fee_data["payer"],
+            "model": fee_data["model"],
+            "status": fee_data["status"],
+            "amount_cents": fee_data["amount_cents"],
+            "currency": fee_data["currency"],
+        },
+    )
+
+
 def _get_scheduled_datetime(job: Job):
     if not job.scheduled_date:
         return None
@@ -749,10 +766,11 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
         if now >= deadline:
             raise MarketplaceDecisionConflict("CLIENT_CONFIRMATION_TIMEOUT")
 
-        _activate_marketplace_assignment_for_job(
+        assignment_id = _activate_marketplace_assignment_for_job(
             job_id=job.job_id,
             provider_id=job.selected_provider_id,
         )
+        _ensure_assignment_fee_off(assignment_id=assignment_id)
 
         Job.objects.filter(pk=job.job_id).update(
             job_status=Job.JobStatus.ASSIGNED,

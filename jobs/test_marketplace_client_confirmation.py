@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 
-from assignments.models import JobAssignment
+from assignments.models import AssignmentFee, JobAssignment
 from jobs.models import Job
 from jobs.services import (
     MarketplaceDecisionConflict,
@@ -67,6 +67,9 @@ class MarketplaceClientConfirmationTests(TestCase):
         active = JobAssignment.objects.filter(job=job, is_active=True).first()
         self.assertIsNotNone(active)
         self.assertEqual(active.provider_id, self.provider.provider_id)
+        fee = AssignmentFee.objects.get(assignment=active)
+        self.assertEqual(fee.amount_cents, 0)
+        self.assertEqual(fee.status, AssignmentFee.STATUS_OFF)
 
     def test_confirm_marketplace_provider_rejects_timeout(self):
         job = self._mk_job(started_delta_minutes=61)
