@@ -12,20 +12,25 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='ProviderServiceType',
-            fields=[
-                ('provider_service_type_id', models.AutoField(primary_key=True, serialize=False)),
-                ('price_type', models.CharField(max_length=20)),
-                ('base_price', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('provider', models.ForeignKey(db_column='provider_id', on_delete=django.db.models.deletion.CASCADE, related_name='provider_service_types', to='providers.provider')),
-                ('service_type', models.ForeignKey(db_column='service_type_id', on_delete=django.db.models.deletion.CASCADE, related_name='provider_service_types', to='service_type.servicetype')),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.CreateModel(
+                    name='ProviderServiceType',
+                    fields=[
+                        ('provider_service_type_id', models.AutoField(primary_key=True, serialize=False)),
+                        ('price_type', models.CharField(max_length=20)),
+                        ('base_price', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
+                        ('is_active', models.BooleanField(default=True)),
+                        ('created_at', models.DateTimeField(auto_now_add=True)),
+                        ('updated_at', models.DateTimeField(auto_now=True)),
+                        ('provider', models.ForeignKey(db_column='provider_id', on_delete=django.db.models.deletion.CASCADE, related_name='provider_service_types', to='providers.provider')),
+                        ('service_type', models.ForeignKey(db_column='service_type_id', on_delete=django.db.models.deletion.CASCADE, related_name='provider_service_types', to='service_type.servicetype')),
+                    ],
+                    options={
+                        'db_table': 'provider_service_type',
+                    },
+                ),
             ],
-            options={
-                'db_table': 'provider_service_type',
-            },
         ),
     ]

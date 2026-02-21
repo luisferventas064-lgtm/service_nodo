@@ -41,9 +41,9 @@ INSTALLED_APPS = [
     'clients',
     'providers',
     'service_type',
-    'jobs',
     'workers',
     'assignments.apps.AssignmentsConfig',
+    "jobs.apps.JobsConfig",
 
 ]
 

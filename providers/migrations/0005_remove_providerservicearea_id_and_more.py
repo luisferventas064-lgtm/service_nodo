@@ -26,11 +26,11 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(db_column='provider_id', on_delete=django.db.models.deletion.CASCADE, to='providers.provider'),
         ),
         migrations.AlterModelTable(
-            name='providerservicearea',
-            table='provider_service_area',
-        ),
-        migrations.AlterModelTable(
             name='providerservicetype',
             table='provider_service_type',
+        ),
+        migrations.AlterModelTable(
+            name='providerservicearea',
+            table='provider_service_area',
         ),
     ]

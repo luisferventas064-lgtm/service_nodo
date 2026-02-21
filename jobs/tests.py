@@ -16,7 +16,7 @@ class JobServicesTests(TestCase):
         )
 
     def _make_job(self, *, mode=Job.JobMode.SCHEDULED, status=Job.JobStatus.DRAFT):
-        return Job.objects.create(
+        create_kwargs = dict(
             job_mode=mode,
             job_status=status,
             service_type=self.service_type,
@@ -25,6 +25,10 @@ class JobServicesTests(TestCase):
             postal_code="H7N1A1",
             address_line1="123 Main St",
         )
+        if mode == Job.JobMode.SCHEDULED:
+            create_kwargs["scheduled_date"] = (timezone.now() + timedelta(days=3)).date()
+
+        return Job.objects.create(**create_kwargs)
 
     def test_should_broadcast_true_for_on_demand_posted(self):
         job = self._make_job(mode=Job.JobMode.ON_DEMAND, status=Job.JobStatus.POSTED)

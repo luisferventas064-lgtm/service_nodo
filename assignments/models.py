@@ -1,6 +1,5 @@
 from django.db import models, transaction
 from django.db.models import Q
-
 from jobs.models import Job
 from providers.models import Provider
 from workers.models import Worker

@@ -1,14 +1,17 @@
 from django.core.management.base import BaseCommand
-from django.db import transaction
 from django.utils import timezone
 
-from jobs.models import Job
-from jobs.services import process_on_demand_job
+from jobs.models import BroadcastAttemptStatus, Job
+from jobs.services import (
+    get_broadcast_candidates_for_job,
+    process_on_demand_job,
+    record_broadcast_attempt,
+)
 from jobs.services_urgent_hold_expire import release_expired_holds
 
 
 class Command(BaseCommand):
-    help = "Processes due ON_DEMAND POSTED jobs (calls process_on_demand_job)."
+    help = "Tick on-demand jobs and broadcast alerts (simulated)."
 
     def handle(self, *args, **options):
         released = release_expired_holds()
@@ -25,12 +28,24 @@ class Command(BaseCommand):
         self.stdout.write(f"DUE JOBS: {qs.count()}")
 
         for j in qs:
+            self.stdout.write(f"PROCESSING job_id={j.job_id}")
+            result = process_on_demand_job(j.job_id)
+            self.stdout.write(f"JOB {j.job_id} RESULT: {result}")
+
+            provider_ids = get_broadcast_candidates_for_job(j, limit=10)
+            sent = skipped = 0
+            for pid in provider_ids:
+                created = record_broadcast_attempt(
+                    job_id=j.job_id,
+                    provider_id=pid,
+                    status=BroadcastAttemptStatus.SENT,
+                    detail="simulated",
+                )
+                if created:
+                    sent += 1
+                else:
+                    skipped += 1
+
             self.stdout.write(
-                f"PROCESSING job_id={j.job_id} next_alert_at={j.next_alert_at} attempts={j.alert_attempts}"
+                f"JOB {j.job_id} BROADCAST: sent={sent} skipped={skipped} candidates={len(provider_ids)}"
             )
-
-            # Keep each job isolated in its own transaction.
-            with transaction.atomic():
-                ok = process_on_demand_job(j)
-
-            self.stdout.write(f"RESULT job_id={j.job_id}: {ok}")
