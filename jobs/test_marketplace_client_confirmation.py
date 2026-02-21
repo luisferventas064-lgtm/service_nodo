@@ -5,6 +5,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 
+from assignments.models import JobAssignment
 from jobs.models import Job
 from jobs.services import (
     MarketplaceDecisionConflict,
@@ -62,7 +63,10 @@ class MarketplaceClientConfirmationTests(TestCase):
         self.assertIsNone(job.next_marketplace_alert_at)
         self.assertIsNone(job.marketplace_search_started_at)
         self.assertIsNone(job.client_confirmation_started_at)
-        self.assertEqual(job.selected_provider_id, self.provider.provider_id)
+        self.assertIsNone(job.selected_provider_id)
+        active = JobAssignment.objects.filter(job=job, is_active=True).first()
+        self.assertIsNotNone(active)
+        self.assertEqual(active.provider_id, self.provider.provider_id)
 
     def test_confirm_marketplace_provider_rejects_timeout(self):
         job = self._mk_job(started_delta_minutes=61)
@@ -112,6 +116,33 @@ class MarketplaceClientConfirmationTests(TestCase):
 
         first = confirm_marketplace_provider(job_id=job.job_id)
         self.assertEqual(first, "confirmed")
+        active_count_after_first = JobAssignment.objects.filter(job=job, is_active=True).count()
+        self.assertEqual(active_count_after_first, 1)
 
         second = confirm_marketplace_provider(job_id=job.job_id)
         self.assertEqual(second, "already_assigned")
+        active_count_after_second = JobAssignment.objects.filter(job=job, is_active=True).count()
+        self.assertEqual(active_count_after_second, 1)
+
+    def test_confirm_conflict_if_assignment_already_active_other_provider(self):
+        job = self._mk_job(started_delta_minutes=10)
+        other_provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Other",
+            phone_number="555-999-0002",
+            email="provider.other.market@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7N1A1",
+            address_line1="12 Provider St",
+        )
+        JobAssignment.objects.create(
+            job=job,
+            provider=other_provider,
+            is_active=True,
+            assignment_status="assigned",
+        )
+
+        with self.assertRaises(MarketplaceDecisionConflict):
+            confirm_marketplace_provider(job_id=job.job_id)

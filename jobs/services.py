@@ -48,6 +48,51 @@ class MarketplaceAcceptConflict(Exception):
     pass
 
 
+def _activate_marketplace_assignment_for_job(*, job_id: int, provider_id: int) -> int:
+    from assignments.models import JobAssignment
+
+    JobAssignment.objects.select_for_update().filter(job_id=job_id).exists()
+
+    existing_same = JobAssignment.objects.filter(
+        job_id=job_id,
+        provider_id=provider_id,
+        is_active=True,
+    ).first()
+    if existing_same:
+        return existing_same.assignment_id
+
+    active_other = (
+        JobAssignment.objects.filter(job_id=job_id, is_active=True)
+        .exclude(provider_id=provider_id)
+        .first()
+    )
+    if active_other:
+        raise MarketplaceDecisionConflict("ACTIVE_ASSIGNMENT_OTHER_PROVIDER")
+
+    assignment = JobAssignment.objects.filter(
+        job_id=job_id,
+        provider_id=provider_id,
+    ).first()
+    if assignment:
+        if not assignment.is_active or assignment.assignment_status != "assigned":
+            assignment.is_active = True
+            assignment.assignment_status = "assigned"
+            assignment.save(update_fields=["is_active", "assignment_status", "updated_at"])
+        return assignment.assignment_id
+
+    try:
+        assignment = JobAssignment.objects.create(
+            job_id=job_id,
+            provider_id=provider_id,
+            is_active=True,
+            assignment_status="assigned",
+        )
+    except IntegrityError as exc:
+        raise MarketplaceDecisionConflict("ASSIGNMENT_ACTIVATION_CONFLICT") from exc
+
+    return assignment.assignment_id
+
+
 def _get_scheduled_datetime(job: Job):
     if not job.scheduled_date:
         return None
@@ -665,6 +710,14 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
         job = Job.objects.select_for_update().get(pk=job_id)
 
         if job.job_status == Job.JobStatus.ASSIGNED:
+            from assignments.models import JobAssignment
+
+            has_active_assignment = JobAssignment.objects.filter(
+                job_id=job.job_id,
+                is_active=True,
+            ).exists()
+            if not has_active_assignment:
+                raise MarketplaceDecisionConflict("ASSIGNED_WITHOUT_ACTIVE_ASSIGNMENT")
             return "already_assigned"
 
         if job.job_status != Job.JobStatus.PENDING_CLIENT_CONFIRMATION:
@@ -682,11 +735,17 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
         if now >= deadline:
             raise MarketplaceDecisionConflict("CLIENT_CONFIRMATION_TIMEOUT")
 
+        _activate_marketplace_assignment_for_job(
+            job_id=job.job_id,
+            provider_id=job.selected_provider_id,
+        )
+
         Job.objects.filter(pk=job.job_id).update(
             job_status=Job.JobStatus.ASSIGNED,
             next_marketplace_alert_at=None,
             marketplace_search_started_at=None,
             client_confirmation_started_at=None,
+            selected_provider_id=None,
         )
 
     return "confirmed"
