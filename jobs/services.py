@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from typing import Callable, Optional
 
 from django.db import IntegrityError, models, transaction
 from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Value, When
 from django.utils import timezone
 
-from jobs.models import Job, JobBroadcastAttempt, JobStatus
+from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt, JobStatus
 
 JOB_STATUS_FIELD = "job_status"
 STATUS_POSTED = "posted"
 RETRY_AFTER = timedelta(minutes=5)
 MAX_ACTIVE_JOBS = 3
+MARKETPLACE_RETRY_HOURS = 3
+MARKETPLACE_MIN_LEAD_HOURS = 24
+MARKETPLACE_EXPIRE_BUFFER_HOURS = 6
+MARKETPLACE_BATCH_SIZE = 10
+MARKETPLACE_MAX_ATTEMPTS = 6
 
 ScheduleFn = Callable[[int, timezone.datetime], None]
 
@@ -26,6 +31,14 @@ def default_schedule_fn(job_id: int, run_at):
 class ProcessResult:
     scheduled: bool
     reason: str
+
+
+def _get_scheduled_datetime(job: Job):
+    if not job.scheduled_date:
+        return None
+    scheduled_time = job.scheduled_start_time or time.min
+    naive = datetime.combine(job.scheduled_date, scheduled_time)
+    return timezone.make_aware(naive, timezone.get_current_timezone())
 
 
 def _audit_tick(job_id: int, reason: str) -> None:
@@ -312,3 +325,85 @@ def process_on_demand_job(job_or_id, *, schedule_fn: Optional[ScheduleFn] = None
     ).update(on_demand_tick_dispatched_at=timezone.now())
 
     return _result(scheduled=True, reason="dispatched_once")
+
+
+def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
+    now = timezone.now()
+    job_id = job_or_id.pk if isinstance(job_or_id, Job) else int(job_or_id)
+
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+
+        if getattr(job, "job_mode", None) != Job.JobMode.SCHEDULED:
+            return ("skip_not_scheduled", 0, 0)
+
+        if getattr(job, "job_status", None) != Job.JobStatus.POSTED:
+            return ("skip_not_posted", 0, 0)
+
+        scheduled_at = _get_scheduled_datetime(job)
+        if scheduled_at is None:
+            return ("skip_missing_scheduled_date", 0, 0)
+
+        if scheduled_at < (now + timedelta(hours=MARKETPLACE_MIN_LEAD_HOURS)):
+            return ("skip_less_than_24h", 0, 0)
+
+        if not job.marketplace_expires_at:
+            job.marketplace_expires_at = scheduled_at - timedelta(hours=MARKETPLACE_EXPIRE_BUFFER_HOURS)
+            job.save(update_fields=["marketplace_expires_at"])
+
+        if now >= job.marketplace_expires_at:
+            job.job_status = Job.JobStatus.EXPIRED
+            job.next_marketplace_alert_at = None
+            job.save(update_fields=["job_status", "next_marketplace_alert_at"])
+            return ("expired_no_provider", 0, 0)
+
+        due = (job.next_marketplace_alert_at is None) or (job.next_marketplace_alert_at <= now)
+        if not due:
+            return ("not_due", 0, 0)
+
+        if job.marketplace_attempts >= MARKETPLACE_MAX_ATTEMPTS:
+            job.job_status = Job.JobStatus.EXPIRED
+            job.next_marketplace_alert_at = None
+            job.save(update_fields=["job_status", "next_marketplace_alert_at"])
+            return ("expired_max_attempts", 0, 0)
+
+        attempt_number = int(job.marketplace_attempts or 0) + 1
+        job.next_marketplace_alert_at = now + timedelta(hours=MARKETPLACE_RETRY_HOURS)
+
+        desired_pool = max(attempt_number * MARKETPLACE_BATCH_SIZE * 3, MARKETPLACE_BATCH_SIZE)
+        provider_ids_ranked = get_broadcast_candidates_for_job(job, limit=desired_pool)
+
+        already_attempted = set(
+            JobBroadcastAttempt.objects.filter(job_id=job.job_id).values_list("provider_id", flat=True)
+        )
+        wave = [pid for pid in provider_ids_ranked if pid not in already_attempted][:MARKETPLACE_BATCH_SIZE]
+
+        if not wave:
+            Job.objects.filter(pk=job.job_id).update(
+                marketplace_attempts=F("marketplace_attempts") + 1,
+                next_marketplace_alert_at=job.next_marketplace_alert_at,
+                marketplace_expires_at=job.marketplace_expires_at,
+            )
+            return ("due_no_new_candidates", 0, 0)
+
+        created_count = 0
+        skipped_count = 0
+        for provider_id in wave:
+            created = record_broadcast_attempt(
+                job_id=job.job_id,
+                provider_id=provider_id,
+                status=BroadcastAttemptStatus.SENT,
+                detail=f"marketplace_attempt={attempt_number}",
+            )
+            if created:
+                created_count += 1
+            else:
+                skipped_count += 1
+
+        Job.objects.filter(pk=job.job_id).update(
+            marketplace_attempts=F("marketplace_attempts") + 1,
+            next_marketplace_alert_at=job.next_marketplace_alert_at,
+            marketplace_expires_at=job.marketplace_expires_at,
+        )
+
+    return ("dispatched_wave", created_count, skipped_count)
