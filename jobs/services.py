@@ -22,7 +22,8 @@ from django.db.models.functions import Cast
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 
-from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt, JobStatus
+from jobs.metrics import log_job_event
+from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt, JobEvent, JobStatus
 
 JOB_STATUS_FIELD = "job_status"
 STATUS_POSTED = "posted"
@@ -455,6 +456,12 @@ def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
                     job_status=Job.JobStatus.PENDING_CLIENT_DECISION,
                     next_marketplace_alert_at=None,
                 )
+                log_job_event(
+                    job_id=job.job_id,
+                    event_type=JobEvent.EventType.TIMEOUT,
+                    provider_id=getattr(job, "selected_provider_id", None),
+                    note="timeout: pending_client_decision_24h",
+                )
                 return ("pending_client_decision_timeout_24h", 0, 0)
 
         if now >= job.marketplace_expires_at:
@@ -518,6 +525,12 @@ def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
         Job.objects.filter(pk=job.job_id).update(
             **update_kwargs,
         )
+        if created_count > 0 and not job.marketplace_search_started_at:
+            log_job_event(
+                job_id=job.job_id,
+                event_type=JobEvent.EventType.POSTED,
+                note="job posted",
+            )
 
     return ("dispatched_wave", created_count, skipped_count)
 
@@ -619,6 +632,11 @@ def apply_client_marketplace_decision(
                 marketplace_expires_at=None,
                 marketplace_attempts=0,
             )
+            log_job_event(
+                job_id=job.job_id,
+                event_type=JobEvent.EventType.POSTED,
+                note="job posted",
+            )
             return "switched_to_urgent"
 
         if action == MARKETPLACE_ACTION_CANCEL_JOB:
@@ -629,12 +647,19 @@ def apply_client_marketplace_decision(
             if job.job_status not in allowed_statuses:
                 raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_CANCEL")
 
+            selected_provider_id = getattr(job, "selected_provider_id", None)
             Job.objects.filter(pk=job.job_id).update(
                 job_status=Job.JobStatus.CANCELLED,
                 next_marketplace_alert_at=None,
                 marketplace_search_started_at=None,
                 client_confirmation_started_at=None,
                 selected_provider_id=None,
+            )
+            log_job_event(
+                job_id=job.job_id,
+                event_type=JobEvent.EventType.CANCELLED,
+                provider_id=selected_provider_id,
+                note="cancelled",
             )
             return "cancelled"
 
@@ -688,6 +713,12 @@ def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
             client_confirmation_started_at=now,
             next_marketplace_alert_at=None,
         )
+        log_job_event(
+            job_id=job.job_id,
+            event_type=JobEvent.EventType.PROVIDER_ACCEPTED,
+            provider_id=provider_id,
+            note="provider accepted offer",
+        )
 
     return "accepted_waiting_client"
 
@@ -717,19 +748,33 @@ def process_marketplace_client_confirmation_timeout(job_or_id, *, now=None) -> t
                 hours=MARKETPLACE_SEARCH_TIMEOUT_HOURS
             )
         if search_deadline is not None and now >= search_deadline:
+            selected_provider_id = getattr(job, "selected_provider_id", None)
             Job.objects.filter(pk=job.job_id).update(
                 job_status=Job.JobStatus.PENDING_CLIENT_DECISION,
                 selected_provider_id=None,
                 client_confirmation_started_at=None,
                 next_marketplace_alert_at=None,
             )
+            log_job_event(
+                job_id=job.job_id,
+                event_type=JobEvent.EventType.TIMEOUT,
+                provider_id=selected_provider_id,
+                note="timeout: pending_client_decision_24h",
+            )
             return ("timeout_to_pending_client_decision", 1)
 
+        selected_provider_id = getattr(job, "selected_provider_id", None)
         Job.objects.filter(pk=job.job_id).update(
             job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
             selected_provider_id=None,
             client_confirmation_started_at=None,
             next_marketplace_alert_at=now,
+        )
+        log_job_event(
+            job_id=job.job_id,
+            event_type=JobEvent.EventType.TIMEOUT,
+            provider_id=selected_provider_id,
+            note="timeout: client_confirm_60m_revert_to_waiting",
         )
     return ("timeout_reopened_marketplace", 1)
 
@@ -766,9 +811,10 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
         if now >= deadline:
             raise MarketplaceDecisionConflict("CLIENT_CONFIRMATION_TIMEOUT")
 
+        selected_provider_id = job.selected_provider_id
         assignment_id = _activate_marketplace_assignment_for_job(
             job_id=job.job_id,
-            provider_id=job.selected_provider_id,
+            provider_id=selected_provider_id,
         )
         _ensure_assignment_fee_off(assignment_id=assignment_id)
 
@@ -778,6 +824,20 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
             marketplace_search_started_at=None,
             client_confirmation_started_at=None,
             selected_provider_id=None,
+        )
+        log_job_event(
+            job_id=job.job_id,
+            event_type=JobEvent.EventType.CLIENT_CONFIRMED,
+            provider_id=selected_provider_id,
+            assignment_id=assignment_id,
+            note="client confirmed provider",
+        )
+        log_job_event(
+            job_id=job.job_id,
+            event_type=JobEvent.EventType.ASSIGNED,
+            provider_id=selected_provider_id,
+            assignment_id=assignment_id,
+            note="assignment activated",
         )
 
     return "confirmed"

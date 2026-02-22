@@ -253,70 +253,40 @@ class JobMedia(models.Model):
 
 class JobEvent(models.Model):
     class EventType(models.TextChoices):
-        STAFF_ACCEPTED = "staff_accepted", "Staff accepted"
-        CLIENT_CONFIRMED = "client_confirmed", "Client confirmed"
-        STAFF_CANCELLED = "staff_cancelled", "Staff cancelled"
-        CLIENT_CANCELLED = "client_cancelled", "Client cancelled"
-        SERVICE_STARTED = "service_started", "Service started"
-        SERVICE_COMPLETED = "service_completed", "Service completed"
-        HOLD_EXPIRED = "hold_expired", "Hold expired"
+        POSTED = "posted", "posted"
+        SEARCH_STARTED = "search_started", "search_started"
+        OFFER_MADE = "offer_made", "offer_made"
+        PROVIDER_ACCEPTED = "provider_accepted", "provider_accepted"
+        CLIENT_CONFIRM_REQUESTED = "client_confirm_requested", "client_confirm_requested"
+        CLIENT_CONFIRMED = "client_confirmed", "client_confirmed"
+        ASSIGNED = "assigned", "assigned"
+        TIMEOUT = "timeout", "timeout"
+        CANCELLED = "cancelled", "cancelled"
 
-    class ActorType(models.TextChoices):
-        STAFF = "staff", "Staff"
-        CLIENT = "client", "Client"
-        SYSTEM = "system", "System"
-        PROVIDER_ADMIN = "provider_admin", "Provider admin"
-
-    event_id = models.AutoField(primary_key=True)
     job = models.ForeignKey(
         "jobs.Job",
         on_delete=models.CASCADE,
-        db_column="job_id",
         related_name="events",
-    )
-    event_type = models.CharField(max_length=30, choices=EventType.choices)
-    actor_type = models.CharField(max_length=20, choices=ActorType.choices)
-
-    worker = models.ForeignKey(
-        "workers.Worker",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        db_column="worker_id",
-        related_name="job_events",
-    )
-    client = models.ForeignKey(
-        "clients.Client",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        db_column="client_id",
-        related_name="job_events",
-    )
-    provider = models.ForeignKey(
-        "providers.Provider",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        db_column="provider_id",
-        related_name="job_events",
+        db_index=True,
     )
 
-    job_status_snapshot = models.CharField(max_length=40, blank=True, default="")
-    eta_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
-    payload = models.JSONField(default=dict, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    event_type = models.CharField(max_length=40, choices=EventType.choices, db_index=True)
+
+    provider_id = models.IntegerField(null=True, blank=True, db_index=True)
+    assignment_id = models.IntegerField(null=True, blank=True, db_index=True)
+
+    note = models.CharField(max_length=255, blank=True, default="")
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
-        db_table = "jobs_job_event"
+        db_table = "job_event"
         indexes = [
-            models.Index(fields=["job", "created_at"]),
-            models.Index(fields=["event_type", "created_at"]),
+            models.Index(fields=["job", "event_type", "created_at"]),
         ]
-        ordering = ["created_at"]
 
     def __str__(self):
-        return f"JobEvent {self.event_id} job={self.job_id} {self.event_type}"
+        return f"{self.job_id} {self.event_type} {self.created_at}"
 
 
 class BroadcastAttemptStatus(models.TextChoices):
@@ -401,3 +371,25 @@ class JobFinancial(models.Model):
 
     def recalc_final_amount(self) -> Decimal:
         return (self.base_amount or Decimal("0.00")) + (self.adjustment_amount or Decimal("0.00"))
+
+
+class KpiSnapshot(models.Model):
+    """
+    Snapshot historico del dashboard/KPIs para monitoreo y futura UI.
+    Guardamos JSON como texto para maxima compatibilidad con SQL Server.
+    """
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    window_hours = models.IntegerField(default=168, db_index=True)
+
+    # JSON serializado (string) para evitar friccion con tipos JSON en SQL Server
+    payload_json = models.TextField()
+
+    class Meta:
+        db_table = "kpi_snapshot"
+        indexes = [
+            models.Index(fields=["created_at", "window_hours"]),
+        ]
+
+    def __str__(self):
+        return f"kpi_snapshot {self.created_at} window={self.window_hours}h"
