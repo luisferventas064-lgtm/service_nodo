@@ -4,3 +4,16 @@ __pycache__/
 *.pyo
 .env
 db.sqlite3
+
+# NODO KPI runtime artifacts
+alerts/
+evidence/
+logs/
+state/
+reports/kpi_status_latest.json
+reports/kpi_status_latest.md
+reports/kpi_status_*.json
+reports/kpi_status_*.md
+
+# Optional: keep evidence zips out of git
+*.zip
