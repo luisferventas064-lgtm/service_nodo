@@ -43,8 +43,8 @@ Source: NODO-KPI
   9010 WATCHER_OK
   9011 WATCHER_ERROR
 - Test:
-  9018 TEST WATCHER_OK
-  9019 TEST WATCHER_ERROR
+  12410 TEST WATCHER_OK
+  12411 TEST WATCHER_ERROR
 
 PowerShell:
 Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='NODO-KPI'} -MaxEvents 25 |

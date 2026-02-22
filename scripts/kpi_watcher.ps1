@@ -61,8 +61,8 @@ $FingerprintFile = Join-Path $AlertsDirMode "watcher_last_fingerprint.txt"
 
 $EV_OK_REAL   = 9010
 $EV_ERR_REAL  = 9011
-$EV_OK_TEST   = 9018
-$EV_ERR_TEST  = 9019
+$EV_OK_TEST   = 12410
+$EV_ERR_TEST  = 12411
 
 function Log([string]$msg) {
   $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
