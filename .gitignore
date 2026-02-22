@@ -10,6 +10,8 @@ alerts/
 evidence/
 logs/
 state/
+locks/
+secrets/
 reports/kpi_status_latest.json
 reports/kpi_status_latest.md
 reports/kpi_status_*.json
