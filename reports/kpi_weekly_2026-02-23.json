@@ -1,0 +1,20 @@
+﻿{
+    "report_date":  "2026-02-23",
+    "period_start":  "2026-02-22T15:34:58.886725+00:00",
+    "period_end":  "2026-02-22T20:50:36.869645+00:00",
+    "snapshots":  29,
+    "averages":  {
+                     "avg_total_jobs":  3,
+                     "avg_stuck":  null,
+                     "avg_timeout_rate":  null,
+                     "avg_cancel_rate":  null
+                 },
+    "peaks":  {
+                  "max_stuck":  -1,
+                  "max_stuck_at":  "",
+                  "max_timeout_rate":  -1,
+                  "max_timeout_rate_at":  "",
+                  "max_cancel_rate":  -1,
+                  "max_cancel_rate_at":  ""
+              }
+}

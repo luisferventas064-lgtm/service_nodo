@@ -22,8 +22,14 @@ from django.db.models.functions import Cast
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 
+from clients.lines import ensure_client_base_line
+from clients.lines_fee import ensure_client_fee_line
+from clients.ticketing import ensure_client_ticket, finalize_client_ticket
 from jobs.metrics import log_job_event
 from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt, JobEvent, JobStatus
+from providers.lines import ensure_provider_base_line
+from providers.lines_fee import ensure_provider_fee_line
+from providers.ticketing import ensure_provider_ticket, finalize_provider_ticket
 
 JOB_STATUS_FIELD = "job_status"
 STATUS_POSTED = "posted"
@@ -61,6 +67,39 @@ class MarketplaceDecisionConflict(Exception):
 
 class MarketplaceAcceptConflict(Exception):
     pass
+
+
+def _normalize_country_code(country: str | None) -> str:
+    if not country:
+        return ""
+    value = str(country).strip().upper()
+    if value in {"CANADA", "CA"}:
+        return "CA"
+    if value in {"UNITED STATES", "USA", "US"}:
+        return "US"
+    if len(value) == 2:
+        return value
+    return value[:2]
+
+
+def _build_tax_region_code(job: Job) -> str:
+    country_code = _normalize_country_code(getattr(job, "country", ""))
+    province_code = str(getattr(job, "province", "") or "").strip().upper()
+    if country_code and province_code:
+        return f"{country_code}-{province_code}"
+    return country_code or province_code
+
+
+def _resolve_active_provider_id_for_job(job: Job) -> int | None:
+    from assignments.models import JobAssignment
+
+    active_assignment = JobAssignment.objects.filter(
+        job_id=job.job_id,
+        is_active=True,
+    ).first()
+    if active_assignment:
+        return active_assignment.provider_id
+    return job.selected_provider_id
 
 
 def _activate_marketplace_assignment_for_job(*, job_id: int, provider_id: int) -> int:
@@ -786,14 +825,55 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
         job = Job.objects.select_for_update().get(pk=job_id)
 
         if job.job_status == Job.JobStatus.ASSIGNED:
-            from assignments.models import JobAssignment
-
-            has_active_assignment = JobAssignment.objects.filter(
-                job_id=job.job_id,
-                is_active=True,
-            ).exists()
-            if not has_active_assignment:
+            active_provider_id = _resolve_active_provider_id_for_job(job)
+            if not active_provider_id:
                 raise MarketplaceDecisionConflict("ASSIGNED_WITHOUT_ACTIVE_ASSIGNMENT")
+            tax_region_code = _build_tax_region_code(job)
+
+            pt = ensure_provider_ticket(
+                provider_id=active_provider_id,
+                ref_type="job",
+                ref_id=job.job_id,
+                stage="estimate",
+                status="open",
+                subtotal_cents=0,
+                tax_cents=0,
+                total_cents=0,
+                currency="CAD",
+                tax_region_code=tax_region_code,
+            )
+            ensure_provider_base_line(
+                pt.pk,
+                description="Service (estimate)",
+                unit_price_cents=pt.subtotal_cents or 0,
+                tax_cents=pt.tax_cents or 0,
+                tax_region_code=pt.tax_region_code or "",
+                tax_code="",
+            )
+            if job.client_id:
+                ct = ensure_client_ticket(
+                    client_id=job.client_id,
+                    ref_type="job",
+                    ref_id=job.job_id,
+                    stage="estimate",
+                    status="open",
+                    subtotal_cents=0,
+                    tax_cents=0,
+                    total_cents=0,
+                    currency="CAD",
+                    tax_region_code=tax_region_code,
+                )
+                ensure_client_base_line(
+                    ct.pk,
+                    description="Service (estimate)",
+                    unit_price_cents=ct.subtotal_cents or 0,
+                    tax_cents=ct.tax_cents or 0,
+                    tax_region_code=ct.tax_region_code or "",
+                    tax_code="",
+                )
+                if job.job_mode == Job.JobMode.ON_DEMAND:
+                    ensure_provider_fee_line(pt.pk, amount_cents=0)
+                    ensure_client_fee_line(ct.pk, amount_cents=0)
             return "already_assigned"
 
         if job.job_status != Job.JobStatus.PENDING_CLIENT_CONFIRMATION:
@@ -817,6 +897,7 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
             provider_id=selected_provider_id,
         )
         _ensure_assignment_fee_off(assignment_id=assignment_id)
+        tax_region_code = _build_tax_region_code(job)
 
         Job.objects.filter(pk=job.job_id).update(
             job_status=Job.JobStatus.ASSIGNED,
@@ -825,6 +906,50 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
             client_confirmation_started_at=None,
             selected_provider_id=None,
         )
+        pt = ensure_provider_ticket(
+            provider_id=selected_provider_id,
+            ref_type="job",
+            ref_id=job.job_id,
+            stage="estimate",
+            status="open",
+            subtotal_cents=0,
+            tax_cents=0,
+            total_cents=0,
+            currency="CAD",
+            tax_region_code=tax_region_code,
+        )
+        ensure_provider_base_line(
+            pt.pk,
+            description="Service (estimate)",
+            unit_price_cents=pt.subtotal_cents or 0,
+            tax_cents=pt.tax_cents or 0,
+            tax_region_code=pt.tax_region_code or "",
+            tax_code="",
+        )
+        if job.client_id:
+            ct = ensure_client_ticket(
+                client_id=job.client_id,
+                ref_type="job",
+                ref_id=job.job_id,
+                stage="estimate",
+                status="open",
+                subtotal_cents=0,
+                tax_cents=0,
+                total_cents=0,
+                currency="CAD",
+                tax_region_code=tax_region_code,
+            )
+            ensure_client_base_line(
+                ct.pk,
+                description="Service (estimate)",
+                unit_price_cents=ct.subtotal_cents or 0,
+                tax_cents=ct.tax_cents or 0,
+                tax_region_code=ct.tax_region_code or "",
+                tax_code="",
+            )
+            if job.job_mode == Job.JobMode.ON_DEMAND:
+                ensure_provider_fee_line(pt.pk, amount_cents=0)
+                ensure_client_fee_line(ct.pk, amount_cents=0)
         log_job_event(
             job_id=job.job_id,
             event_type=JobEvent.EventType.CLIENT_CONFIRMED,
@@ -841,3 +966,91 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
         )
 
     return "confirmed"
+
+
+def start_service_by_provider(*, job_id: int, provider_id: int) -> str:
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+        resolved_provider_id = _resolve_active_provider_id_for_job(job)
+        if not resolved_provider_id:
+            raise PermissionError("provider_not_allowed")
+        if resolved_provider_id != provider_id:
+            raise PermissionError("provider_not_allowed")
+
+        if job.job_status == Job.JobStatus.IN_PROGRESS:
+            return "already_in_progress"
+        if job.job_status != Job.JobStatus.ASSIGNED:
+            raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_SERVICE_START")
+
+        job.job_status = Job.JobStatus.IN_PROGRESS
+        job.save(update_fields=["job_status", "updated_at"])
+
+    return "started"
+
+
+def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+
+        if job.client_id != client_id:
+            raise PermissionError("client_not_allowed")
+
+        provider_id = _resolve_active_provider_id_for_job(job)
+        if not provider_id:
+            raise MarketplaceDecisionConflict("MISSING_PROVIDER_FOR_JOB")
+
+        if job.job_status == Job.JobStatus.CONFIRMED:
+            tax_region_code = _build_tax_region_code(job)
+            finalize_provider_ticket(
+                provider_id=provider_id,
+                ref_type="job",
+                ref_id=job.job_id,
+                subtotal_cents=0,
+                tax_cents=0,
+                total_cents=0,
+                currency="CAD",
+                tax_region_code=tax_region_code,
+            )
+            if job.client_id:
+                finalize_client_ticket(
+                    client_id=job.client_id,
+                    ref_type="job",
+                    ref_id=job.job_id,
+                    subtotal_cents=0,
+                    tax_cents=0,
+                    total_cents=0,
+                    currency="CAD",
+                    tax_region_code=tax_region_code,
+                )
+            return "already_confirmed"
+
+        if job.job_status not in (Job.JobStatus.IN_PROGRESS, Job.JobStatus.COMPLETED):
+            raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_FINAL_CLOSE")
+
+        job.job_status = Job.JobStatus.CONFIRMED
+        job.save(update_fields=["job_status", "updated_at"])
+        tax_region_code = _build_tax_region_code(job)
+
+        finalize_provider_ticket(
+            provider_id=provider_id,
+            ref_type="job",
+            ref_id=job.job_id,
+            subtotal_cents=0,
+            tax_cents=0,
+            total_cents=0,
+            currency="CAD",
+            tax_region_code=tax_region_code,
+        )
+        if job.client_id:
+            finalize_client_ticket(
+                client_id=job.client_id,
+                ref_type="job",
+                ref_id=job.job_id,
+                subtotal_cents=0,
+                tax_cents=0,
+                total_cents=0,
+                currency="CAD",
+                tax_region_code=tax_region_code,
+            )
+
+    return "closed_and_confirmed"

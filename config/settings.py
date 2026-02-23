@@ -38,8 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'clients',
-    'providers',
+    "clients.apps.ClientsConfig",
+    "providers.apps.ProvidersConfig",
     'service_type',
     'workers',
     'assignments.apps.AssignmentsConfig',
