@@ -1,4 +1,5 @@
 from datetime import timedelta
+from pathlib import Path
 
 from django.test import TestCase
 from django.utils import timezone
@@ -6,6 +7,9 @@ from django.utils import timezone
 from jobs.models import Job
 from jobs.services import process_on_demand_job, schedule_next_alert, should_broadcast
 from service_type.models import ServiceType
+
+# Allow dotted imports like "jobs.tests.test_xxx" while keeping this module.
+__path__ = [str(Path(__file__).resolve().with_name("tests"))]
 
 
 class JobServicesTests(TestCase):

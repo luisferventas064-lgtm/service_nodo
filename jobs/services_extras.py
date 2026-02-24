@@ -4,6 +4,8 @@ from django.db import transaction
 
 from clients.models import ClientTicket, ClientTicketLine
 from jobs.models import Job
+from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
+from jobs.taxes_apply import apply_tax_snapshot_to_line
 from providers.models import ProviderTicket, ProviderTicketLine
 
 
@@ -57,7 +59,7 @@ def add_extra_line_for_job(
     next_no_pt = (pt.lines.order_by("-line_no").values_list("line_no", flat=True).first() or 0) + 1
     next_no_ct = (ct.lines.order_by("-line_no").values_list("line_no", flat=True).first() or 0) + 1
 
-    p_line = ProviderTicketLine.objects.create(
+    p_line = ProviderTicketLine(
         ticket=pt,
         line_no=next_no_pt,
         line_type="extra",
@@ -67,12 +69,14 @@ def add_extra_line_for_job(
         line_subtotal_cents=amount_cents,
         tax_cents=0,
         line_total_cents=amount_cents,
-        tax_region_code=pt.tax_region_code or "",
+        tax_region_code=pt.tax_region_code or None,
         tax_code="",
         meta={},
     )
+    apply_tax_snapshot_to_line(p_line, region_code=pt.tax_region_code)
+    p_line.save()
 
-    c_line = ClientTicketLine.objects.create(
+    c_line = ClientTicketLine(
         ticket=ct,
         line_no=next_no_ct,
         line_type="extra",
@@ -82,10 +86,15 @@ def add_extra_line_for_job(
         line_subtotal_cents=amount_cents,
         tax_cents=0,
         line_total_cents=amount_cents,
-        tax_region_code=ct.tax_region_code or "",
+        tax_region_code=ct.tax_region_code or None,
         tax_code="",
         meta={},
     )
+    apply_tax_snapshot_to_line(c_line, region_code=ct.tax_region_code)
+    c_line.save()
+
+    if job.job_mode == Job.JobMode.ON_DEMAND:
+        recompute_on_demand_fee_for_open_tickets(pt.pk, ct.pk)
 
     # Tus signals ya recalculan totals
     return {

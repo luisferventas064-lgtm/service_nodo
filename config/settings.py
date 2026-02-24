@@ -130,3 +130,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Optional override for auto evidence destination.
+NODO_EVIDENCE_DIR = None

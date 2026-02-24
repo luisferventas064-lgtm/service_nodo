@@ -428,7 +428,9 @@ try {
         } |
         Where-Object {
           $_ -ne $null -and
+          $_.PSObject.Properties.Name -contains "timestamp" -and
           $_.timestamp -and
+          ($_.PSObject.Properties.Name -notcontains "kind") -and  # ignora WATCHER_ERROR
           ([datetime]$_.timestamp) -ge $cutoff -and
           [int]$_.window_hours -eq [int]$WindowHours -and
           $_.severity -ne "ERROR" # opcional: no contaminar baseline con fallos
@@ -511,7 +513,9 @@ try {
           ForEach-Object { try { $_ | ConvertFrom-Json } catch { $null } } |
           Where-Object {
             if ($_ -eq $null) { return $false }
+            if (-not ($_.PSObject.Properties.Name -contains "timestamp")) { return $false }
             if (-not $_.timestamp) { return $false }
+            if ($_.PSObject.Properties.Name -contains "kind") { return $false } # ignora WATCHER_ERROR
 
             $t = [datetime]$_.timestamp
 
@@ -616,7 +620,17 @@ cancel_rate=$cancelRate
 
   Set-Content -Path $alertTxt -Value $txt -Encoding UTF8
 
-  ($outPayload | ConvertTo-Json -Depth 6) | Set-Content -Path $alertJson -Encoding UTF8
+  # Write latest.json atomically (temp -> move) to avoid OneDrive / partial-write issues
+  $tmpJson = "$alertJson.tmp"
+  ($outPayload | ConvertTo-Json -Depth 6) | Set-Content -Path $tmpJson -Encoding UTF8
+  Move-Item -Path $tmpJson -Destination $alertJson -Force
+
+  if (-not (Test-Path $alertJson)) {
+    Write-Log "ALERTS ERROR: latest.json missing after write (path=$alertJson)"
+  } else {
+    $len = (Get-Item $alertJson).Length
+    Write-Log ("ALERTS JSON OK: bytes={0}" -f $len)
+  }
   Write-Log "ALERTS: wrote alerts/kpi_alert_latest.txt and alerts/kpi_alert_latest.json"
 
   # ==========================

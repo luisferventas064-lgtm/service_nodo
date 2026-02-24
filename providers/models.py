@@ -322,10 +322,11 @@ class ProviderTicketLine(models.Model):
 
     unit_price_cents = models.IntegerField(default=0)
     line_subtotal_cents = models.IntegerField(default=0)  # qty * unit_price
+    tax_rate_bps = models.IntegerField(default=0)
     tax_cents = models.IntegerField(default=0)
     line_total_cents = models.IntegerField(default=0)  # subtotal + tax
 
-    tax_region_code = models.CharField(max_length=16, blank=True, default="")  # ej: CA-QC
+    tax_region_code = models.CharField(max_length=10, null=True, blank=True)  # ej: CA-QC
     tax_code = models.CharField(max_length=32, blank=True, default="")  # ej: GST/QST snapshot
 
     meta = models.JSONField(default=dict, blank=True)  # para futuro (skill, fee model, etc.)

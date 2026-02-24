@@ -4,6 +4,7 @@ from clients.lines import ensure_client_base_line
 from clients.lines_fee import ensure_client_fee_line
 from clients.ticketing import ensure_client_ticket
 from jobs.models import Job
+from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
 from assignments.models import JobAssignment
 from providers.lines import ensure_provider_base_line
 from providers.lines_fee import ensure_provider_fee_line
@@ -108,5 +109,6 @@ def confirm_normal_job_by_client(*, job_id: int, client_id: int):
         if job.job_mode == Job.JobMode.ON_DEMAND:
             ensure_provider_fee_line(pt.pk, amount_cents=0)
             ensure_client_fee_line(ct.pk, amount_cents=0)
+            recompute_on_demand_fee_for_open_tickets(pt.pk, ct.pk)
 
     return True, job, assignment

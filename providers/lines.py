@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.db import transaction
 
+from jobs.taxes_apply import apply_tax_snapshot_to_line
 from providers.models import ProviderTicket, ProviderTicketLine
 from providers.totals import recalc_provider_ticket_totals
 
@@ -38,6 +39,8 @@ def ensure_provider_base_line(
             meta={},
         ),
     )
+    apply_tax_snapshot_to_line(line, region_code=t.tax_region_code)
+    line.save(update_fields=["tax_region_code", "tax_rate_bps", "tax_cents"])
 
     # Si existia pero no era base (caso raro), no lo tocamos aqui.
     recalc_provider_ticket_totals(t.pk)

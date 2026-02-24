@@ -373,6 +373,63 @@ class JobFinancial(models.Model):
         return (self.base_amount or Decimal("0.00")) + (self.adjustment_amount or Decimal("0.00"))
 
 
+class PlatformLedgerEntry(models.Model):
+    FEE_PAYER_CLIENT = "client"
+    FEE_PAYER_PROVIDER = "provider"
+    FEE_PAYER_SPLIT = "split"
+
+    FEE_PAYER_CHOICES = [
+        (FEE_PAYER_CLIENT, "Client"),
+        (FEE_PAYER_PROVIDER, "Provider"),
+        (FEE_PAYER_SPLIT, "Split"),
+    ]
+
+    job = models.OneToOneField(
+        "jobs.Job",
+        on_delete=models.CASCADE,
+        related_name="ledger_entry",
+    )
+
+    currency = models.CharField(max_length=3, default="CAD")
+
+    # Snapshot final (cents)
+    gross_cents = models.PositiveIntegerField(default=0)
+    tax_cents = models.PositiveIntegerField(default=0)
+    fee_cents = models.PositiveIntegerField(default=0)
+
+    net_provider_cents = models.IntegerField(default=0)
+    platform_revenue_cents = models.IntegerField(default=0)
+
+    fee_payer = models.CharField(
+        max_length=8,
+        choices=FEE_PAYER_CHOICES,
+        default=FEE_PAYER_CLIENT,
+    )
+
+    tax_region_code = models.CharField(max_length=8, blank=True, null=True)
+
+    is_final = models.BooleanField(default=False)
+    finalized_at = models.DateTimeField(blank=True, null=True)
+    finalized_run_id = models.CharField(max_length=64, blank=True, null=True)
+    finalize_version = models.PositiveSmallIntegerField(default=1)
+    rebuild_count = models.PositiveIntegerField(default=0)
+    last_rebuild_at = models.DateTimeField(blank=True, null=True)
+    last_rebuild_run_id = models.CharField(max_length=64, blank=True, null=True)
+    last_rebuild_reason = models.CharField(max_length=255, blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["tax_region_code"]),
+            models.Index(fields=["fee_payer"]),
+        ]
+
+    def __str__(self):
+        return f"Ledger(job_id={self.job_id}, gross={self.gross_cents}, tax={self.tax_cents}, fee={self.fee_cents})"
+
+
 class KpiSnapshot(models.Model):
     """
     Snapshot historico del dashboard/KPIs para monitoreo y futura UI.

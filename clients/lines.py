@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.db import transaction
 
+from jobs.taxes_apply import apply_tax_snapshot_to_line
 from clients.models import ClientTicket, ClientTicketLine
 from clients.totals import recalc_client_ticket_totals
 
@@ -37,6 +38,8 @@ def ensure_client_base_line(
             meta={},
         ),
     )
+    apply_tax_snapshot_to_line(line, region_code=t.tax_region_code)
+    line.save(update_fields=["tax_region_code", "tax_rate_bps", "tax_cents"])
 
     recalc_client_ticket_totals(t.pk)
     return line

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from typing import Callable, Optional
 
+from django.conf import settings
 from django.db import IntegrityError, models, transaction
 from django.db.models import (
     Case,
@@ -25,11 +26,16 @@ from django.utils import timezone
 from clients.lines import ensure_client_base_line
 from clients.lines_fee import ensure_client_fee_line
 from clients.ticketing import ensure_client_ticket, finalize_client_ticket
+from clients.totals import recalc_client_ticket_totals
+from jobs.evidence import try_write_job_evidence_json
+from jobs.ledger import finalize_platform_ledger_for_job
 from jobs.metrics import log_job_event
 from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt, JobEvent, JobStatus
+from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
 from providers.lines import ensure_provider_base_line
 from providers.lines_fee import ensure_provider_fee_line
 from providers.ticketing import ensure_provider_ticket, finalize_provider_ticket
+from providers.totals import recalc_provider_ticket_totals
 
 JOB_STATUS_FIELD = "job_status"
 STATUS_POSTED = "posted"
@@ -874,6 +880,7 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
                 if job.job_mode == Job.JobMode.ON_DEMAND:
                     ensure_provider_fee_line(pt.pk, amount_cents=0)
                     ensure_client_fee_line(ct.pk, amount_cents=0)
+                    recompute_on_demand_fee_for_open_tickets(pt.pk, ct.pk)
             return "already_assigned"
 
         if job.job_status != Job.JobStatus.PENDING_CLIENT_CONFIRMATION:
@@ -950,6 +957,7 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
             if job.job_mode == Job.JobMode.ON_DEMAND:
                 ensure_provider_fee_line(pt.pk, amount_cents=0)
                 ensure_client_fee_line(ct.pk, amount_cents=0)
+                recompute_on_demand_fee_for_open_tickets(pt.pk, ct.pk)
         log_job_event(
             job_id=job.job_id,
             event_type=JobEvent.EventType.CLIENT_CONFIRMED,
@@ -999,9 +1007,11 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
         if not provider_id:
             raise MarketplaceDecisionConflict("MISSING_PROVIDER_FOR_JOB")
 
+        run_id = f"AUTO_CLOSE_{timezone.now().strftime('%Y%m%d_%H%M%S')}_job_{job.job_id}"
+
         if job.job_status == Job.JobStatus.CONFIRMED:
             tax_region_code = _build_tax_region_code(job)
-            finalize_provider_ticket(
+            pt = finalize_provider_ticket(
                 provider_id=provider_id,
                 ref_type="job",
                 ref_id=job.job_id,
@@ -1011,8 +1021,9 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
                 currency="CAD",
                 tax_region_code=tax_region_code,
             )
+            recalc_provider_ticket_totals(pt.pk)
             if job.client_id:
-                finalize_client_ticket(
+                ct = finalize_client_ticket(
                     client_id=job.client_id,
                     ref_type="job",
                     ref_id=job.job_id,
@@ -1022,6 +1033,15 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
                     currency="CAD",
                     tax_region_code=tax_region_code,
                 )
+                recalc_client_ticket_totals(ct.pk)
+            finalize_platform_ledger_for_job(job.job_id, run_id=run_id)
+            evidence_dir = getattr(settings, "NODO_EVIDENCE_DIR", None)
+            try_write_job_evidence_json(
+                job.job_id,
+                out_dir=evidence_dir,
+                run_id=run_id,
+                source="finalize",
+            )
             return "already_confirmed"
 
         if job.job_status not in (Job.JobStatus.IN_PROGRESS, Job.JobStatus.COMPLETED):
@@ -1031,7 +1051,7 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
         job.save(update_fields=["job_status", "updated_at"])
         tax_region_code = _build_tax_region_code(job)
 
-        finalize_provider_ticket(
+        pt = finalize_provider_ticket(
             provider_id=provider_id,
             ref_type="job",
             ref_id=job.job_id,
@@ -1041,8 +1061,9 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
             currency="CAD",
             tax_region_code=tax_region_code,
         )
+        recalc_provider_ticket_totals(pt.pk)
         if job.client_id:
-            finalize_client_ticket(
+            ct = finalize_client_ticket(
                 client_id=job.client_id,
                 ref_type="job",
                 ref_id=job.job_id,
@@ -1052,5 +1073,14 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
                 currency="CAD",
                 tax_region_code=tax_region_code,
             )
+            recalc_client_ticket_totals(ct.pk)
+        finalize_platform_ledger_for_job(job.job_id, run_id=run_id)
+        evidence_dir = getattr(settings, "NODO_EVIDENCE_DIR", None)
+        try_write_job_evidence_json(
+            job.job_id,
+            out_dir=evidence_dir,
+            run_id=run_id,
+            source="finalize",
+        )
 
     return "closed_and_confirmed"
