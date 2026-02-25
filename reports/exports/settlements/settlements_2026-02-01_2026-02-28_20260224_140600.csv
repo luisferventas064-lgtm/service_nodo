@@ -1,0 +1,3 @@
+settlement_id,provider_id,period_start,period_end,settlement_status,ledger_entry_id,job_id,gross_cents,tax_cents,fee_cents,net_provider_cents,platform_revenue_cents,gross_amount,tax_amount,fee_amount,net_provider_amount,platform_revenue_amount,currency,settlement_created_at,settlement_approved_at,settlement_paid_at,exported_at
+
+TOTALS,,,,,,,0,0,0,0,0,0,0,0,0,0,,,,,2026-02-24 14:06:00.171431+00:00

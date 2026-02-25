@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -342,4 +344,58 @@ class ProviderTicketLine(models.Model):
         indexes = [
             models.Index(fields=["ticket", "line_type"], name="ix_provider_line_ticket_type"),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.ticket_id and getattr(self.ticket, "stage", None) == "final":
+            raise ValidationError("ProviderTicket is final; lines are immutable.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.ticket_id and getattr(self.ticket, "stage", None) == "final":
+            raise ValidationError("ProviderTicket is final; lines are immutable.")
+        return super().delete(*args, **kwargs)
+
+
+class ProviderUser(models.Model):
+    ROLE_CHOICES = (
+        ("owner", "Owner"),
+        ("finance", "Finance"),
+        ("worker", "Worker"),
+    )
+
+    provider = models.ForeignKey(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        related_name="provider_users",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="provider_roles",
+    )
+
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "user"],
+                name="uq_provider_user_unique"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.provider_id} - {self.user_id} ({self.role})"
 

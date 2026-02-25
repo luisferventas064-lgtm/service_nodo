@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -141,3 +142,17 @@ class ClientTicketLine(models.Model):
         indexes = [
             models.Index(fields=["ticket", "line_type"], name="ix_client_line_ticket_type"),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.ticket_id and getattr(self.ticket, "stage", None) == "final":
+            raise ValidationError("ClientTicket is final; lines are immutable.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.ticket_id and getattr(self.ticket, "stage", None) == "final":
+            raise ValidationError("ClientTicket is final; lines are immutable.")
+        return super().delete(*args, **kwargs)

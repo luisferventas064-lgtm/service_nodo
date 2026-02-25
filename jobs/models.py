@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from clients.models import Client
@@ -389,6 +390,13 @@ class PlatformLedgerEntry(models.Model):
         on_delete=models.CASCADE,
         related_name="ledger_entry",
     )
+    settlement = models.ForeignKey(
+        "settlements.ProviderSettlement",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="ledger_entries",
+    )
 
     currency = models.CharField(max_length=3, default="CAD")
 
@@ -421,6 +429,13 @@ class PlatformLedgerEntry(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job"],
+                condition=Q(is_final=True),
+                name="uniq_final_ledger_per_job",
+            ),
+        ]
         indexes = [
             models.Index(fields=["tax_region_code"]),
             models.Index(fields=["fee_payer"]),

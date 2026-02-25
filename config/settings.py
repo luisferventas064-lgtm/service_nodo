@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
     "clients.apps.ClientsConfig",
     "providers.apps.ProvidersConfig",
+    "settlements.apps.SettlementsConfig",
     'service_type',
     'workers',
     'assignments.apps.AssignmentsConfig',

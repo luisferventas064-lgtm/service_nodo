@@ -207,11 +207,12 @@ def finalize_platform_ledger_for_job(job_id: int, run_id: str | None = None) -> 
     Called when a job is finalized/confirmed.
     Must be safe to call multiple times (idempotent).
     """
-    existing_entry = PlatformLedgerEntry.objects.select_for_update().filter(job_id=job_id).first()
-    if existing_entry and existing_entry.is_final:
+    job = Job.objects.select_for_update().only("job_id", "job_status").get(pk=job_id)
+
+    existing_entry = PlatformLedgerEntry.objects.filter(job_id=job_id, is_final=True).first()
+    if existing_entry:
         return existing_entry
 
-    job = Job.objects.select_for_update().get(pk=job_id)
     allowed_final_statuses = {
         Job.JobStatus.COMPLETED,
         Job.JobStatus.CONFIRMED,
