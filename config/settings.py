@@ -10,10 +10,64 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
+
+STRIPE_MODE = os.getenv("STRIPE_MODE", "test")
+
+def _first_env(*names):
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    return None
+
+
+if STRIPE_MODE == "live":
+    STRIPE_SECRET_KEY = _first_env("STRIPE_SECRET_KEY_LIVE", "STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET = _first_env(
+        "STRIPE_WEBHOOK_SECRET_LIVE",
+        "STRIPE_WEBHOOK_SECRET",
+    )
+    STRIPE_PUBLISHABLE_KEY = _first_env(
+        "STRIPE_PUBLISHABLE_KEY_LIVE",
+        "STRIPE_PUBLISHABLE_KEY",
+    )
+else:
+    STRIPE_SECRET_KEY = _first_env("STRIPE_SECRET_KEY_TEST", "STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET = _first_env(
+        "STRIPE_WEBHOOK_SECRET_TEST",
+        "STRIPE_WEBHOOK_SECRET",
+    )
+    STRIPE_PUBLISHABLE_KEY = _first_env(
+        "STRIPE_PUBLISHABLE_KEY_TEST",
+        "STRIPE_PUBLISHABLE_KEY",
+    )
+
+if STRIPE_SECRET_KEY:
+    os.environ.setdefault("STRIPE_SECRET_KEY", STRIPE_SECRET_KEY)
+if STRIPE_WEBHOOK_SECRET:
+    os.environ.setdefault("STRIPE_WEBHOOK_SECRET", STRIPE_WEBHOOK_SECRET)
+if STRIPE_PUBLISHABLE_KEY:
+    os.environ.setdefault("STRIPE_PUBLISHABLE_KEY", STRIPE_PUBLISHABLE_KEY)
+
+STRIPE_ONBOARDING_REFRESH_URL = os.getenv(
+    "STRIPE_ONBOARDING_REFRESH_URL",
+    "http://localhost:8000/stripe/onboarding/refresh/",
+)
+STRIPE_ONBOARDING_RETURN_URL = os.getenv(
+    "STRIPE_ONBOARDING_RETURN_URL",
+    "http://localhost:8000/stripe/onboarding/complete/",
+)
+
+if not STRIPE_SECRET_KEY:
+    raise RuntimeError("Stripe secret key not configured")
 
 
 # Quick-start development settings - unsuitable for production
@@ -24,8 +78,17 @@ SECRET_KEY = 'django-insecure-d%3ebi)1nzk6*y3!mtijivxes#c7u)_%whx!05w^3g2gqhq!q)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+ALLOW_LEDGER_REBUILD = False
 
-ALLOWED_HOSTS = []
+def _csv_env(name, default):
+    raw = os.getenv(name, default)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+ALLOWED_HOSTS = _csv_env(
+    "DJANGO_ALLOWED_HOSTS",
+    "127.0.0.1,localhost,[::1],.ngrok-free.dev",
+)
 
 
 # Application definition
@@ -39,6 +102,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     "clients.apps.ClientsConfig",
+    "payments.apps.PaymentsConfig",
     "providers.apps.ProvidersConfig",
     "settlements.apps.SettlementsConfig",
     'service_type',

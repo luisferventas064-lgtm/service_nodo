@@ -385,7 +385,7 @@ class PlatformLedgerEntry(models.Model):
         (FEE_PAYER_SPLIT, "Split"),
     ]
 
-    job = models.OneToOneField(
+    job = models.ForeignKey(
         "jobs.Job",
         on_delete=models.CASCADE,
         related_name="ledger_entry",
@@ -401,9 +401,9 @@ class PlatformLedgerEntry(models.Model):
     currency = models.CharField(max_length=3, default="CAD")
 
     # Snapshot final (cents)
-    gross_cents = models.PositiveIntegerField(default=0)
-    tax_cents = models.PositiveIntegerField(default=0)
-    fee_cents = models.PositiveIntegerField(default=0)
+    gross_cents = models.IntegerField(default=0)
+    tax_cents = models.IntegerField(default=0)
+    fee_cents = models.IntegerField(default=0)
 
     net_provider_cents = models.IntegerField(default=0)
     platform_revenue_cents = models.IntegerField(default=0)
@@ -416,6 +416,7 @@ class PlatformLedgerEntry(models.Model):
 
     tax_region_code = models.CharField(max_length=8, blank=True, null=True)
 
+    is_adjustment = models.BooleanField(default=False, db_index=True)
     is_final = models.BooleanField(default=False)
     finalized_at = models.DateTimeField(blank=True, null=True)
     finalized_run_id = models.CharField(max_length=64, blank=True, null=True)
@@ -432,7 +433,12 @@ class PlatformLedgerEntry(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["job"],
-                condition=Q(is_final=True),
+                condition=Q(is_adjustment=False),
+                name="uniq_base_ledger_per_job",
+            ),
+            models.UniqueConstraint(
+                fields=["job"],
+                condition=Q(is_final=True, is_adjustment=False),
                 name="uniq_final_ledger_per_job",
             ),
         ]

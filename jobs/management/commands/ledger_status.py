@@ -2,7 +2,6 @@ import json
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
-from django.core.exceptions import FieldError
 from django.db.models import Q
 from django.utils import timezone
 
@@ -53,13 +52,8 @@ class Command(BaseCommand):
         if only_final and only_not_final:
             raise SystemExit("ERROR: choose only one: --only-final or --only-not-final")
 
-        # Base queryset: Jobs + optional ledger entry
+        # Base queryset: Jobs + optional base ledger entry (non-adjustment)
         qs = Job.objects.all()
-        try:
-            qs = qs.select_related("ledger_entry")
-        except FieldError:
-            # Fallback when reverse O2O relation name differs in a local branch.
-            pass
 
         if job_id:
             qs = qs.filter(job_id=job_id)
@@ -70,18 +64,25 @@ class Command(BaseCommand):
 
         # Filter by ledger final state (only if ledger exists)
         if only_final:
-            qs = qs.filter(ledger_entry__is_final=True)
+            qs = qs.filter(
+                ledger_entry__is_adjustment=False,
+                ledger_entry__is_final=True,
+            )
         elif only_not_final:
-            qs = qs.filter(Q(ledger_entry__is_final=False) | Q(ledger_entry__isnull=True))
+            qs = qs.exclude(
+                ledger_entry__is_adjustment=False,
+                ledger_entry__is_final=True,
+            )
 
-        qs = qs.order_by("-job_id")[:limit] if not job_id else qs
+        qs = qs.distinct().order_by("-job_id")[:limit] if not job_id else qs.distinct()
 
         rows = []
         for j in qs:
-            try:
-                le: PlatformLedgerEntry | None = j.ledger_entry
-            except PlatformLedgerEntry.DoesNotExist:
-                le = None
+            le: PlatformLedgerEntry | None = (
+                PlatformLedgerEntry.objects.filter(job_id=j.job_id, is_adjustment=False)
+                .order_by("-id")
+                .first()
+            )
 
             row = {
                 "job_id": j.job_id,

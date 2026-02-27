@@ -21,6 +21,25 @@ class Provider(models.Model):
     phone_number = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
 
+    stripe_account_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    stripe_onboarding_completed = models.BooleanField(default=False)
+    stripe_account_status = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+    stripe_details_submitted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    stripe_charges_enabled = models.BooleanField(default=False)
+    stripe_payouts_enabled = models.BooleanField(default=False)
+
     country = models.CharField(max_length=100, default="Canada")
     province = models.CharField(max_length=100)
     city = models.CharField(max_length=100)

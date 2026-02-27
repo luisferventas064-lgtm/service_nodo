@@ -5,8 +5,8 @@ from django.utils import timezone
 
 
 class SettlementStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    APPROVED = "approved", "Approved"
+    DRAFT = "draft", "Draft"
+    CLOSED = "closed", "Closed"
     PAID = "paid", "Paid"
     CANCELLED = "cancelled", "Cancelled"
 
@@ -36,12 +36,17 @@ class ProviderSettlement(models.Model):
     status = models.CharField(
         max_length=20,
         choices=SettlementStatus.choices,
-        default=SettlementStatus.PENDING,
+        default=SettlementStatus.DRAFT,
     )
 
     # --- Auditoria ---
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
+    scheduled_payout_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Scheduled payout date (Wednesday following settlement period)",
+    )
     paid_at = models.DateTimeField(null=True, blank=True)
 
     notes = models.TextField(blank=True)
@@ -53,7 +58,20 @@ class ProviderSettlement(models.Model):
             models.UniqueConstraint(
                 fields=["provider", "period_start", "period_end"],
                 name="uq_provider_settlement_period",
-            )
+            ),
+            models.CheckConstraint(
+                name="ck_provider_settlement_paid_at_consistency",
+                condition=(
+                    (
+                        models.Q(status=SettlementStatus.PAID)
+                        & models.Q(paid_at__isnull=False)
+                    )
+                    | (
+                        ~models.Q(status=SettlementStatus.PAID)
+                        & models.Q(paid_at__isnull=True)
+                    )
+                ),
+            ),
         ]
 
     def __str__(self):
@@ -61,6 +79,177 @@ class ProviderSettlement(models.Model):
             f"Settlement {self.provider_id} "
             f"{self.period_start.date()} - {self.period_end.date()} ({self.status})"
         )
+
+    def clean(self):
+        super().clean()
+        if self.status == SettlementStatus.PAID and self.paid_at is None:
+            raise ValidationError({"paid_at": "paid_at is required when status is 'paid'."})
+        if self.status != SettlementStatus.PAID and self.paid_at is not None:
+            raise ValidationError({"status": "status must be 'paid' when paid_at is set."})
+
+    def save(self, *args, **kwargs):
+        # FINANCIAL INVARIANT - DO NOT MODIFY:
+        # PAID settlements are immutable historical records.
+        if self.pk:
+            previous = type(self).objects.only("status").filter(pk=self.pk).first()
+            if previous and previous.status == SettlementStatus.PAID:
+                raise ValidationError("Cannot modify a PAID settlement.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class SettlementPayment(models.Model):
+    settlement = models.OneToOneField(
+        "ProviderSettlement",
+        on_delete=models.PROTECT,
+        related_name="settlement_payment",
+    )
+    executed_at = models.DateTimeField()
+    executed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="executed_settlement_payments",
+    )
+    reference = models.CharField(max_length=255)
+    amount_cents = models.BigIntegerField()
+    stripe_transfer_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        unique=True,
+        db_index=True,
+    )
+    stripe_idempotency_key = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+    )
+    stripe_status = models.CharField(
+        max_length=50,
+        default="initiated",
+        db_index=True,
+    )
+    stripe_environment = models.CharField(
+        max_length=10,
+        default="test",
+        db_index=True,
+    )
+    stripe_failure_reason = models.TextField(
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "settlement_payment"
+        ordering = ["-executed_at", "-id"]
+
+    def __str__(self):
+        return (
+            f"SettlementPayment settlement={self.settlement_id} "
+            f"amount={self.amount_cents} ref={self.reference}"
+        )
+
+
+class JobDispute(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        PROVIDER_RESPONDED = "provider_responded", "Provider Responded"
+        RESOLVED = "resolved", "Resolved"
+        REJECTED = "rejected", "Rejected"
+
+    class ResolutionType(models.TextChoices):
+        REFUND_50 = "refund_50", "Refund 50%"
+        REFUND_100 = "refund_100", "Refund 100%"
+        NO_REFUND = "no_refund", "No Refund"
+
+    job = models.ForeignKey(
+        "jobs.Job",
+        on_delete=models.PROTECT,
+        related_name="disputes",
+    )
+    provider = models.ForeignKey(
+        "providers.Provider",
+        on_delete=models.PROTECT,
+    )
+    client = models.ForeignKey(
+        "clients.Client",
+        on_delete=models.PROTECT,
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=Status.choices,
+        default=Status.OPEN,
+    )
+    resolution_type = models.CharField(
+        max_length=30,
+        choices=ResolutionType.choices,
+        null=True,
+        blank=True,
+    )
+
+    client_reason = models.TextField()
+    provider_response = models.TextField(null=True, blank=True)
+
+    opened_at = models.DateTimeField(auto_now_add=True)
+    provider_responded_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-opened_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job"],
+                name="uq_job_single_dispute",
+            )
+        ]
+
+    def __str__(self):
+        return f"Dispute job={self.job_id} status={self.status}"
+
+
+class LedgerAdjustment(models.Model):
+    class AdjustmentType(models.TextChoices):
+        CLIENT_REFUND = "client_refund", "Client refund"
+        PROVIDER_DEDUCTION = "provider_deduction", "Provider deduction"
+        PLATFORM_FEE_REVERSAL = "platform_fee_reversal", "Platform fee reversal"
+
+    ledger_entry = models.ForeignKey(
+        "jobs.PlatformLedgerEntry",
+        on_delete=models.PROTECT,
+        related_name="adjustments",
+    )
+    dispute = models.ForeignKey(
+        "settlements.JobDispute",
+        on_delete=models.PROTECT,
+        related_name="ledger_adjustments",
+        null=True,
+        blank=True,
+    )
+    settlement = models.ForeignKey(
+        "ProviderSettlement",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="applied_adjustments",
+    )
+    adjustment_type = models.CharField(
+        max_length=40,
+        choices=AdjustmentType.choices,
+    )
+    amount_cents = models.BigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["ledger_entry", "created_at"]),
+            models.Index(fields=["adjustment_type"]),
+        ]
+
+    def __str__(self):
+        return f"LedgerAdjustment ledger={self.ledger_entry_id} type={self.adjustment_type} amount={self.amount_cents}"
 
 
 class MonthlySettlementClose(models.Model):

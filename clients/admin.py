@@ -34,3 +34,8 @@ class ClientTicketAdmin(admin.ModelAdmin):
     )
     search_fields = ("ticket_no", "client__email")
     list_filter = ("stage", "status", "ref_type", "currency")
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.status == ClientTicket.Status.FINALIZED:
+            return False
+        return super().has_change_permission(request, obj)

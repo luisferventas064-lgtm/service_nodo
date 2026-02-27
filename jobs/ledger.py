@@ -178,7 +178,11 @@ def compute_ledger_totals_from_job(job: Job) -> LedgerTotals:
 
 @transaction.atomic
 def upsert_platform_ledger_entry(job_id: int, *, force: bool = False) -> PlatformLedgerEntry:
-    existing_entry = PlatformLedgerEntry.objects.select_for_update().filter(job_id=job_id).first()
+    existing_entry = (
+        PlatformLedgerEntry.objects.select_for_update()
+        .filter(job_id=job_id, is_adjustment=False)
+        .first()
+    )
     if existing_entry and existing_entry.is_final and not force:
         return existing_entry
 
@@ -187,6 +191,7 @@ def upsert_platform_ledger_entry(job_id: int, *, force: bool = False) -> Platfor
 
     entry, _created = PlatformLedgerEntry.objects.update_or_create(
         job=job,
+        is_adjustment=False,
         defaults=dict(
             currency=totals.currency,
             tax_region_code=totals.tax_region_code,
@@ -209,7 +214,11 @@ def finalize_platform_ledger_for_job(job_id: int, run_id: str | None = None) -> 
     """
     job = Job.objects.select_for_update().only("job_id", "job_status").get(pk=job_id)
 
-    existing_entry = PlatformLedgerEntry.objects.filter(job_id=job_id, is_final=True).first()
+    existing_entry = PlatformLedgerEntry.objects.filter(
+        job_id=job_id,
+        is_final=True,
+        is_adjustment=False,
+    ).first()
     if existing_entry:
         return existing_entry
 
@@ -261,6 +270,32 @@ def rebuild_platform_ledger_for_job(
     reason: str | None = None,
 ) -> PlatformLedgerEntry:
     job = Job.objects.select_for_update().get(pk=job_id)
+    base_entry = (
+        PlatformLedgerEntry.objects.select_for_update()
+        .filter(job_id=job_id, is_adjustment=False)
+        .first()
+    )
+    allow_protected_rebuild = bool(settings.DEBUG) or bool(
+        getattr(settings, "ALLOW_LEDGER_REBUILD", False)
+    )
+    # FINANCIAL INVARIANT - DO NOT MODIFY:
+    # In production mode, finalized or money-linked ledgers cannot be rebuilt.
+    if not allow_protected_rebuild:
+        if base_entry and base_entry.is_final:
+            raise ValidationError("Cannot rebuild finalized ledger in production mode.")
+
+        from payments.models import ClientPayment
+
+        has_registered_payment = ClientPayment.objects.filter(job_id=job_id).exists()
+        has_settlement_record = PlatformLedgerEntry.objects.filter(
+            job_id=job_id,
+            settlement__isnull=False,
+        ).exists()
+        if has_registered_payment or has_settlement_record:
+            raise ValidationError(
+                "Cannot rebuild ledger after payment or settlement in production mode."
+            )
+
     allowed_rebuild_statuses = {
         Job.JobStatus.POSTED,
         Job.JobStatus.ASSIGNED,

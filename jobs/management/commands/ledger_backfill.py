@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from jobs.ledger import rebuild_platform_ledger_for_job
-from jobs.models import Job
+from jobs.models import Job, PlatformLedgerEntry
 
 
 @dataclass
@@ -63,7 +63,13 @@ class Command(BaseCommand):
         exclude_status = opts.get("exclude_status")
         job_ids_raw = opts.get("job_ids")
 
-        qs = Job.objects.filter(ledger_entry__isnull=True)
+        base_ledger_qs = PlatformLedgerEntry.objects.filter(
+            job_id=OuterRef("pk"),
+            is_adjustment=False,
+        )
+        qs = Job.objects.annotate(has_base_ledger=Exists(base_ledger_qs)).filter(
+            has_base_ledger=False
+        )
 
         if job_ids_raw:
             ids = [int(x.strip()) for x in job_ids_raw.split(",") if x.strip()]

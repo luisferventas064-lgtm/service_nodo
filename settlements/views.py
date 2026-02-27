@@ -2,11 +2,23 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
-from providers.models import Provider, ProviderUser
+from providers.models import Provider
 from settlements.services import (
     get_provider_monthly_dashboard,
     get_provider_year_summary,
 )
+
+
+def can_view_provider_financials(user, provider) -> bool:
+    if user.is_superuser or user.is_staff:
+        return True
+
+    user_email = (getattr(user, "email", None) or "").strip().lower()
+    provider_email = (getattr(provider, "email", None) or "").strip().lower()
+    if user_email and provider_email and user_email == provider_email:
+        return True
+
+    return False
 
 
 @login_required
@@ -23,21 +35,8 @@ def provider_financial_dashboard(request, provider_id):
     except Provider.DoesNotExist:
         return JsonResponse({"detail": "Provider not found"}, status=404)
 
-    user = request.user
-
-    # Acceso total para staff o superuser
-    if user.is_staff or user.is_superuser:
-        pass
-    else:
-        has_access = ProviderUser.objects.filter(
-            provider=provider,
-            user=user,
-            role__in=["owner", "finance"],
-            is_active=True
-        ).exists()
-
-        if not has_access:
-            return JsonResponse({"detail": "Forbidden"}, status=403)
+    if not can_view_provider_financials(request.user, provider):
+        return JsonResponse({"detail": "Forbidden"}, status=403)
 
     monthly = get_provider_monthly_dashboard(provider_id)
     yearly = get_provider_year_summary(provider_id)

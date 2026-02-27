@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.test import TestCase
+from django.test import override_settings
 
 from jobs.ledger import rebuild_platform_ledger_for_job
 from jobs.models import Job, PlatformLedgerEntry
@@ -9,6 +10,7 @@ from service_type.models import ServiceType
 
 
 class TestAutoEvidenceOnRebuild(TestCase):
+    @override_settings(ALLOW_LEDGER_REBUILD=True)
     def test_rebuild_calls_evidence_writer(self):
         service_type = ServiceType.objects.create(
             name="Auto Evidence Rebuild Test",
@@ -16,7 +18,7 @@ class TestAutoEvidenceOnRebuild(TestCase):
         )
         job = Job.objects.create(
             job_mode=Job.JobMode.ON_DEMAND,
-            job_status=Job.JobStatus.DRAFT,
+            job_status=Job.JobStatus.POSTED,
             service_type=service_type,
             country="Canada",
             province="AB",

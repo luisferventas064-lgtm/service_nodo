@@ -25,6 +25,7 @@ from django.utils import timezone
 
 from clients.lines import ensure_client_base_line
 from clients.lines_fee import ensure_client_fee_line
+from clients.models import ClientTicket
 from clients.ticketing import ensure_client_ticket, finalize_client_ticket
 from clients.totals import recalc_client_ticket_totals
 from jobs.evidence import try_write_job_evidence_json
@@ -94,6 +95,38 @@ def _build_tax_region_code(job: Job) -> str:
     if country_code and province_code:
         return f"{country_code}-{province_code}"
     return country_code or province_code
+
+
+def _client_ticket_snapshot_for_finalization(
+    *,
+    client_id: int,
+    job_id: int,
+    fallback_currency: str,
+    fallback_tax_region_code: str,
+) -> tuple[int, int, int, str, str]:
+    ticket = (
+        ClientTicket.objects.filter(
+            client_id=client_id,
+            ref_type="job",
+            ref_id=job_id,
+        )
+        .order_by("-client_ticket_id")
+        .first()
+    )
+    if not ticket:
+        return (0, 0, 0, fallback_currency, fallback_tax_region_code)
+
+    if ticket.status != ClientTicket.Status.FINALIZED:
+        recalc_client_ticket_totals(ticket.pk)
+        ticket.refresh_from_db()
+
+    return (
+        int(ticket.subtotal_cents or 0),
+        int(ticket.tax_cents or 0),
+        int(ticket.total_cents or 0),
+        ticket.currency or fallback_currency,
+        ticket.tax_region_code or fallback_tax_region_code,
+    )
 
 
 def _resolve_active_provider_id_for_job(job: Job) -> int | None:
@@ -1023,17 +1056,28 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
             )
             recalc_provider_ticket_totals(pt.pk)
             if job.client_id:
+                (
+                    client_subtotal_cents,
+                    client_tax_cents,
+                    client_total_cents,
+                    client_currency,
+                    client_tax_region_code,
+                ) = _client_ticket_snapshot_for_finalization(
+                    client_id=job.client_id,
+                    job_id=job.job_id,
+                    fallback_currency="CAD",
+                    fallback_tax_region_code=tax_region_code,
+                )
                 ct = finalize_client_ticket(
                     client_id=job.client_id,
                     ref_type="job",
                     ref_id=job.job_id,
-                    subtotal_cents=0,
-                    tax_cents=0,
-                    total_cents=0,
-                    currency="CAD",
-                    tax_region_code=tax_region_code,
+                    subtotal_cents=client_subtotal_cents,
+                    tax_cents=client_tax_cents,
+                    total_cents=client_total_cents,
+                    currency=client_currency,
+                    tax_region_code=client_tax_region_code,
                 )
-                recalc_client_ticket_totals(ct.pk)
             finalize_platform_ledger_for_job(job.job_id, run_id=run_id)
             evidence_dir = getattr(settings, "NODO_EVIDENCE_DIR", None)
             try_write_job_evidence_json(
@@ -1063,17 +1107,28 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
         )
         recalc_provider_ticket_totals(pt.pk)
         if job.client_id:
+            (
+                client_subtotal_cents,
+                client_tax_cents,
+                client_total_cents,
+                client_currency,
+                client_tax_region_code,
+            ) = _client_ticket_snapshot_for_finalization(
+                client_id=job.client_id,
+                job_id=job.job_id,
+                fallback_currency="CAD",
+                fallback_tax_region_code=tax_region_code,
+            )
             ct = finalize_client_ticket(
                 client_id=job.client_id,
                 ref_type="job",
                 ref_id=job.job_id,
-                subtotal_cents=0,
-                tax_cents=0,
-                total_cents=0,
-                currency="CAD",
-                tax_region_code=tax_region_code,
+                subtotal_cents=client_subtotal_cents,
+                tax_cents=client_tax_cents,
+                total_cents=client_total_cents,
+                currency=client_currency,
+                tax_region_code=client_tax_region_code,
             )
-            recalc_client_ticket_totals(ct.pk)
         finalize_platform_ledger_for_job(job.job_id, run_id=run_id)
         evidence_dir = getattr(settings, "NODO_EVIDENCE_DIR", None)
         try_write_job_evidence_json(

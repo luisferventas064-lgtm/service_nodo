@@ -37,12 +37,12 @@ class Command(BaseCommand):
             total_platform=Sum("total_platform_revenue_cents"),
         )
 
-        pending_total = settlements.filter(
-            status=SettlementStatus.PENDING
+        draft_total = settlements.filter(
+            status=SettlementStatus.DRAFT
         ).aggregate(total=Sum("total_net_provider_cents"))["total"] or 0
 
-        approved_total = settlements.filter(
-            status=SettlementStatus.APPROVED
+        closed_total = settlements.filter(
+            status=SettlementStatus.CLOSED
         ).aggregate(total=Sum("total_net_provider_cents"))["total"] or 0
 
         paid_total = settlements.filter(
@@ -51,6 +51,6 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Total Net (All): {totals['total_net'] or 0}")
         self.stdout.write(f"Total Platform Revenue: {totals['total_platform'] or 0}")
-        self.stdout.write(f"Pending to Pay: {pending_total}")
-        self.stdout.write(f"Approved (not paid yet): {approved_total}")
+        self.stdout.write(f"Draft: {draft_total}")
+        self.stdout.write(f"Closed (not paid yet): {closed_total}")
         self.stdout.write(f"Paid: {paid_total}")

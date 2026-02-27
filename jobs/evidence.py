@@ -110,7 +110,7 @@ def build_job_evidence_payload(
     source: str = "finalize",
 ) -> dict[str, Any]:
     job = Job.objects.get(pk=job.pk)
-    entry = PlatformLedgerEntry.objects.get(job_id=job.job_id)
+    entry = PlatformLedgerEntry.objects.get(job_id=job.job_id, is_adjustment=False)
     provider_ticket = _get_provider_ticket(job)
     client_ticket = _get_client_ticket(job)
 
