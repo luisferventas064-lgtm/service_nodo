@@ -57,6 +57,7 @@ def search_provider_services(
     service_category_id: int,
     province: str,
     city: str | None = None,
+    zone_id: int | None = None,
     max_price: int | None = None,
     min_rating: float | None = None,
     limit: int = 20,
@@ -76,6 +77,9 @@ def search_provider_services(
 
     if city:
         qs = qs.filter(provider__city=city)
+
+    if zone_id is not None:
+        qs = qs.filter(provider__zone_id=zone_id)
 
     if max_price is not None:
         qs = qs.filter(price_cents__lte=max_price)

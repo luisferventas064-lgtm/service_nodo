@@ -1,7 +1,25 @@
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
+from providers.models import ServiceZone
 from providers.services_marketplace import search_provider_services
+
+
+@require_GET
+def zone_list(request):
+    province = request.GET.get("province")
+    city = request.GET.get("city")
+
+    if not province or not city:
+        return JsonResponse([], safe=False)
+
+    zones = list(
+        ServiceZone.objects.filter(
+            province=province,
+            city=city,
+        ).values("id", "name")
+    )
+    return JsonResponse(zones, safe=False)
 
 
 @require_GET
@@ -17,6 +35,7 @@ def marketplace_search(request):
         service_category_id = int(service_category_id_raw)
         province = request.GET.get("province")
         city = request.GET.get("city")
+        zone_id_raw = request.GET.get("zone_id")
         limit = int(request.GET.get("limit", 20))
         offset = int(request.GET.get("offset", 0))
         debug = request.GET.get("debug") == "1"
@@ -27,13 +46,16 @@ def marketplace_search(request):
                 status=400,
             )
 
+        zone_id = int(zone_id_raw) if zone_id_raw else None
+
         rows = list(
             search_provider_services(
-            service_category_id=service_category_id,
-            province=province,
-            city=city,
-            limit=limit,
-            offset=offset,
+                service_category_id=service_category_id,
+                province=province,
+                city=city,
+                zone_id=zone_id,
+                limit=limit,
+                offset=offset,
             )
         )
 
