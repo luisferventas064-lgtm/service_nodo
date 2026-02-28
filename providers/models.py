@@ -44,6 +44,13 @@ class Provider(models.Model):
     country = models.CharField(max_length=100, default="Canada")
     province = models.CharField(max_length=100)
     city = models.CharField(max_length=100)
+    zone = models.ForeignKey(
+        "providers.ServiceZone",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="providers",
+    )
     postal_code = models.CharField(max_length=20)
     address_line1 = models.CharField(max_length=255)
 
@@ -78,6 +85,27 @@ class Provider(models.Model):
         if self.company_name:
             return self.company_name
         return f"{self.contact_first_name} {self.contact_last_name}"
+
+
+class ServiceZone(models.Model):
+    province = models.CharField(max_length=50)
+    city = models.CharField(max_length=100)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["province", "city", "name"],
+                name="uq_servicezone_province_city_name",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["province", "city"], name="ix_servicezone_prov_city"),
+        ]
+        ordering = ["province", "city", "name"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.city}, {self.province})"
 
 
 class ProviderServiceArea(models.Model):

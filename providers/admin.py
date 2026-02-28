@@ -8,6 +8,7 @@ from .models import (
     ProviderCertificate,
     ProviderInvoiceSequence,
     ProviderServiceArea,
+    ServiceZone,
     ProviderTicket,
 )
 
@@ -38,11 +39,19 @@ class ProviderAdmin(admin.ModelAdmin):
         "contact_first_name",
         "contact_last_name",
         "email",
+        "zone",
         "is_active",
     )
     search_fields = ("company_name", "contact_first_name", "contact_last_name", "email")
-    list_filter = ("provider_type", "is_active", "province", "city")
+    list_filter = ("provider_type", "is_active", "province", "city", "zone")
     inlines = [ProviderBillingProfileInline, ProviderInvoiceSequenceInline, ProviderCertificateInline]
+
+
+@admin.register(ServiceZone)
+class ServiceZoneAdmin(admin.ModelAdmin):
+    list_display = ("name", "city", "province")
+    search_fields = ("name", "city", "province")
+    list_filter = ("province", "city")
 
 
 @admin.register(ProviderServiceArea)
