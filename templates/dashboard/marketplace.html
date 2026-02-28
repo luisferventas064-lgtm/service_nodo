@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NODO Marketplace Analytics</title>
+    <style>
+        body { font-family: Arial; background:#f4f6f9; margin:0; padding:30px; color:#1f2937; }
+        h1, h2 { margin:0 0 16px; }
+        h2 { margin-top:36px; }
+        .topbar { display:flex; gap:12px; align-items:center; margin-bottom:24px; flex-wrap:wrap; }
+        .topbar a {
+            background:#111;
+            color:white;
+            padding:10px 16px;
+            border-radius:6px;
+            text-decoration:none;
+        }
+        .topbar form { display:flex; gap:8px; align-items:center; }
+        .topbar input, .topbar button {
+            padding:8px 10px;
+            border-radius:6px;
+            border:1px solid #d1d5db;
+        }
+        .topbar button { background:#0b5cab; color:white; border:none; cursor:pointer; }
+        .cards { display:flex; flex-wrap:wrap; gap:14px; }
+        .card {
+            background:white;
+            border-radius:10px;
+            box-shadow:0 2px 6px rgba(0,0,0,0.08);
+            padding:18px 20px;
+            min-width:180px;
+        }
+        .label { font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em; }
+        .value { font-size:26px; font-weight:bold; margin-top:6px; }
+        .subvalue { font-size:13px; color:#4b5563; margin-top:4px; }
+        table {
+            width:100%;
+            border-collapse:collapse;
+            background:white;
+            border-radius:10px;
+            overflow:hidden;
+            box-shadow:0 2px 6px rgba(0,0,0,0.08);
+        }
+        th, td {
+            text-align:left;
+            padding:12px 14px;
+            border-bottom:1px solid #e5e7eb;
+            font-size:14px;
+        }
+        th { background:#eef2f7; }
+        tr:last-child td { border-bottom:none; }
+        .muted { color:#6b7280; font-size:13px; margin-bottom:12px; }
+        .empty { background:white; padding:18px 20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    </style>
+</head>
+<body>
+
+<h1>Marketplace Analytics</h1>
+
+<div class="topbar">
+    <a href="/dashboard/">Volver al Dashboard</a>
+    <a href="/internal/analytics/marketplace/">Ver JSON</a>
+    <form method="get">
+        <label for="limit">Limit</label>
+        <input id="limit" name="limit" type="number" min="1" max="100" value="{{ limit }}">
+        <button type="submit">Aplicar</button>
+    </form>
+</div>
+
+<div class="cards">
+    <div class="card">
+        <div class="label">Total Providers</div>
+        <div class="value">{{ analytics.global.total_providers }}</div>
+        <div class="subvalue">{{ analytics.global.verified_pct }}% verified</div>
+    </div>
+    <div class="card">
+        <div class="label">Total Offers</div>
+        <div class="value">{{ analytics.global.total_offers }}</div>
+        <div class="subvalue">Marketplace rows</div>
+    </div>
+    <div class="card">
+        <div class="label">Avg Rating</div>
+        <div class="value">{{ analytics.global.avg_rating }}</div>
+        <div class="subvalue">Across active providers</div>
+    </div>
+    <div class="card">
+        <div class="label">Avg Price</div>
+        <div class="value">${{ analytics.global.avg_price }}</div>
+        <div class="subvalue">Mean active offer price</div>
+    </div>
+    <div class="card">
+        <div class="label">Avg Hybrid Score</div>
+        <div class="value">{{ analytics.global.avg_hybrid_score }}</div>
+        <div class="subvalue">Std dev {{ analytics.global.score_std_dev }}</div>
+    </div>
+    <div class="card">
+        <div class="label">Score Spread</div>
+        <div class="value">{{ analytics.global.score_spread }}</div>
+        <div class="subvalue">Global max - min</div>
+    </div>
+</div>
+
+<h2>By Province</h2>
+<div class="muted">Provider density and aggregate score by province.</div>
+{% if analytics.by_province %}
+<table>
+    <thead>
+        <tr>
+            <th>Province</th>
+            <th>Providers</th>
+            <th>% Verified</th>
+            <th>Avg Rating</th>
+            <th>Avg Price</th>
+            <th>Avg Score</th>
+            <th>Spread</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in analytics.by_province %}
+        <tr>
+            <td>{{ row.province }}</td>
+            <td>{{ row.providers }}</td>
+            <td>{{ row.verified_pct }}</td>
+            <td>{{ row.avg_rating }}</td>
+            <td>${{ row.avg_price }}</td>
+            <td>{{ row.avg_hybrid_score }}</td>
+            <td>{{ row.score_spread }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty">No province data available.</div>
+{% endif %}
+
+<h2>By City</h2>
+<div class="muted">Granular view by province and city.</div>
+{% if analytics.by_city %}
+<table>
+    <thead>
+        <tr>
+            <th>Province</th>
+            <th>City</th>
+            <th>Providers</th>
+            <th>% Verified</th>
+            <th>Avg Rating</th>
+            <th>Avg Price</th>
+            <th>Avg Score</th>
+            <th>Spread</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in analytics.by_city %}
+        <tr>
+            <td>{{ row.province }}</td>
+            <td>{{ row.city }}</td>
+            <td>{{ row.providers }}</td>
+            <td>{{ row.verified_pct }}</td>
+            <td>{{ row.avg_rating }}</td>
+            <td>${{ row.avg_price }}</td>
+            <td>{{ row.avg_hybrid_score }}</td>
+            <td>{{ row.score_spread }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty">No city data available.</div>
+{% endif %}
+
+<h2>By Zone</h2>
+<div class="muted">Hyperlocal distribution and density by service zone.</div>
+{% if analytics.by_zone %}
+<table>
+    <thead>
+        <tr>
+            <th>Province</th>
+            <th>City</th>
+            <th>Zone</th>
+            <th>Providers</th>
+            <th>% Verified</th>
+            <th>Avg Rating</th>
+            <th>Avg Price</th>
+            <th>Avg Score</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in analytics.by_zone %}
+        <tr>
+            <td>{{ row.province }}</td>
+            <td>{{ row.city }}</td>
+            <td>{{ row.zone__name }}</td>
+            <td>{{ row.providers }}</td>
+            <td>{{ row.verified_pct }}</td>
+            <td>{{ row.avg_rating }}</td>
+            <td>${{ row.avg_price }}</td>
+            <td>{{ row.avg_hybrid_score }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty">No zone data available.</div>
+{% endif %}
+
+<h2>Competitiveness by Slice</h2>
+<div class="muted">Lower spread means a more compressed and competitive slice.</div>
+{% if analytics.score_spread.by_slice %}
+<table>
+    <thead>
+        <tr>
+            <th>Province</th>
+            <th>City</th>
+            <th>Category</th>
+            <th>Providers</th>
+            <th>Offers</th>
+            <th>Avg Score</th>
+            <th>Min Score</th>
+            <th>Max Score</th>
+            <th>Spread</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in analytics.score_spread.by_slice %}
+        <tr>
+            <td>{{ row.provider__province }}</td>
+            <td>{{ row.provider__city }}</td>
+            <td>{{ row.service_category_name }} (#{{ row.category_id }})</td>
+            <td>{{ row.providers }}</td>
+            <td>{{ row.offers }}</td>
+            <td>{{ row.avg_hybrid_score }}</td>
+            <td>{{ row.min_hybrid_score }}</td>
+            <td>{{ row.max_hybrid_score }}</td>
+            <td>{{ row.score_spread }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty">No score spread data available.</div>
+{% endif %}
+
+</body>
+</html>
