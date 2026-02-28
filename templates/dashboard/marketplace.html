@@ -59,6 +59,7 @@
 <div class="topbar">
     <a href="/dashboard/">Volver al Dashboard</a>
     <a href="/internal/analytics/marketplace/">Ver JSON</a>
+    <a href="/internal/analytics/marketplace/?format=csv{% if limit %}&limit={{ limit }}{% endif %}">Download CSV Snapshot</a>
     <form method="get">
         <label for="limit">Limit</label>
         <input id="limit" name="limit" type="number" min="1" max="100" value="{{ limit }}">
@@ -188,7 +189,7 @@
         <tr>
             <td>{{ row.province }}</td>
             <td>{{ row.city }}</td>
-            <td>{{ row.zone__name }}</td>
+            <td>{{ row.zone_name }}</td>
             <td>{{ row.providers }}</td>
             <td>{{ row.verified_pct }}</td>
             <td>{{ row.avg_rating }}</td>

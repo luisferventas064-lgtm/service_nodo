@@ -1,9 +1,9 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -14,7 +14,10 @@ from jobs import services as job_services
 from jobs.models import Job, PlatformLedgerEntry
 from providers.models import ProviderTicket
 from providers.models import ServiceZone
-from providers.services_analytics import marketplace_analytics_snapshot
+from providers.services_analytics import (
+    marketplace_analytics_snapshot,
+    marketplace_analytics_to_csv,
+)
 from providers.services_marketplace import search_provider_services
 
 
@@ -145,7 +148,18 @@ def marketplace_analytics_api_view(request):
         except (TypeError, ValueError):
             limit = None
 
-    return JsonResponse(marketplace_analytics_snapshot(limit=limit))
+    snapshot = marketplace_analytics_snapshot(limit=limit)
+
+    if request.GET.get("format") == "csv":
+        csv_string = marketplace_analytics_to_csv(snapshot)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        response = HttpResponse(csv_string, content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="marketplace_analytics_{timestamp}.csv"'
+        )
+        return response
+
+    return JsonResponse(snapshot)
 
 
 @staff_member_required

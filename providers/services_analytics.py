@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 from statistics import pstdev
 
 from providers.models import Provider
@@ -131,6 +133,9 @@ def _grouped_slice_metrics(
                     digits=2,
                 ),
                 "avg_hybrid_score": _mean(offer_entry["score_values"], digits=4),
+                "score_std_dev": _round(pstdev(offer_entry["score_values"]), 4)
+                if len(offer_entry["score_values"]) > 1
+                else 0.0,
                 "score_spread": _round(
                     max(offer_entry["score_values"]) - min(offer_entry["score_values"]),
                     4,
@@ -336,3 +341,122 @@ def marketplace_analytics_snapshot(limit: int | None = None):
             offer_rows=offer_rows,
         ),
     }
+
+
+def marketplace_analytics_to_csv(snapshot: dict) -> str:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+
+    global_metrics = snapshot.get("global", {})
+    writer.writerow(["Global"])
+    writer.writerow(["metric", "value"])
+    for metric, value in global_metrics.items():
+        writer.writerow([metric, value])
+    writer.writerow([])
+
+    writer.writerow(["By Province"])
+    writer.writerow(
+        [
+            "province",
+            "providers",
+            "verified_pct",
+            "avg_rating",
+            "avg_price",
+            "avg_score",
+            "std_dev",
+            "spread",
+        ]
+    )
+    for row in snapshot.get("by_province", []):
+        writer.writerow(
+            [
+                row.get("province"),
+                row.get("providers"),
+                row.get("verified_pct"),
+                row.get("avg_rating"),
+                row.get("avg_price"),
+                row.get("avg_hybrid_score"),
+                row.get("score_std_dev"),
+                row.get("score_spread"),
+            ]
+        )
+    writer.writerow([])
+
+    writer.writerow(["By City"])
+    writer.writerow(
+        [
+            "province",
+            "city",
+            "providers",
+            "verified_pct",
+            "avg_rating",
+            "avg_price",
+            "avg_score",
+            "std_dev",
+            "spread",
+        ]
+    )
+    for row in snapshot.get("by_city", []):
+        writer.writerow(
+            [
+                row.get("province"),
+                row.get("city"),
+                row.get("providers"),
+                row.get("verified_pct"),
+                row.get("avg_rating"),
+                row.get("avg_price"),
+                row.get("avg_hybrid_score"),
+                row.get("score_std_dev"),
+                row.get("score_spread"),
+            ]
+        )
+    writer.writerow([])
+
+    writer.writerow(["By Zone"])
+    writer.writerow(
+        [
+            "province",
+            "city",
+            "zone",
+            "providers",
+            "verified_pct",
+            "avg_rating",
+            "avg_price",
+            "avg_score",
+            "std_dev",
+        ]
+    )
+    for row in snapshot.get("by_zone", []):
+        writer.writerow(
+            [
+                row.get("province"),
+                row.get("city"),
+                row.get("zone_name"),
+                row.get("providers"),
+                row.get("verified_pct"),
+                row.get("avg_rating"),
+                row.get("avg_price"),
+                row.get("avg_hybrid_score"),
+                row.get("score_std_dev"),
+            ]
+        )
+    writer.writerow([])
+
+    writer.writerow(["Score Spread"])
+    writer.writerow(["slice", "max_score", "min_score", "spread"])
+    for row in snapshot.get("score_spread", {}).get("by_slice", []):
+        slice_label = (
+            f'{row.get("provider__province")}'
+            f'-{row.get("provider__city")}'
+            f'-cat{row.get("category_id")}'
+        )
+        writer.writerow(
+            [
+                slice_label,
+                row.get("max_hybrid_score"),
+                row.get("min_hybrid_score"),
+                row.get("score_spread"),
+            ]
+        )
+
+    return buffer.getvalue()
