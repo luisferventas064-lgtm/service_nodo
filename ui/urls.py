@@ -6,6 +6,8 @@ app_name = "ui"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("internal/analytics/marketplace/", views.marketplace_analytics_api_view, name="marketplace_analytics_api"),
+    path("dashboard/marketplace/", views.marketplace_analytics_dashboard_view, name="marketplace_analytics_dashboard"),
     path("marketplace/", views.marketplace_view, name="marketplace"),
     path("jobs/", views.jobs_list, name="jobs_list"),
     path("jobs/<int:job_id>/", views.job_detail, name="job_detail"),

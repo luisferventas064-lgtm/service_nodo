@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.http import JsonResponse
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -13,6 +14,7 @@ from jobs import services as job_services
 from jobs.models import Job, PlatformLedgerEntry
 from providers.models import ProviderTicket
 from providers.models import ServiceZone
+from providers.services_analytics import marketplace_analytics_snapshot
 from providers.services_marketplace import search_provider_services
 
 
@@ -129,6 +131,40 @@ def marketplace_view(request):
             "zones": zones,
             "selected_zone_id": selected_zone_id,
             "debug_mode": settings.DEBUG,
+        },
+    )
+
+
+@staff_member_required
+def marketplace_analytics_api_view(request):
+    limit_raw = request.GET.get("limit")
+    limit = None
+    if limit_raw:
+        try:
+            limit = max(1, min(int(limit_raw), 100))
+        except (TypeError, ValueError):
+            limit = None
+
+    return JsonResponse(marketplace_analytics_snapshot(limit=limit))
+
+
+@staff_member_required
+def marketplace_analytics_dashboard_view(request):
+    limit_raw = request.GET.get("limit")
+    limit = None
+    if limit_raw:
+        try:
+            limit = max(1, min(int(limit_raw), 100))
+        except (TypeError, ValueError):
+            limit = None
+
+    snapshot = marketplace_analytics_snapshot(limit=limit)
+    return render(
+        request,
+        "dashboard/marketplace.html",
+        {
+            "analytics": snapshot,
+            "limit": limit or "",
         },
     )
 
