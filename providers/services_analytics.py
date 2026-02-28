@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+from math import ceil
 from statistics import pstdev
 
 from providers.models import Provider
@@ -75,6 +76,23 @@ def compute_competitiveness_index(spread, std_dev, max_spread, max_std):
         normalized_components.append(1.0)
 
     return _round(sum(normalized_components) / len(normalized_components), 4)
+
+
+def compute_alert_flags(row):
+    alerts = []
+
+    ci = row.get("competitiveness_index")
+    std = row.get("score_std_dev")
+
+    if ci is not None and ci >= 0.85:
+        alerts.append("CRITICAL_COMPRESSION")
+    elif ci is not None and ci >= 0.75:
+        alerts.append("HIGH_COMPETITION")
+
+    if std is not None and std <= 0.08:
+        alerts.append("ULTRA_LOW_DISPERSION")
+
+    return alerts
 
 
 def _grouped_slice_metrics(
@@ -332,8 +350,12 @@ def hybrid_score_spread(
             max_std_dev,
         )
 
+    for row in by_slice:
+        row["alerts"] = compute_alert_flags(row)
+
     by_slice.sort(
         key=lambda row: (
+            -(row["competitiveness_index"] if row["competitiveness_index"] is not None else -1),
             row["score_spread"] if row["score_spread"] is not None else 999999,
             -row["providers"],
             row["provider__province"],
@@ -342,11 +364,23 @@ def hybrid_score_spread(
         )
     )
 
+    top_twenty_count = max(1, ceil(len(by_slice) * 0.2)) if by_slice else 0
+    for index, row in enumerate(by_slice):
+        if index == 0:
+            row["alerts"].append("TOP_COMPRESSED_SLICE")
+        elif index < top_twenty_count:
+            row["alerts"].append("TOP_20_COMPRESSED")
+
     if limit is not None:
         by_slice = by_slice[:limit]
 
     return {
         "global": global_summary,
+        "alert_thresholds": {
+            "critical_competitiveness_index": 0.85,
+            "high_competitiveness_index": 0.75,
+            "ultra_low_dispersion_std_dev": 0.08,
+        },
         "by_slice": by_slice,
     }
 

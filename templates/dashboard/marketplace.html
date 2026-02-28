@@ -60,6 +60,20 @@
         .score-pill.high { background:#fef2f2; color:#b91c1c; }
         .score-pill.medium { background:#fffbeb; color:#b45309; }
         .score-pill.low { background:#ecfdf5; color:#047857; }
+        .alert-badge {
+            display:inline-block;
+            padding:4px 8px;
+            border-radius:999px;
+            font-weight:bold;
+            font-size:11px;
+            margin:2px 4px 2px 0;
+            white-space:nowrap;
+        }
+        .alert-badge.critical { background:#b91c1c; color:white; }
+        .alert-badge.competition { background:#ea580c; color:white; }
+        .alert-badge.dispersion { background:#facc15; color:#713f12; }
+        .alert-badge.top-slice { background:#1d4ed8; color:white; }
+        .alert-badge.top-group { background:#dbeafe; color:#1e3a8a; }
     </style>
 </head>
 <body>
@@ -214,7 +228,7 @@
 {% endif %}
 
 <h2>Competitiveness by Slice</h2>
-<div class="muted">Lower spread and lower std dev indicate a more compressed and competitive slice.</div>
+<div class="muted">Lower spread and lower std dev indicate a more compressed slice. Alerts are relative to current snapshot percentiles.</div>
 {% if analytics.score_spread.by_slice %}
 <table>
     <thead>
@@ -230,6 +244,7 @@
             <th>Std Dev</th>
             <th>Spread</th>
             <th>Competitiveness</th>
+            <th>Alerts</th>
         </tr>
     </thead>
     <tbody>
@@ -253,6 +268,21 @@
                 {% else %}
                     <span class="score-pill low">{{ row.competitiveness_index }}</span>
                 {% endif %}
+            </td>
+            <td>
+                {% for alert in row.alerts %}
+                    {% if alert == "CRITICAL_COMPRESSION" %}
+                        <span class="alert-badge critical">{{ alert }}</span>
+                    {% elif alert == "HIGH_COMPETITION" %}
+                        <span class="alert-badge competition">{{ alert }}</span>
+                    {% elif alert == "ULTRA_LOW_DISPERSION" %}
+                        <span class="alert-badge dispersion">{{ alert }}</span>
+                    {% elif alert == "TOP_COMPRESSED_SLICE" %}
+                        <span class="alert-badge top-slice">{{ alert }}</span>
+                    {% elif alert == "TOP_20_COMPRESSED" %}
+                        <span class="alert-badge top-group">{{ alert }}</span>
+                    {% endif %}
+                {% endfor %}
             </td>
         </tr>
         {% endfor %}
