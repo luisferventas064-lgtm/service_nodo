@@ -52,28 +52,26 @@ def _provider_has_field(name: str) -> bool:
     return any(f.name == name for f in Provider._meta.get_fields())
 
 
-def search_provider_services(
+def marketplace_ranked_queryset(
     *,
-    service_category_id: int,
-    province: str,
+    service_category_id: int | None = None,
+    province: str | None = None,
     city: str | None = None,
     zone_id: int | None = None,
     max_price: int | None = None,
     min_rating: float | None = None,
-    limit: int = 20,
-    offset: int = 0,
 ):
-    """
-    Discovery search for provider-defined service menu.
-    Returns dict rows already shaped for UI consumption.
-    """
     qs = ProviderService.objects.select_related("provider", "category").filter(
         is_active=True,
-        category_id=service_category_id,
         category__is_active=True,
         provider__is_active=True,
-        provider__province=province,
     )
+
+    if service_category_id is not None:
+        qs = qs.filter(category_id=service_category_id)
+
+    if province:
+        qs = qs.filter(provider__province=province)
 
     if city:
         qs = qs.filter(provider__city=city)
@@ -135,6 +133,10 @@ def search_provider_services(
 
     qs = qs.annotate(
         service_category_name=F("category__name"),
+        zone_name=Coalesce(
+            F("provider__zone__name"),
+            Value(""),
+        ),
         provider_display_name=Coalesce(
             F("provider__company_name"),
             Concat(
@@ -148,6 +150,33 @@ def search_provider_services(
             if _provider_has_field("avg_rating")
             else Value(None, output_field=FloatField())
         ),
+    )
+
+    return qs
+
+
+def search_provider_services(
+    *,
+    service_category_id: int,
+    province: str,
+    city: str | None = None,
+    zone_id: int | None = None,
+    max_price: int | None = None,
+    min_rating: float | None = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """
+    Discovery search for provider-defined service menu.
+    Returns dict rows already shaped for UI consumption.
+    """
+    qs = marketplace_ranked_queryset(
+        service_category_id=service_category_id,
+        province=province,
+        city=city,
+        zone_id=zone_id,
+        max_price=max_price,
+        min_rating=min_rating,
     ).order_by("-hybrid_score", "-safe_rating", "price_cents", "provider_id")
 
     limit = max(1, min(limit or 20, 100))
