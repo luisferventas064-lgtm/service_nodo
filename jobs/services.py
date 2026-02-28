@@ -726,8 +726,11 @@ def apply_client_marketplace_decision(
                 raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_CANCEL")
 
             selected_provider_id = getattr(job, "selected_provider_id", None)
+            provider_id = _resolve_active_provider_id_for_job(job)
+            cancelled_by = Job.CancellationActor.CLIENT
             Job.objects.filter(pk=job.job_id).update(
                 job_status=Job.JobStatus.CANCELLED,
+                cancelled_by=cancelled_by,
                 next_marketplace_alert_at=None,
                 marketplace_search_started_at=None,
                 client_confirmation_started_at=None,
@@ -739,6 +742,10 @@ def apply_client_marketplace_decision(
                 provider_id=selected_provider_id,
                 note="cancelled",
             )
+            if provider_id and cancelled_by == Job.CancellationActor.PROVIDER:
+                from providers.services_metrics import increment_cancelled
+
+                increment_cancelled(provider_id)
             return "cancelled"
 
         raise MarketplaceDecisionConflict("INVALID_ACTION")
@@ -1093,6 +1100,11 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
 
         job.job_status = Job.JobStatus.CONFIRMED
         job.save(update_fields=["job_status", "updated_at"])
+        from providers.services_metrics import increment_completed
+
+        provider_id = _resolve_active_provider_id_for_job(job)
+        if provider_id:
+            increment_completed(provider_id)
         tax_region_code = _build_tax_region_code(job)
 
         pt = finalize_provider_ticket(

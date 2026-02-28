@@ -1,0 +1,156 @@
+from datetime import timedelta
+
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Sum
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from clients.models import ClientTicket
+from jobs import services as job_services
+from jobs.models import Job, PlatformLedgerEntry
+from providers.models import ProviderTicket
+
+
+@staff_member_required
+def home(request):
+    now = timezone.now()
+    today = now.date()
+    week_start = today - timedelta(days=today.weekday())
+
+    open_jobs = Job.objects.exclude(
+        job_status__in=[
+            Job.JobStatus.CONFIRMED,
+            Job.JobStatus.CANCELLED,
+            Job.JobStatus.EXPIRED,
+        ]
+    ).count()
+
+    closed_today = Job.objects.filter(
+        job_status=Job.JobStatus.CONFIRMED,
+        updated_at__date=today,
+    ).count()
+
+    total_billed_today_cents = (
+        PlatformLedgerEntry.objects.filter(
+            created_at__date=today,
+            is_final=True,
+            is_adjustment=False,
+        ).aggregate(total=Sum("gross_cents"))["total"] or 0
+    )
+    total_billed_today = total_billed_today_cents / 100
+
+    platform_week_cents = (
+        PlatformLedgerEntry.objects.filter(
+            created_at__date__gte=week_start,
+            is_final=True,
+            is_adjustment=False,
+        ).aggregate(total=Sum("fee_cents"))["total"] or 0
+    )
+    platform_week = platform_week_cents / 100
+
+    provider_week_cents = (
+        PlatformLedgerEntry.objects.filter(
+            created_at__date__gte=week_start,
+            is_final=True,
+            is_adjustment=False,
+        ).aggregate(total=Sum("net_provider_cents"))["total"] or 0
+    )
+    provider_week = provider_week_cents / 100
+
+    context = {
+        "open_jobs": open_jobs,
+        "closed_today": closed_today,
+        "total_billed_today": total_billed_today,
+        "platform_week": platform_week,
+        "provider_week": provider_week,
+    }
+    return render(request, "ui/home.html", context)
+
+
+@staff_member_required
+def jobs_list(request):
+    jobs = Job.objects.order_by("-job_id")[:100]
+    return render(request, "ui/jobs_list.html", {"jobs": jobs})
+
+
+@staff_member_required
+def job_detail(request, job_id: int):
+    job = get_object_or_404(Job, pk=job_id)
+
+    client_ticket_qs = ClientTicket.objects.filter(
+        ref_type="job",
+        ref_id=job.job_id,
+    ).order_by("-created_at")
+    if job.client_id:
+        client_ticket_qs = client_ticket_qs.filter(client_id=job.client_id)
+    client_ticket = client_ticket_qs.first()
+
+    provider_ticket_qs = ProviderTicket.objects.filter(
+        ref_type="job",
+        ref_id=job.job_id,
+    ).order_by("-created_at")
+    if job.selected_provider_id:
+        provider_ticket_qs = provider_ticket_qs.filter(provider_id=job.selected_provider_id)
+    provider_ticket = provider_ticket_qs.first()
+
+    ledger_entries = PlatformLedgerEntry.objects.filter(job=job).order_by("created_at")
+
+    def cents_to_money(value):
+        if value is None:
+            return None
+        return value / 100
+
+    latest_ledger = ledger_entries.filter(is_final=True).order_by("-created_at").first()
+    if latest_ledger is None:
+        latest_ledger = ledger_entries.order_by("-created_at").first()
+
+    provider_net_cents = getattr(provider_ticket, "net_cents", None)
+    if provider_net_cents is None and latest_ledger is not None:
+        provider_net_cents = getattr(latest_ledger, "net_provider_cents", None)
+
+    platform_fee_cents = getattr(provider_ticket, "platform_fee_cents", None)
+    if platform_fee_cents is None and latest_ledger is not None:
+        platform_fee_cents = getattr(latest_ledger, "fee_cents", None)
+
+    financial_snapshot = {
+        "client_total": cents_to_money(
+            getattr(client_ticket, "total_cents", None)
+        ),
+        "provider_net": cents_to_money(provider_net_cents),
+        "platform_fee": cents_to_money(platform_fee_cents),
+    }
+
+    context = {
+        "job": job,
+        "client_ticket": client_ticket,
+        "provider_ticket": provider_ticket,
+        "ledger_entries": ledger_entries,
+        "financial_snapshot": financial_snapshot,
+    }
+    return render(request, "ui/job_detail.html", context)
+
+
+@require_POST
+@staff_member_required
+def confirm_closed(request, job_id: int):
+    job = get_object_or_404(Job, pk=job_id)
+
+    if not job.client_id:
+        messages.error(request, "No se puede confirmar: el job no tiene client_id.")
+        return redirect("ui:job_detail", job_id=job.job_id)
+
+    try:
+        result = job_services.confirm_service_closed_by_client(
+            job_id=job.job_id,
+            client_id=job.client_id,
+        )
+    except job_services.MarketplaceDecisionConflict as exc:
+        messages.error(request, f"No se pudo cerrar: {exc}")
+    except PermissionError as exc:
+        messages.error(request, f"Permiso denegado: {exc}")
+    else:
+        messages.success(request, f"Cierre procesado: {result}")
+
+    return redirect("ui:job_detail", job_id=job.job_id)

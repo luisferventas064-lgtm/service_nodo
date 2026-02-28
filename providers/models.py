@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -53,11 +54,25 @@ class Provider(models.Model):
 
     is_active = models.BooleanField(default=True)
 
+    # Marketplace metrics (persisted)
+    completed_jobs_count = models.PositiveIntegerField(default=0)
+    cancelled_jobs_count = models.PositiveIntegerField(default=0)
+    avg_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
+
+    # Trust / differentiation
+    is_verified = models.BooleanField(default=False)
+
+    # Optional but recommended
+    acceptance_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "provider"
+        indexes = [
+            models.Index(fields=["province", "city", "is_active"], name="ix_provider_geo_active"),
+        ]
 
     def __str__(self) -> str:
         if self.company_name:
@@ -83,6 +98,52 @@ class ProviderServiceArea(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider} - {self.city}, {self.province}"
+
+
+class ServiceCategory(models.Model):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ProviderService(models.Model):
+    BILLING_UNIT_CHOICES = [
+        ("hour", "Per Hour"),
+        ("fixed", "Fixed Price"),
+        ("sqm", "Per Square Meter"),
+        ("km", "Per Kilometer"),
+        ("day", "Per Day"),
+    ]
+
+    provider = models.ForeignKey(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        related_name="services",
+    )
+
+    category = models.ForeignKey(
+        "providers.ServiceCategory",
+        on_delete=models.PROTECT,
+    )
+
+    custom_name = models.CharField(max_length=150)
+    description = models.TextField(blank=True)
+    billing_unit = models.CharField(max_length=20, choices=BILLING_UNIT_CHOICES)
+    price_cents = models.PositiveIntegerField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["category", "is_active"], name="ix_psvc_cat_active"),
+            models.Index(fields=["price_cents"], name="ix_psvc_price"),
+        ]
+
+    def __str__(self):
+        return f"{self.provider_id} - {self.custom_name}"
 
 
 class ProviderServiceType(models.Model):
@@ -417,4 +478,41 @@ class ProviderUser(models.Model):
 
     def __str__(self):
         return f"{self.provider_id} - {self.user_id} ({self.role})"
+
+
+class ProviderReview(models.Model):
+    provider_review_id = models.BigAutoField(primary_key=True)
+
+    job = models.OneToOneField(
+        "jobs.Job",
+        on_delete=models.CASCADE,
+        related_name="provider_review",
+    )
+    provider = models.ForeignKey(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        related_name="reviews",
+    )
+    client = models.ForeignKey(
+        "clients.Client",
+        on_delete=models.CASCADE,
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        super().clean()
+        if self.job_id:
+            job_status = getattr(self.job, "job_status", None)
+            if job_status and job_status != "confirmed":
+                raise ValidationError("Job must be confirmed to create a review.")
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("ProviderReview is immutable once created.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
 

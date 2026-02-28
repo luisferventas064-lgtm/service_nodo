@@ -1,6 +1,8 @@
 from django.contrib import admin
 
 from .models import (
+    ProviderService,
+    ServiceCategory,
     Provider,
     ProviderBillingProfile,
     ProviderCertificate,
@@ -48,6 +50,36 @@ class ProviderServiceAreaAdmin(admin.ModelAdmin):
     list_display = ("provider_service_area_id", "provider", "city", "province", "is_active")
     list_filter = ("province", "is_active")
     search_fields = ("city", "province", "provider__company_name", "provider__email")
+
+
+@admin.register(ServiceCategory)
+class ServiceCategoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "slug", "is_active")
+    search_fields = ("name", "slug")
+    list_filter = ("is_active",)
+
+
+@admin.register(ProviderService)
+class ProviderServiceAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "provider",
+        "category",
+        "custom_name",
+        "billing_unit",
+        "price_cents",
+        "is_active",
+        "created_at",
+    )
+    search_fields = (
+        "custom_name",
+        "provider__company_name",
+        "provider__contact_first_name",
+        "provider__contact_last_name",
+        "provider__email",
+        "category__name",
+    )
+    list_filter = ("billing_unit", "is_active", "category")
 
 
 @admin.register(ProviderTicket)

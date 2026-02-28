@@ -1,0 +1,130 @@
+{% extends "ui/base.html" %}
+
+{% block title %}Job {{ job.job_id }}{% endblock %}
+
+{% block content %}
+<h1 class="h4 mb-3">Job #{{ job.job_id }}</h1>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div><b>Status:</b> {{ job.job_status|default:"-" }}</div>
+    <div><b>Creado:</b> {{ job.created_at|date:"Y-m-d H:i:s"|default:"-" }}</div>
+    <div><b>Cliente ID:</b> {{ job.client_id|default:"-" }}</div>
+    <div><b>Provider ID:</b> {{ job.selected_provider_id|default:"-" }}</div>
+  </div>
+</div>
+
+<form method="post" action="{% url 'ui:confirm_closed' job.job_id %}">
+  {% csrf_token %}
+  <button class="btn btn-success" type="submit">Confirmar cerrado por cliente</button>
+</form>
+
+<hr class="my-4">
+
+<h3>Financial Snapshot</h3>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card p-3">
+      <strong>Client Paid</strong><br>
+      {{ financial_snapshot.client_total|default:"-" }}
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3">
+      <strong>Provider Net</strong><br>
+      {{ financial_snapshot.provider_net|default:"-" }}
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3">
+      <strong>Platform Fee</strong><br>
+      {{ financial_snapshot.platform_fee|default:"-" }}
+    </div>
+  </div>
+</div>
+
+<hr class="my-4">
+
+<h4>Client Ticket</h4>
+{% if client_ticket %}
+<ul>
+  <li>
+    Status:
+    <span class="badge bg-primary">
+      {{ client_ticket.status }}
+    </span>
+  </li>
+  <li>Subtotal: {{ client_ticket.subtotal_cents }} {{ client_ticket.currency }}</li>
+  <li>Tax: {{ client_ticket.tax_cents }} {{ client_ticket.currency }}</li>
+  <li>Total: {{ client_ticket.total_cents }} {{ client_ticket.currency }}</li>
+  <li>Created at: {{ client_ticket.created_at|date:"Y-m-d H:i:s" }}</li>
+</ul>
+{% else %}
+<p>No client ticket.</p>
+{% endif %}
+
+<h4>Provider Ticket</h4>
+{% if provider_ticket %}
+<ul>
+  <li>
+    Status:
+    <span class="badge bg-primary">
+      {{ provider_ticket.status }}
+    </span>
+  </li>
+  <li>Subtotal: {{ provider_ticket.subtotal_cents }} {{ provider_ticket.currency }}</li>
+  <li>Tax: {{ provider_ticket.tax_cents }} {{ provider_ticket.currency }}</li>
+  <li>Total: {{ provider_ticket.total_cents }} {{ provider_ticket.currency }}</li>
+  <li>Created at: {{ provider_ticket.created_at|date:"Y-m-d H:i:s" }}</li>
+</ul>
+{% else %}
+<p>No provider ticket.</p>
+{% endif %}
+
+<h4>Ledger Entries</h4>
+{% if ledger_entries %}
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Amount (gross_cents)</th>
+      <th>Created</th>
+      <th>Run ID</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for entry in ledger_entries %}
+    <tr>
+      <td>
+        {% if entry.ref_type %}
+          <span class="badge bg-secondary">{{ entry.ref_type }}</span>
+        {% else %}
+          {% if entry.is_adjustment %}
+            <span class="badge bg-secondary">adjustment</span>
+          {% elif entry.is_final %}
+            <span class="badge bg-secondary">final</span>
+          {% else %}
+            <span class="badge bg-secondary">base</span>
+          {% endif %}
+        {% endif %}
+      </td>
+      <td>{{ entry.gross_cents }}</td>
+      <td>{{ entry.created_at|date:"Y-m-d H:i:s" }}</td>
+      <td>
+        {% if entry.finalized_run_id %}
+          {{ entry.finalized_run_id }}
+        {% elif entry.last_rebuild_run_id %}
+          {{ entry.last_rebuild_run_id }}
+        {% else %}
+          -
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No ledger entries.</p>
+{% endif %}
+{% endblock %}

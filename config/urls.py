@@ -21,8 +21,10 @@ from payments.views import stripe_webhook
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", include("ui.urls")),
     path("", include("jobs.urls")),
     path("settlements/", include("settlements.urls")),
+    path("api/", include("providers.urls")),
     path("api/stripe/webhook/", stripe_webhook),
 ]
 

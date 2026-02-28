@@ -57,13 +57,15 @@ if STRIPE_WEBHOOK_SECRET:
 if STRIPE_PUBLISHABLE_KEY:
     os.environ.setdefault("STRIPE_PUBLISHABLE_KEY", STRIPE_PUBLISHABLE_KEY)
 
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
+
 STRIPE_ONBOARDING_REFRESH_URL = os.getenv(
     "STRIPE_ONBOARDING_REFRESH_URL",
-    "http://localhost:8000/stripe/onboarding/refresh/",
+    f"{PUBLIC_BASE_URL}/stripe/onboarding/refresh/",
 )
 STRIPE_ONBOARDING_RETURN_URL = os.getenv(
     "STRIPE_ONBOARDING_RETURN_URL",
-    "http://localhost:8000/stripe/onboarding/complete/",
+    f"{PUBLIC_BASE_URL}/stripe/onboarding/complete/",
 )
 
 if not STRIPE_SECRET_KEY:
@@ -87,7 +89,7 @@ def _csv_env(name, default):
 
 ALLOWED_HOSTS = _csv_env(
     "DJANGO_ALLOWED_HOSTS",
-    "127.0.0.1,localhost,[::1],.ngrok-free.dev",
+    "127.0.0.1,localhost,[::1],.ngrok-free.dev,.trycloudflare.com",
 )
 
 
@@ -109,6 +111,7 @@ INSTALLED_APPS = [
     'workers',
     'assignments.apps.AssignmentsConfig',
     "jobs.apps.JobsConfig",
+    "ui.apps.UiConfig",
 
 ]
 

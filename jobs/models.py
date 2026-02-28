@@ -73,6 +73,11 @@ class Job(models.Model):
         CANCELLED = "cancelled", "Cancelled"
         EXPIRED = "expired", "Expired"
 
+    class CancellationActor(models.TextChoices):
+        CLIENT = "client", "Client"
+        PROVIDER = "provider", "Provider"
+        SYSTEM = "system", "System"
+
     hold_provider = models.ForeignKey(
         "providers.Provider",
         null=True,
@@ -119,6 +124,12 @@ class Job(models.Model):
         choices=JobStatus.choices,
         default=JobStatus.DRAFT,
     )
+    cancelled_by = models.CharField(
+        max_length=20,
+        choices=CancellationActor.choices,
+        null=True,
+        blank=True,
+    )
 
     client = models.ForeignKey(
         Client,
@@ -152,6 +163,13 @@ class Job(models.Model):
         blank=True,
         null=True,
         related_name="selected_jobs",
+    )
+    provider_service = models.ForeignKey(
+        "providers.ProviderService",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="jobs",
     )
 
     quoted_service_skill_id = models.IntegerField(null=True, blank=True)
