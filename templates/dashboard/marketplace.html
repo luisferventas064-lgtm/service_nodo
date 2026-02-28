@@ -50,6 +50,16 @@
         tr:last-child td { border-bottom:none; }
         .muted { color:#6b7280; font-size:13px; margin-bottom:12px; }
         .empty { background:white; padding:18px 20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+        .score-pill {
+            display:inline-block;
+            padding:4px 8px;
+            border-radius:999px;
+            font-weight:bold;
+            font-size:12px;
+        }
+        .score-pill.high { background:#fef2f2; color:#b91c1c; }
+        .score-pill.medium { background:#fffbeb; color:#b45309; }
+        .score-pill.low { background:#ecfdf5; color:#047857; }
     </style>
 </head>
 <body>
@@ -204,7 +214,7 @@
 {% endif %}
 
 <h2>Competitiveness by Slice</h2>
-<div class="muted">Lower spread means a more compressed and competitive slice.</div>
+<div class="muted">Lower spread and lower std dev indicate a more compressed and competitive slice.</div>
 {% if analytics.score_spread.by_slice %}
 <table>
     <thead>
@@ -217,7 +227,9 @@
             <th>Avg Score</th>
             <th>Min Score</th>
             <th>Max Score</th>
+            <th>Std Dev</th>
             <th>Spread</th>
+            <th>Competitiveness</th>
         </tr>
     </thead>
     <tbody>
@@ -231,7 +243,17 @@
             <td>{{ row.avg_hybrid_score }}</td>
             <td>{{ row.min_hybrid_score }}</td>
             <td>{{ row.max_hybrid_score }}</td>
+            <td>{{ row.score_std_dev }}</td>
             <td>{{ row.score_spread }}</td>
+            <td>
+                {% if row.competitiveness_index >= 0.75 %}
+                    <span class="score-pill high">{{ row.competitiveness_index }}</span>
+                {% elif row.competitiveness_index >= 0.4 %}
+                    <span class="score-pill medium">{{ row.competitiveness_index }}</span>
+                {% else %}
+                    <span class="score-pill low">{{ row.competitiveness_index }}</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>

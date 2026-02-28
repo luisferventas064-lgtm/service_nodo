@@ -58,6 +58,25 @@ def _mean(values, digits=2):
     return _round(sum(values) / len(values), digits)
 
 
+def compute_competitiveness_index(spread, std_dev, max_spread, max_std):
+    if spread is None or std_dev is None:
+        return None
+
+    normalized_components = []
+
+    if max_spread and max_spread > 0:
+        normalized_components.append(max(0.0, 1 - (spread / max_spread)))
+    else:
+        normalized_components.append(1.0)
+
+    if max_std and max_std > 0:
+        normalized_components.append(max(0.0, 1 - (std_dev / max_std)))
+    else:
+        normalized_components.append(1.0)
+
+    return _round(sum(normalized_components) / len(normalized_components), 4)
+
+
 def _grouped_slice_metrics(
     *,
     provider_rows,
@@ -290,10 +309,27 @@ def hybrid_score_spread(
                 "providers": len(entry["provider_ids"]),
                 "offers": entry["offers"],
                 "avg_hybrid_score": _mean(score_values, digits=4),
+                "score_std_dev": _round(pstdev(score_values), 4) if len(score_values) > 1 else 0.0,
                 "min_hybrid_score": _round(min(score_values), 4) if score_values else None,
                 "max_hybrid_score": _round(max(score_values), 4) if score_values else None,
                 "score_spread": _round(max(score_values) - min(score_values), 4) if score_values else None,
             }
+        )
+
+    max_spread = max(
+        (row["score_spread"] for row in by_slice if row["score_spread"] is not None),
+        default=0.0,
+    )
+    max_std_dev = max(
+        (row["score_std_dev"] for row in by_slice if row["score_std_dev"] is not None),
+        default=0.0,
+    )
+    for row in by_slice:
+        row["competitiveness_index"] = compute_competitiveness_index(
+            row["score_spread"],
+            row["score_std_dev"],
+            max_spread,
+            max_std_dev,
         )
 
     by_slice.sort(
@@ -443,7 +479,7 @@ def marketplace_analytics_to_csv(snapshot: dict) -> str:
     writer.writerow([])
 
     writer.writerow(["Score Spread"])
-    writer.writerow(["slice", "max_score", "min_score", "spread"])
+    writer.writerow(["slice", "max_score", "min_score", "std_dev", "spread", "competitiveness_index"])
     for row in snapshot.get("score_spread", {}).get("by_slice", []):
         slice_label = (
             f'{row.get("provider__province")}'
@@ -455,7 +491,9 @@ def marketplace_analytics_to_csv(snapshot: dict) -> str:
                 slice_label,
                 row.get("max_hybrid_score"),
                 row.get("min_hybrid_score"),
+                row.get("score_std_dev"),
                 row.get("score_spread"),
+                row.get("competitiveness_index"),
             ]
         )
 
