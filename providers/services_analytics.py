@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from math import ceil
 from statistics import pstdev
 
@@ -19,6 +20,24 @@ def _percentage(numerator: int, denominator: int) -> float:
     if not denominator:
         return 0.0
     return round((numerator / denominator) * 100, 2)
+
+
+def _delta(current_value, previous_value, digits=4):
+    if current_value is None or previous_value is None:
+        return None
+    return _round(float(current_value) - float(previous_value), digits)
+
+
+def _snapshot_payload(snapshot):
+    if isinstance(snapshot, dict):
+        return snapshot
+    if isinstance(snapshot, str):
+        return json.loads(snapshot)
+
+    raw_snapshot = getattr(snapshot, "snapshot", None)
+    if raw_snapshot is None:
+        raise ValueError("Unsupported snapshot payload.")
+    return json.loads(raw_snapshot)
 
 
 def _load_marketplace_rows():
@@ -409,6 +428,67 @@ def marketplace_analytics_snapshot(limit: int | None = None):
         "score_spread": hybrid_score_spread(
             limit=limit,
             offer_rows=offer_rows,
+        ),
+    }
+
+
+def compute_snapshot_diff(current_snapshot, previous_snapshot):
+    current_payload = _snapshot_payload(current_snapshot)
+    previous_payload = _snapshot_payload(previous_snapshot)
+
+    current_global = current_payload.get("global", {})
+    previous_global = previous_payload.get("global", {})
+
+    current_slices = current_payload.get("score_spread", {}).get("by_slice", [])
+    previous_slices = previous_payload.get("score_spread", {}).get("by_slice", [])
+
+    current_max_competitiveness = max(
+        (
+            row.get("competitiveness_index")
+            for row in current_slices
+            if row.get("competitiveness_index") is not None
+        ),
+        default=None,
+    )
+    previous_max_competitiveness = max(
+        (
+            row.get("competitiveness_index")
+            for row in previous_slices
+            if row.get("competitiveness_index") is not None
+        ),
+        default=None,
+    )
+
+    return {
+        "total_providers_delta": _delta(
+            current_global.get("total_providers"),
+            previous_global.get("total_providers"),
+            digits=0,
+        ),
+        "verified_pct_delta": _delta(
+            current_global.get("verified_pct"),
+            previous_global.get("verified_pct"),
+            digits=2,
+        ),
+        "avg_price_delta": _delta(
+            current_global.get("avg_price"),
+            previous_global.get("avg_price"),
+            digits=2,
+        ),
+        "avg_hybrid_score_delta": _delta(
+            current_global.get("avg_hybrid_score"),
+            previous_global.get("avg_hybrid_score"),
+            digits=4,
+        ),
+        "score_std_dev_delta": _delta(
+            current_global.get("score_std_dev"),
+            previous_global.get("score_std_dev"),
+            digits=4,
+        ),
+        "max_competitiveness_index_delta": _delta(
+            current_max_competitiveness,
+            previous_max_competitiveness,
+            digits=4,
         ),
     }
 

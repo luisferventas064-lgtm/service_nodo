@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    MarketplaceAnalyticsSnapshot,
     ProviderService,
     ServiceCategory,
     Provider,
@@ -52,6 +53,13 @@ class ServiceZoneAdmin(admin.ModelAdmin):
     list_display = ("name", "city", "province")
     search_fields = ("name", "city", "province")
     list_filter = ("province", "city")
+
+
+@admin.register(MarketplaceAnalyticsSnapshot)
+class MarketplaceAnalyticsSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("marketplace_analytics_snapshot_id", "snapshot_version", "captured_at")
+    ordering = ("-captured_at",)
+    readonly_fields = ("captured_at", "snapshot_version", "snapshot")
 
 
 @admin.register(ProviderServiceArea)

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Estado de tu solicitud</title>
+    <style>
+        body { font-family: Arial; background:#f5f7fa; padding:40px; }
+        .container {
+            max-width:680px;
+            margin:auto;
+            background:white;
+            padding:24px;
+            border-radius:10px;
+            box-shadow:0 3px 10px rgba(0,0,0,0.06);
+        }
+        p { margin:10px 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Estado de tu solicitud</h2>
+
+    <p><strong>Job ID:</strong> {{ job.job_id }}</p>
+    <p><strong>Estado:</strong> {{ job.job_status }}</p>
+
+    {% if job.selected_provider %}
+        <p><strong>Provider:</strong> {{ job.selected_provider }}</p>
+    {% endif %}
+
+    <p><strong>Tipo de servicio:</strong> {{ job.service_type.name }}</p>
+
+    <p>
+        <strong>Direccion:</strong>
+        {{ job.address_line1 }},
+        {{ job.city }},
+        {{ job.province }},
+        {{ job.postal_code }}
+    </p>
+
+    {% if job.job_mode == "scheduled" %}
+        <p><strong>Fecha:</strong> {{ job.scheduled_date }}</p>
+        <p><strong>Hora:</strong> {{ job.scheduled_start_time }}</p>
+    {% else %}
+        <p><strong>Modo:</strong> ASAP</p>
+    {% endif %}
+</div>
+
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NODO Marketplace Results</title>
+    <style>
+        body { font-family: Arial; background:#f5f7fa; padding:40px; }
+        .container {
+            max-width:900px;
+            margin:auto;
+            background:white;
+            padding:24px;
+            border-radius:10px;
+            box-shadow:0 3px 10px rgba(0,0,0,0.06);
+        }
+        .result {
+            padding:16px 0;
+            border-bottom:1px solid #e5e7eb;
+        }
+        .result:last-child { border-bottom:none; }
+        .verified {
+            color:#047857;
+            font-weight:bold;
+            font-size:12px;
+        }
+        .error { color:#b91c1c; margin-bottom:16px; }
+        .request-link {
+            display:inline-block;
+            margin-top:10px;
+            color:#111827;
+            font-weight:bold;
+            text-decoration:none;
+        }
+        .meta { color:#4b5563; }
+        .back-link { display:inline-block; margin-top:20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Resultados</h2>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if results %}
+        {% for provider in results %}
+            <div class="result">
+                <strong>{{ provider.provider_display_name }}</strong><br>
+
+                <div class="meta">
+                    Rating: {{ provider.safe_rating }}<br>
+                    Precio: ${{ provider.display_price|floatformat:2 }}<br>
+                    Categoria: {{ provider.service_category_name }}<br>
+                    {% if provider.zone_name %}
+                        Zona: {{ provider.zone_name }}<br>
+                    {% endif %}
+                    {% if provider.is_verified_badge %}
+                        <span class="verified">VERIFIED</span><br>
+                    {% endif %}
+                </div>
+
+                <a
+                    href="{% url 'ui:request_create' provider.provider_id %}?category_id={{ category_id }}"
+                    class="request-link"
+                >
+                    Solicitar
+                </a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No se encontraron proveedores.</p>
+    {% endif %}
+
+    <a class="back-link" href="{% url 'ui:marketplace_search' %}">Volver</a>
+</div>
+
+</body>
+</html>

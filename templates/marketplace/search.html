@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NODO Marketplace Search</title>
+    <style>
+        body { font-family: Arial; background:#f5f7fa; padding:40px; }
+        .container {
+            max-width:640px;
+            margin:auto;
+            background:white;
+            padding:24px;
+            border-radius:10px;
+            box-shadow:0 3px 10px rgba(0,0,0,0.06);
+        }
+        h2 { margin-top:0; }
+        label { display:block; margin-bottom:6px; font-weight:bold; }
+        input, select {
+            width:100%;
+            box-sizing:border-box;
+            padding:10px;
+            border:1px solid #d1d5db;
+            border-radius:6px;
+        }
+        .field { margin-bottom:18px; }
+        .inline-options { display:flex; gap:16px; margin-top:8px; }
+        .inline-options label { font-weight:normal; display:flex; align-items:center; gap:8px; }
+        .inline-options input { width:auto; }
+        button {
+            background:#111;
+            color:white;
+            border:none;
+            padding:10px 16px;
+            border-radius:6px;
+            cursor:pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Buscar Servicio</h2>
+    <form method="post" action="{% url 'ui:marketplace_results' %}">
+        {% csrf_token %}
+        <div class="field">
+            <label for="category_id">Categoria:</label>
+            <select id="category_id" name="category_id" required>
+                <option value="">Seleccione</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="province">Provincia:</label>
+            <select id="province" name="province" required>
+                <option value="QC">QC</option>
+                <option value="ON">ON</option>
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="city">Ciudad:</label>
+            <input id="city" type="text" name="city" required>
+        </div>
+
+        <div class="field">
+            <label for="zone_id">Zona (opcional):</label>
+            <input id="zone_id" type="number" name="zone_id">
+        </div>
+
+        <div class="field">
+            <label for="service_type">Service type (opcional):</label>
+            <input id="service_type" type="text" name="service_type">
+        </div>
+
+        <div class="field">
+            <label>Modo (opcional):</label>
+            <div class="inline-options">
+                <label><input type="checkbox" name="on_demand" value="1"> On demand</label>
+                <label><input type="checkbox" name="scheduled" value="1"> Scheduled</label>
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="scheduled_datetime">Fecha/hora programada (opcional):</label>
+            <input id="scheduled_datetime" type="datetime-local" name="scheduled_datetime">
+        </div>
+
+        <button type="submit">Buscar proveedores</button>
+    </form>
+</div>
+
+</body>
+</html>

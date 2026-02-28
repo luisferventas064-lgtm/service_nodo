@@ -108,6 +108,21 @@ class ServiceZone(models.Model):
         return f"{self.name} ({self.city}, {self.province})"
 
 
+class MarketplaceAnalyticsSnapshot(models.Model):
+    marketplace_analytics_snapshot_id = models.BigAutoField(primary_key=True)
+    captured_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    snapshot_version = models.CharField(max_length=50, default="ANALYTICS_V1")
+    snapshot = models.TextField()
+
+    class Meta:
+        db_table = "marketplace_analytics_snapshot"
+        ordering = ["-captured_at"]
+
+    def __str__(self) -> str:
+        timestamp = self.captured_at.strftime("%Y-%m-%d %H:%M:%S") if self.captured_at else "pending"
+        return f"Marketplace snapshot {timestamp}"
+
+
 class ProviderServiceArea(models.Model):
     provider_service_area_id = models.AutoField(primary_key=True)
 

@@ -1,24 +1,29 @@
 from datetime import datetime, timedelta
 
-from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import HttpResponse, JsonResponse
+from django.core.exceptions import ValidationError
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from clients.models import ClientTicket
+from clients.models import Client
 from jobs import services as job_services
 from jobs.models import Job, PlatformLedgerEntry
+from providers.models import Provider
+from providers.models import ServiceCategory
+from providers.models import ProviderService
 from providers.models import ProviderTicket
-from providers.models import ServiceZone
 from providers.services_analytics import (
     marketplace_analytics_snapshot,
     marketplace_analytics_to_csv,
 )
-from providers.services_marketplace import search_provider_services
+from providers.services_marketplace import marketplace_ranked_queryset
+from service_type.models import ServiceType
 
 
 @staff_member_required
@@ -77,65 +82,318 @@ def home(request):
     return render(request, "ui/home.html", context)
 
 
-def marketplace_view(request):
-    service_category_id = request.GET.get("service_category_id")
-    province = request.GET.get("province")
-    city = request.GET.get("city")
-    zone_id_raw = request.GET.get("zone_id")
+@login_required
+def portal_view(request):
+    return render(request, "portal/index.html")
 
-    providers = []
+
+def marketplace_search_view(request):
+    categories = ServiceCategory.objects.filter(is_active=True).order_by("name")
+    return render(
+        request,
+        "marketplace/search.html",
+        {
+            "categories": categories,
+        },
+    )
+
+
+def marketplace_results_view(request):
+    if request.method != "POST":
+        return redirect("ui:marketplace_search")
+
+    category_id = request.POST.get("category_id")
+    province = (request.POST.get("province") or "").strip()
+    city = (request.POST.get("city") or "").strip()
+    zone_id_raw = (request.POST.get("zone_id") or "").strip()
+
+    results = []
     error = None
-    zones = []
-    selected_zone_id = ""
+    zone_id = zone_id_raw
 
-    if province and city:
-        zones = list(
-            ServiceZone.objects.filter(
-                province=province,
-                city=city,
-            ).values("id", "name")
-        )
+    try:
+        service_category_id = int(category_id)
+    except (TypeError, ValueError):
+        service_category_id = None
+        error = "Categoria invalida."
 
-    zone_id = None
+    parsed_zone_id = None
     if zone_id_raw:
         try:
-            zone_id = int(zone_id_raw)
-            selected_zone_id = str(zone_id)
+            parsed_zone_id = int(zone_id_raw)
         except (TypeError, ValueError):
             error = "Zona invalida."
 
-    if service_category_id and province:
-        try:
-            search_kwargs = {
-                "service_category_id": int(service_category_id),
-                "province": province,
-                "city": city,
-            }
-            if zone_id is not None:
-                search_kwargs["zone_id"] = zone_id
-
-            providers = list(search_provider_services(**search_kwargs))
-            for provider in providers:
-                provider["display_price"] = provider["price_cents"] / 100
-        except Exception as exc:
-            error = str(exc)
-    else:
-        error = "Seleccione categoria y provincia para buscar."
+    if error is None and service_category_id and province and city:
+        results = list(
+            marketplace_ranked_queryset(
+                service_category_id=service_category_id,
+                province=province,
+                city=city,
+                zone_id=parsed_zone_id,
+            )
+            .order_by("-hybrid_score", "-safe_rating", "price_cents", "provider_id")[:20]
+        )
+        for provider in results:
+            provider.display_price = provider.price_cents / 100
+            provider.is_verified_badge = bool(provider.verified_bonus)
+    elif error is None:
+        error = "Complete categoria, provincia y ciudad."
 
     return render(
         request,
-        "marketplace/index.html",
+        "marketplace/results.html",
         {
-            "providers": providers,
+            "results": results,
             "error": error,
-            "service_category_id": service_category_id,
+            "category_id": category_id,
             "province": province,
             "city": city,
-            "zones": zones,
-            "selected_zone_id": selected_zone_id,
-            "debug_mode": settings.DEBUG,
+            "zone_id": zone_id,
         },
     )
+
+
+def request_create_view(request, provider_id):
+    provider = get_object_or_404(Provider, pk=provider_id, is_active=True)
+    service_types = ServiceType.objects.filter(is_active=True).order_by("name")
+    category_id = request.GET.get("category_id") or request.POST.get("category_id")
+
+    selected_offer = (
+        ProviderService.objects.select_related("category")
+        .filter(
+            provider=provider,
+            is_active=True,
+        )
+        .order_by("price_cents", "id")
+        .first()
+    )
+    if category_id:
+        selected_offer = (
+            ProviderService.objects.select_related("category")
+            .filter(
+                provider=provider,
+                category_id=category_id,
+                is_active=True,
+            )
+            .order_by("price_cents", "id")
+            .first()
+            or selected_offer
+        )
+    if selected_offer is not None:
+        selected_offer.display_price = selected_offer.price_cents / 100
+
+    if request.method == "GET":
+        return render(
+            request,
+            "request/create.html",
+            {
+                "provider": provider,
+                "service_types": service_types,
+                "selected_offer": selected_offer,
+                "category_id": category_id,
+                "form_data": {
+                    "country": "CA",
+                    "province": provider.province,
+                    "city": provider.city,
+                    "job_mode": Job.JobMode.ON_DEMAND,
+                },
+            },
+        )
+
+    form_data = {
+        "first_name": (request.POST.get("first_name") or "").strip(),
+        "last_name": (request.POST.get("last_name") or "").strip(),
+        "phone_number": (request.POST.get("phone_number") or "").strip(),
+        "email": (request.POST.get("email") or "").strip(),
+        "country": (request.POST.get("country") or "CA").strip(),
+        "province": (request.POST.get("province") or "").strip(),
+        "city": (request.POST.get("city") or "").strip(),
+        "postal_code": (request.POST.get("postal_code") or "").strip(),
+        "address_line1": (request.POST.get("address_line1") or "").strip(),
+        "service_type": (request.POST.get("service_type") or "").strip(),
+        "job_mode": (request.POST.get("job_mode") or Job.JobMode.ON_DEMAND).strip(),
+        "scheduled_date": (request.POST.get("scheduled_date") or "").strip(),
+        "scheduled_start_time": (request.POST.get("scheduled_time") or "").strip(),
+    }
+
+    required_fields = [
+        "first_name",
+        "last_name",
+        "phone_number",
+        "email",
+        "country",
+        "province",
+        "city",
+        "postal_code",
+        "address_line1",
+        "service_type",
+        "job_mode",
+    ]
+    missing_required = [field for field in required_fields if not form_data[field]]
+
+    error = None
+    if missing_required:
+        error = "Complete todos los campos obligatorios."
+    elif form_data["job_mode"] not in {Job.JobMode.ON_DEMAND, Job.JobMode.SCHEDULED}:
+        error = "Modo de servicio invalido."
+    elif form_data["job_mode"] == Job.JobMode.SCHEDULED and (
+        not form_data["scheduled_date"] or not form_data["scheduled_start_time"]
+    ):
+        error = "Scheduled requiere fecha y hora."
+
+    service_type = None
+    if error is None:
+        service_type = ServiceType.objects.filter(
+            pk=form_data["service_type"],
+            is_active=True,
+        ).first()
+        if service_type is None:
+            error = "Service type invalido."
+
+    if error is None:
+        client = Client.objects.filter(email=form_data["email"]).order_by("client_id").first()
+        if client is None:
+            client = Client.objects.create(
+                first_name=form_data["first_name"],
+                last_name=form_data["last_name"],
+                phone_number=form_data["phone_number"],
+                email=form_data["email"],
+                country=form_data["country"],
+                province=form_data["province"],
+                city=form_data["city"],
+                postal_code=form_data["postal_code"],
+                address_line1=form_data["address_line1"],
+            )
+
+        created_job = None
+        try:
+            created_job = Job.objects.create(
+                selected_provider=provider,
+                client=client,
+                service_type=service_type,
+                job_mode=form_data["job_mode"],
+                scheduled_date=(
+                    form_data["scheduled_date"]
+                    if form_data["job_mode"] == Job.JobMode.SCHEDULED
+                    else None
+                ),
+                scheduled_start_time=(
+                    form_data["scheduled_start_time"]
+                    if form_data["job_mode"] == Job.JobMode.SCHEDULED
+                    else None
+                ),
+                is_asap=form_data["job_mode"] == Job.JobMode.ON_DEMAND,
+                country=form_data["country"],
+                province=form_data["province"],
+                city=form_data["city"],
+                postal_code=form_data["postal_code"],
+                address_line1=form_data["address_line1"],
+                job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            )
+        except ValidationError as exc:
+            error = "; ".join(exc.messages) or "No se pudo crear la solicitud."
+
+    if error is not None:
+        return render(
+            request,
+            "request/create.html",
+            {
+                "provider": provider,
+                "service_types": service_types,
+                "selected_offer": selected_offer,
+                "category_id": category_id,
+                "form_data": form_data,
+                "error": error,
+            },
+        )
+
+    return redirect("ui:request_status", job_id=created_job.job_id)
+
+
+def request_status_lookup_view(request):
+    job_id = request.GET.get("job_id")
+
+    try:
+        job_id_int = int(job_id)
+    except (TypeError, ValueError):
+        return redirect("ui:portal")
+
+    return redirect("ui:request_status", job_id=job_id_int)
+
+
+def request_status_view(request, job_id):
+    job = get_object_or_404(
+        Job.objects.select_related("selected_provider", "client", "service_type"),
+        pk=job_id,
+    )
+
+    return render(
+        request,
+        "request/status.html",
+        {
+            "job": job,
+        },
+    )
+
+
+@login_required
+def provider_jobs_view(request):
+    provider_ids = list(
+        request.user.provider_roles
+        .filter(is_active=True)
+        .values_list("provider_id", flat=True)
+    )
+
+    jobs = (
+        Job.objects.filter(
+            selected_provider_id__in=provider_ids,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+        )
+        .select_related("client", "service_type")
+        .order_by("created_at")
+    )
+
+    return render(
+        request,
+        "provider/jobs.html",
+        {
+            "jobs": jobs,
+        },
+    )
+
+
+@login_required
+def provider_job_action_view(request, job_id):
+    if request.method != "POST":
+        return redirect("ui:provider_jobs")
+
+    job = get_object_or_404(Job, pk=job_id)
+    provider_ids = set(
+        request.user.provider_roles
+        .filter(is_active=True)
+        .values_list("provider_id", flat=True)
+    )
+
+    if job.selected_provider_id not in provider_ids:
+        return HttpResponseForbidden("No autorizado.")
+
+    if job.job_status != Job.JobStatus.WAITING_PROVIDER_RESPONSE:
+        return HttpResponseForbidden("Estado invalido.")
+
+    action = request.POST.get("action")
+
+    if action == "accept":
+        job.job_status = Job.JobStatus.ASSIGNED
+        job.save(update_fields=["job_status", "updated_at"])
+    elif action == "reject":
+        job.job_status = Job.JobStatus.POSTED
+        job.selected_provider = None
+        job.save(update_fields=["job_status", "selected_provider", "updated_at"])
+    else:
+        return HttpResponseBadRequest("Accion invalida.")
+
+    return redirect("ui:provider_jobs")
 
 
 @staff_member_required
