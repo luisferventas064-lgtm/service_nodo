@@ -79,7 +79,7 @@ if not STRIPE_SECRET_KEY:
 SECRET_KEY = 'django-insecure-d%3ebi)1nzk6*y3!mtijivxes#c7u)_%whx!05w^3g2gqhq!q)'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", os.getenv("DEBUG", "False")).lower() == "true"
 ALLOW_LEDGER_REBUILD = False
 
 def _csv_env(name, default):
@@ -131,7 +131,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
