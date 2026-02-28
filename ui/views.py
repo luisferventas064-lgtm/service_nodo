@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Sum
@@ -11,6 +12,8 @@ from clients.models import ClientTicket
 from jobs import services as job_services
 from jobs.models import Job, PlatformLedgerEntry
 from providers.models import ProviderTicket
+from providers.models import ServiceZone
+from providers.services_marketplace import search_provider_services
 
 
 @staff_member_required
@@ -67,6 +70,67 @@ def home(request):
         "provider_week": provider_week,
     }
     return render(request, "ui/home.html", context)
+
+
+def marketplace_view(request):
+    service_category_id = request.GET.get("service_category_id")
+    province = request.GET.get("province")
+    city = request.GET.get("city")
+    zone_id_raw = request.GET.get("zone_id")
+
+    providers = []
+    error = None
+    zones = []
+    selected_zone_id = ""
+
+    if province and city:
+        zones = list(
+            ServiceZone.objects.filter(
+                province=province,
+                city=city,
+            ).values("id", "name")
+        )
+
+    zone_id = None
+    if zone_id_raw:
+        try:
+            zone_id = int(zone_id_raw)
+            selected_zone_id = str(zone_id)
+        except (TypeError, ValueError):
+            error = "Zona invalida."
+
+    if service_category_id and province:
+        try:
+            search_kwargs = {
+                "service_category_id": int(service_category_id),
+                "province": province,
+                "city": city,
+            }
+            if zone_id is not None:
+                search_kwargs["zone_id"] = zone_id
+
+            providers = list(search_provider_services(**search_kwargs))
+            for provider in providers:
+                provider["display_price"] = provider["price_cents"] / 100
+        except Exception as exc:
+            error = str(exc)
+    else:
+        error = "Seleccione categoria y provincia para buscar."
+
+    return render(
+        request,
+        "marketplace/index.html",
+        {
+            "providers": providers,
+            "error": error,
+            "service_category_id": service_category_id,
+            "province": province,
+            "city": city,
+            "zones": zones,
+            "selected_zone_id": selected_zone_id,
+            "debug_mode": settings.DEBUG,
+        },
+    )
 
 
 @staff_member_required

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NODO Marketplace</title>
+    <style>
+        body { font-family: Arial; background:#f5f7fa; }
+        .container { max-width:900px; margin:auto; padding:20px; }
+        .card {
+            background:white;
+            padding:18px;
+            margin-bottom:15px;
+            border-radius:10px;
+            box-shadow:0 3px 10px rgba(0,0,0,0.05);
+        }
+        .verified {
+            background:#2ecc71;
+            color:white;
+            padding:3px 8px;
+            border-radius:5px;
+            font-size:12px;
+        }
+        .meta { font-size:14px; color:#555; }
+        .debug { font-size:12px; color:gray; }
+        .error { color:red; margin-bottom:15px; }
+        form { margin-bottom:20px; }
+        input { padding:6px; margin-right:8px; }
+        button { padding:6px 12px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Marketplace</h1>
+
+    <form method="get">
+        <input type="number" name="service_category_id"
+               placeholder="Category ID"
+               value="{{ service_category_id }}">
+
+        <input type="text" name="province"
+               placeholder="Province"
+               value="{{ province }}">
+
+        <input type="text" name="city"
+               placeholder="City (optional)"
+               value="{{ city }}">
+
+        <select name="zone_id" id="zone_id" {% if not zones %}disabled{% endif %}>
+            <option value="">All zones</option>
+            {% for zone in zones %}
+                <option value="{{ zone.id }}"{% if selected_zone_id == zone.id|stringformat:"s" %} selected{% endif %}>
+                    {{ zone.name }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">Buscar</button>
+    </form>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% for provider in providers %}
+        <div class="card">
+            <h3>
+                {{ provider.provider_display_name }}
+                {% if provider.verified_bonus == 1.0 %}
+                    <span class="verified">Verified</span>
+                {% endif %}
+            </h3>
+
+            <div class="meta">
+                <div>
+                    Precio: ${{ provider.display_price|floatformat:2 }}
+                </div>
+
+                <div>
+                    ⭐ {{ provider.safe_rating }}
+                </div>
+
+                <div>
+                    Completed: {{ provider.safe_completed }}
+                </div>
+            </div>
+
+            {% if debug_mode %}
+                <div class="debug">
+                    Hybrid Score: {{ provider.hybrid_score }}
+                </div>
+            {% endif %}
+        </div>
+    {% empty %}
+        {% if service_category_id and province %}
+            <p>No hay resultados.</p>
+        {% endif %}
+    {% endfor %}
+
+</div>
+
+<script>
+    (function() {
+        const provinceInput = document.querySelector('input[name="province"]');
+        const cityInput = document.querySelector('input[name="city"]');
+        const zoneSelect = document.getElementById("zone_id");
+        const selectedZoneId = "{{ selected_zone_id|default:''|escapejs }}";
+
+        function resetZones() {
+            zoneSelect.innerHTML = '<option value="">All zones</option>';
+            zoneSelect.disabled = true;
+        }
+
+        function populateZones(zones) {
+            resetZones();
+            for (const zone of zones) {
+                const option = document.createElement("option");
+                option.value = String(zone.id);
+                option.textContent = zone.name;
+                if (selectedZoneId && option.value === selectedZoneId) {
+                    option.selected = true;
+                }
+                zoneSelect.appendChild(option);
+            }
+            zoneSelect.disabled = zones.length === 0;
+        }
+
+        async function loadZones() {
+            const province = provinceInput.value.trim();
+            const city = cityInput.value.trim();
+
+            if (!province || !city) {
+                resetZones();
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams({ province, city });
+                const response = await fetch(`/api/zones/?${params.toString()}`);
+                if (!response.ok) {
+                    resetZones();
+                    return;
+                }
+                const zones = await response.json();
+                populateZones(zones);
+            } catch (error) {
+                resetZones();
+            }
+        }
+
+        provinceInput.addEventListener("change", loadZones);
+        cityInput.addEventListener("change", loadZones);
+        loadZones();
+    })();
+</script>
+
+</body>
+</html>
