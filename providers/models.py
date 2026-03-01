@@ -8,19 +8,31 @@ from django.utils import timezone
 class Provider(models.Model):
     provider_id = models.AutoField(primary_key=True)
 
+    TYPE_SELF_EMPLOYED = "self_employed"
+    TYPE_COMPANY = "company"
+
     PROVIDER_TYPE_CHOICES = [
-        ("self_employed", "Self-employed"),
-        ("company", "Company"),
+        (TYPE_SELF_EMPLOYED, "Self-employed"),
+        (TYPE_COMPANY, "Company"),
     ]
 
     provider_type = models.CharField(max_length=20, choices=PROVIDER_TYPE_CHOICES)
 
     company_name = models.CharField(max_length=255, blank=True, null=True)
+    legal_name = models.CharField(max_length=255, blank=True, default="")
+    business_registration_number = models.CharField(max_length=100, blank=True, default="")
     contact_first_name = models.CharField(max_length=100)
     contact_last_name = models.CharField(max_length=100)
 
     phone_number = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
+    is_phone_verified = models.BooleanField(default=False)
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
+    phone_verification_attempts = models.IntegerField(default=0)
+    profile_completed = models.BooleanField(default=True)
+    service_area = models.CharField(max_length=255, blank=True, default="")
+    accepts_terms = models.BooleanField(default=True)
+    billing_profile_completed = models.BooleanField(default=True)
 
     stripe_account_id = models.CharField(
         max_length=255,
@@ -64,6 +76,9 @@ class Provider(models.Model):
     # Marketplace metrics (persisted)
     completed_jobs_count = models.PositiveIntegerField(default=0)
     cancelled_jobs_count = models.PositiveIntegerField(default=0)
+    disputes_lost_count = models.PositiveIntegerField(default=0)
+    quality_warning_active = models.BooleanField(default=False)
+    restricted_until = models.DateTimeField(null=True, blank=True)
     avg_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
 
     # Trust / differentiation
@@ -85,6 +100,45 @@ class Provider(models.Model):
         if self.company_name:
             return self.company_name
         return f"{self.contact_first_name} {self.contact_last_name}"
+
+    @property
+    def normalized_provider_type(self) -> str:
+        if self.provider_type == self.TYPE_COMPANY:
+            return "company"
+        return "individual"
+
+    @property
+    def contact_person_name(self) -> str:
+        return f"{self.contact_first_name} {self.contact_last_name}".strip()
+
+    def has_active_service(self) -> bool:
+        return self.services.filter(is_active=True).exists()
+
+    @property
+    def is_fully_active(self) -> bool:
+        if self.normalized_provider_type == "individual":
+            return (
+                self.is_phone_verified
+                and self.profile_completed
+                and self.billing_profile_completed
+                and self.accepts_terms
+                and self.has_active_service()
+            )
+
+        if self.normalized_provider_type == "company":
+            return (
+                self.is_phone_verified
+                and self.profile_completed
+                and self.billing_profile_completed
+                and self.accepts_terms
+                and self.has_active_service()
+            )
+
+        return False
+
+    @property
+    def is_operational(self) -> bool:
+        return self.is_fully_active
 
 
 class ServiceZone(models.Model):

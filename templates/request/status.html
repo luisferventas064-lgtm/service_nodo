@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Estado de tu solicitud</title>
+    <title>Request Status</title>
     <style>
         body { font-family: Arial; background:#f5f7fa; padding:40px; }
         .container {
@@ -13,24 +13,128 @@
             box-shadow:0 3px 10px rgba(0,0,0,0.06);
         }
         p { margin:10px 0; }
+        .flash {
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .flash.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .flash.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .lifecycle {
+            display:flex;
+            flex-wrap:wrap;
+            gap:8px;
+            margin:16px 0 12px;
+        }
+        .lifecycle span {
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #eee;
+            font-size: 13px;
+        }
+        .lifecycle span.active {
+            background: #4CAF50;
+            color: white;
+        }
+        .timestamps {
+            margin-top: 12px;
+            color: #374151;
+        }
+        .timestamps p {
+            margin: 6px 0;
+        }
+        .action-box {
+            margin-top: 16px;
+        }
+        .warning {
+            margin: 0 0 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .btn {
+            border:none;
+            border-radius:6px;
+            padding:10px 14px;
+            cursor:pointer;
+            background:#1d4ed8;
+            color:white;
+        }
+        .status-copy {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .status-closed {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            border-radius: 6px;
+            color: #111827;
+        }
+        .status-closed hr {
+            margin: 12px 0;
+            border: 0;
+            border-top: 1px solid #d1d5db;
+        }
+        .status-closed p {
+            margin: 8px 0 0;
+        }
+        .dispute-resolution {
+            margin-top: 16px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 12px;
+            border-radius: 6px;
+            color: #1e3a8a;
+        }
+        .settled {
+            margin-top: 8px;
+            color: #374151;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Estado de tu solicitud</h2>
+    <h2>Request Status</h2>
 
-    <p><strong>Job ID:</strong> {{ job.job_id }}</p>
-    <p><strong>Estado:</strong> {{ job.job_status }}</p>
-
-    {% if job.selected_provider %}
-        <p><strong>Provider:</strong> {{ job.selected_provider }}</p>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="flash {% if message.tags == 'success' %}success{% else %}error{% endif %}">{{ message }}</div>
+        {% endfor %}
     {% endif %}
 
-    <p><strong>Tipo de servicio:</strong> {{ job.service_type.name }}</p>
+    <p><strong>Job ID:</strong> {{ job.job_id }}</p>
+    <p><strong>Status:</strong> {{ job.job_status }}</p>
+
+    {% if job.display_provider %}
+        <p><strong>Provider:</strong> {{ job.display_provider }}</p>
+    {% endif %}
+
+    <div class="lifecycle">
+        <span class="{% if job.job_status == 'assigned' or job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Assigned</span>
+        <span class="{% if job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">In Progress</span>
+        <span class="{% if job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Completed</span>
+        <span class="{% if job.job_status == 'confirmed' %}active{% endif %}">Confirmed</span>
+    </div>
+
+    <div class="timestamps">
+        <p><strong>Started at:</strong> {% if job.local_started_at %}{{ job.local_started_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+        <p><strong>Completed at:</strong> {% if job.local_completed_at %}{{ job.local_completed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+        <p><strong>Confirmed at:</strong> {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+    </div>
+
+    <p><strong>Service Type:</strong> {{ job.service_type.name }}</p>
 
     <p>
-        <strong>Direccion:</strong>
+        <strong>Address:</strong>
         {{ job.address_line1 }},
         {{ job.city }},
         {{ job.province }},
@@ -38,10 +142,63 @@
     </p>
 
     {% if job.job_mode == "scheduled" %}
-        <p><strong>Fecha:</strong> {{ job.scheduled_date }}</p>
-        <p><strong>Hora:</strong> {{ job.scheduled_start_time }}</p>
+        <p><strong>Date:</strong> {{ job.scheduled_date }}</p>
+        <p><strong>Time:</strong> {{ job.scheduled_start_time }}</p>
     {% else %}
-        <p><strong>Modo:</strong> ASAP</p>
+        <p><strong>Service Mode:</strong> ASAP</p>
+    {% endif %}
+
+    <div class="action-box">
+        {% if job.job_status == "in_progress" or job.job_status == "completed" %}
+            {% if job.job_status == "in_progress" %}
+                <p class="warning">You are closing this service even though provider did not mark it as completed.</p>
+            {% endif %}
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn" name="action" value="confirm_close">Confirm &amp; Close</button>
+            </form>
+        {% elif job.job_status == "confirmed" %}
+            <div class="status-closed">
+                <strong>Service closed.</strong><br>
+                This service has been permanently closed.
+                No further actions are available.
+                <hr>
+                <div><strong>Job Reference:</strong> {{ job.public_reference }}</div>
+                {% if job.confirmed_event %}
+                    <div>
+                        <strong>Confirmed at:</strong>
+                        {{ job.local_confirmed_at|date:"Y-m-d H:i" }}
+                    </div>
+                    <p>
+                        {% if job.confirmed_event.note == "auto_timeout_72h" %}
+                            Closed automatically (72h timeout)
+                        {% else %}
+                            Closed by client
+                        {% endif %}
+                    </p>
+                {% endif %}
+            </div>
+        {% elif job.job_status == "cancelled" %}
+            <div class="status-closed">
+                <strong>Service cancelled.</strong><br>
+                {% if job.cancel_reason == "dispute_approved" %}
+                    Cancelled - Dispute approved.
+                {% elif job.cancel_reason == "provider_rejected" %}
+                    Cancelled - Provider rejected.
+                {% elif job.cancel_reason == "auto_timeout" %}
+                    Cancelled - Automatic timeout.
+                {% else %}
+                    Cancelled.
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    {% if job.dispute and job.dispute.status == "resolved" %}
+        <div class="dispute-resolution">
+            <strong>Dispute resolved.</strong><br>
+            {{ job.dispute.public_resolution_note }}
+        </div>
     {% endif %}
 </div>
 

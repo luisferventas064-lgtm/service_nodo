@@ -9,7 +9,7 @@
   <div class="card-body">
     <div><b>Status:</b> {{ job.job_status|default:"-" }}</div>
     <div><b>Creado:</b> {{ job.created_at|date:"Y-m-d H:i:s"|default:"-" }}</div>
-    <div><b>Cliente ID:</b> {{ job.client_id|default:"-" }}</div>
+    <div><b>Client ID:</b> {{ job.client_id|default:"-" }}</div>
     <div><b>Provider ID:</b> {{ job.selected_provider_id|default:"-" }}</div>
   </div>
 </div>

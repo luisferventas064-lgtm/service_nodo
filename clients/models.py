@@ -14,6 +14,10 @@ class Client(models.Model):
 
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
+    is_phone_verified = models.BooleanField(default=False)
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
+    phone_verification_attempts = models.IntegerField(default=0)
+    profile_completed = models.BooleanField(default=False)
 
     country = models.CharField(max_length=100)
     province = models.CharField(max_length=100)

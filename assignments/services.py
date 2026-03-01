@@ -7,7 +7,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from assignments.models import AssignmentFee, JobAssignment
-from jobs.models import Job, JobStatus
+from jobs.models import Job, JobDispute, JobStatus
 
 ACTIVE_VALUE = True
 INACTIVE_VALUE = False
@@ -43,7 +43,7 @@ def activate_assignment_for_job(
         .first()
     )
     if not job_row:
-        raise AssignmentConflict("Job no existe.")
+        raise AssignmentConflict("Job does not exist.")
     if job_row["job_status"] != JobStatus.POSTED:
         raise AssignmentConflict(f"Job no disponible (status={job_row['job_status']}).")
 
@@ -120,7 +120,7 @@ def start_job(*, job_id: int, worker_id: int) -> None:
             .first()
         )
         if not job_row:
-            raise AssignmentConflict("Job no existe.")
+            raise AssignmentConflict("Job does not exist.")
 
         if job_row["job_status"] != JobStatus.ASSIGNED:
             current_status = JobStatus(job_row["job_status"]).label
@@ -139,7 +139,7 @@ def start_job(*, job_id: int, worker_id: int) -> None:
         if assignment.worker_id is None:
             assignment.worker_id = worker_id
         elif assignment.worker_id != worker_id:
-            raise AssignmentConflict("Worker no autorizado para iniciar este job.")
+            raise AssignmentConflict("Worker not authorized to start this job.")
 
         # 5) Update assignment -> in_progress (+ timestamps)
         assignment.assignment_status = "in_progress"
@@ -185,7 +185,16 @@ def complete_job(*, job_id: int, worker_id: int) -> None:
             .first()
         )
         if not job_row:
-            raise AssignmentConflict("Job no existe.")
+            raise AssignmentConflict("Job does not exist.")
+
+        if JobDispute.objects.filter(
+            job_id=job_id,
+            status__in=(
+                JobDispute.DisputeStatus.OPEN,
+                JobDispute.DisputeStatus.UNDER_REVIEW,
+            ),
+        ).exists():
+            raise AssignmentConflict("DISPUTE_OPEN")
 
         if job_row["job_status"] != JobStatus.IN_PROGRESS:
             current_status = JobStatus(job_row["job_status"]).label
@@ -201,7 +210,7 @@ def complete_job(*, job_id: int, worker_id: int) -> None:
             raise AssignmentConflict("No hay JobAssignment activo para este job.")
 
         if assignment.worker_id != worker_id:
-            raise AssignmentConflict("Worker no autorizado para completar este job.")
+            raise AssignmentConflict("Worker not authorized to complete this job.")
 
         # 4) Update assignment -> completed (+ timestamps)
         assignment.assignment_status = "completed"

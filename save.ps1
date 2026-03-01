@@ -1,4 +1,4 @@
-# ===============================
+ï»¿# ===============================
 # NODO - PRO SAVE SCRIPT
 # Backup SQL + Commit (fecha+rama) + Pull(Rebase) + Push + Log
 # ===============================
@@ -23,7 +23,7 @@ Set-Location $ProjectPath
 # Verificar repo git
 if (-not (Test-Path ".git")) { throw "No encuentro .git en: $ProjectPath" }
 
-# Crear carpetas si no existen
+# Create folders if they do not exist
 if (-not (Test-Path $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir | Out-Null }
 if (-not (Test-Path $LogDir))    { New-Item -ItemType Directory -Path $LogDir    | Out-Null }
 
@@ -58,7 +58,7 @@ if ($hasSqlCmd) {
 } else {
   $hasInvoke = $false
   try { $null = Get-Command Invoke-Sqlcmd -ErrorAction Stop; $hasInvoke = $true } catch { $hasInvoke = $false }
-  if (-not $hasInvoke) { throw "No encuentro 'sqlcmd' ni 'Invoke-Sqlcmd'. Instala SSMS/SQL tools o módulo SqlServer." }
+  if (-not $hasInvoke) { throw "No encuentro 'sqlcmd' ni 'Invoke-Sqlcmd'. Instala SSMS/SQL tools o mÃ³dulo SqlServer." }
   Invoke-Sqlcmd -ServerInstance $SqlInstance -Database "master" -Query $backupQuery
 }
 
@@ -75,14 +75,14 @@ Write-Host ""
 # Si no hay cambios, abortar limpio (pero dejando backup hecho)
 $porcelain = (git status --porcelain)
 if ([string]::IsNullOrWhiteSpace($porcelain)) {
-  Write-Host "No hay cambios para commitear. (Backup ya quedó hecho.)" -ForegroundColor Green
+  Write-Host "No hay cambios para commitear. (Backup ya quedÃ³ hecho.)" -ForegroundColor Green
   Write-Host "Backup: $backupFile"
   exit 0
 }
 
 # 3) Commit msg con fecha + rama
 $msgBase = Read-Host "Escribe el mensaje del commit"
-if ([string]::IsNullOrWhiteSpace($msgBase)) { throw "Mensaje vacío. Cancelado." }
+if ([string]::IsNullOrWhiteSpace($msgBase)) { throw "Mensaje vacÃ­o. Cancelado." }
 
 $commitMsg = "[$tsCommit][$branch] $msgBase"
 

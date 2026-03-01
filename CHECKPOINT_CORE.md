@@ -19,7 +19,7 @@ Si se modifica modelo → enviar bloque completo.
 
 🔥 URGENCIA (≤ 48 horas) – Broadcast tipo Uber
 
-Cliente define:
+Client defines:
 
 * ServiceType
 * Skill(s) (+ “OTRO” si aplica)
@@ -59,10 +59,10 @@ El job permanece en HOLD hasta que se cumplan:
 
 2. Provider/Admin envía precio final
 
-3. Cliente acepta el precio
+3. Client accepts the price
 
 Solo cuando:
-Provider confirmado + Cliente acepta precio
+Provider confirmed + Client accepts price
 → Estado pasa a ASSIGNED
 
 Si cliente NO acepta precio:
@@ -110,7 +110,7 @@ NO IMPLEMENTADO AÚN (fase futura)
 
 Marketplace es solo interfaz para crear Jobs normales.
 
-Cliente puede:
+Client can:
 
 * Ver providers por ServiceType
 * Filtrar por:
@@ -316,7 +316,7 @@ cancelled
 expired
 
 No permite confirm si:
-no existe HOLD
+HOLD does not exist
 HOLD expirado
 HOLD pertenece a otro provider
 precio urgente no está congelado
@@ -350,7 +350,7 @@ PRÓXIMO PASO (PENDIENTE)
 Implementar DOBLE CONFIRMACIÓN:
 
 Provider confirma → pending_client_confirmation
-Cliente confirma → assigned
+Client confirms -> assigned
 
 Servicio nuevo requerido:
 client_confirm_urgent_job(job_id, client_id)

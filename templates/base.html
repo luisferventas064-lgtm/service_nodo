@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}NODO{% endblock %}</title>
+</head>
+<body>
+  <nav style="margin-bottom:12px;">
+    <a href="{% url 'ui:home' %}">Home</a>
+    <a href="{% url 'client_register' %}" style="margin-left:12px;">Register Client</a>
+    <a href="{% url 'provider_register' %}" style="margin-left:12px;">Register Provider</a>
+    <a href="{% url 'ui:marketplace_search' %}" style="margin-left:12px;">View Marketplace</a>
+
+    {% if request.session.verify_actor_id %}
+    <a href="{% url 'verify_phone' %}" style="margin-left:12px;">Verify Phone</a>
+    {% endif %}
+
+    {% if request.session.provider_id %}
+    <a href="{% url 'provider_dashboard' %}" style="margin-left:12px;">Provider Dashboard</a>
+    <a href="{% url 'provider_profile' %}" style="margin-left:12px;">Provider Profile</a>
+    <a href="{% url 'provider_services_list' %}" style="margin-left:12px;">My Services</a>
+    <a href="{% url 'provider_complete_profile' %}" style="margin-left:12px;">Complete Profile</a>
+    <a href="{% url 'provider_complete_billing' %}" style="margin-left:12px;">Complete Billing</a>
+    {% endif %}
+
+    {% if request.session.client_id %}
+    <a href="{% url 'client_profile' %}" style="margin-left:12px;">Client Profile</a>
+    {% endif %}
+  </nav>
+
+  <hr>
+
+  {% if user_client and user_client.is_phone_verified and not user_client.profile_completed %}
+  <div style="background:#ffe9b3; padding:10px; text-align:center;">
+    Your profile is incomplete.
+    <a href="{% url 'client_complete_profile' %}">Complete it here</a>
+  </div>
+  {% endif %}
+
+  {% if user_provider and user_provider.is_phone_verified and not user_provider.profile_completed %}
+  <div style="background:#dbeafe; padding:10px; text-align:center;">
+    Your provider profile is incomplete.
+    <a href="{% url 'provider_complete_profile' %}">Complete it here</a>
+  </div>
+  {% endif %}
+
+  {% if messages %}
+    {% for message in messages %}
+    <div style="padding:10px; margin:10px 0; border:1px solid #d1d5db; background:#f3f4f6;">
+      {{ message }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</body>
+</html>

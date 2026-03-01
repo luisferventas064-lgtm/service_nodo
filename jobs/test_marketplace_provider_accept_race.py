@@ -1,5 +1,6 @@
 from datetime import time, timedelta
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
@@ -10,7 +11,7 @@ from jobs.services import (
     accept_marketplace_offer,
     apply_client_marketplace_decision,
 )
-from providers.models import Provider
+from providers.models import Provider, ProviderService, ServiceCategory
 from service_type.models import ServiceType
 
 
@@ -26,10 +27,24 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
             contact_last_name="Race",
             phone_number="555-777-0001",
             email="provider.race.accept@test.local",
+            is_phone_verified=True,
             province="QC",
             city="Laval",
             postal_code="H7N1A1",
             address_line1="99 Provider St",
+        )
+        self.category = ServiceCategory.objects.create(
+            name="Marketplace Accept Category",
+            slug="marketplace-accept-category",
+        )
+        self.provider_service = ProviderService.objects.create(
+            provider=self.provider,
+            category=self.category,
+            custom_name="Marketplace Ready Service",
+            description="",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
         )
 
     def _mk_job(self, *, status=Job.JobStatus.WAITING_PROVIDER_RESPONSE) -> Job:
@@ -65,6 +80,7 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
         job = self._mk_job()
         self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
 
+        self.assertTrue(self.provider.is_operational)
         result = accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
         self.assertEqual(result, "accepted_waiting_client")
 
@@ -113,3 +129,59 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
         accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
         res = accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
         self.assertEqual(res, "already_accepted_waiting_client")
+
+    def test_accept_rejected_if_phone_not_verified(self):
+        job = self._mk_job()
+        self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
+        self.provider.is_phone_verified = False
+        self.provider.save(update_fields=["is_phone_verified"])
+
+        with self.assertRaises(ValidationError) as exc:
+            accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
+
+        self.assertEqual(
+            str(exc.exception),
+            "['Provider is not operational. Complete onboarding requirements.']",
+        )
+
+    def test_accept_rejected_if_profile_incomplete(self):
+        job = self._mk_job()
+        self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
+        self.provider.profile_completed = False
+        self.provider.save(update_fields=["profile_completed"])
+
+        with self.assertRaises(ValidationError) as exc:
+            accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
+
+        self.assertEqual(
+            str(exc.exception),
+            "['Provider is not operational. Complete onboarding requirements.']",
+        )
+
+    def test_accept_rejected_if_billing_incomplete(self):
+        job = self._mk_job()
+        self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
+        self.provider.billing_profile_completed = False
+        self.provider.save(update_fields=["billing_profile_completed"])
+
+        with self.assertRaises(ValidationError) as exc:
+            accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
+
+        self.assertEqual(
+            str(exc.exception),
+            "['Provider is not operational. Complete onboarding requirements.']",
+        )
+
+    def test_accept_rejected_if_no_active_services(self):
+        job = self._mk_job()
+        self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
+        self.provider_service.is_active = False
+        self.provider_service.save(update_fields=["is_active"])
+
+        with self.assertRaises(ValidationError) as exc:
+            accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
+
+        self.assertEqual(
+            str(exc.exception),
+            "['Provider is not operational. Complete onboarding requirements.']",
+        )

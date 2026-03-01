@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}NODO{% endblock %}
+
+{% block content %}
+<h1>NODO - Test Interface</h1>
+
+<h2>Client</h2>
+<p><a href="{% url 'client_register' %}">Register Client</a></p>
+
+<h2>Provider</h2>
+<p><a href="{% url 'provider_register' %}">Register Provider</a></p>
+{% endblock %}

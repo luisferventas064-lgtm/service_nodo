@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Provider Dashboard{% endblock %}
+
+{% block content %}
+<h1>Provider Dashboard</h1>
+<p>Welcome, {{ provider }}.</p>
+
+<div style="border:1px solid #ccc; padding:20px; margin-bottom:20px;">
+  <h2>Account Status</h2>
+
+  <p>Phone Verification: {% if phone_ok %}OK{% else %}Pending{% endif %}</p>
+  <p>Profile Completed: {% if profile_ok %}OK{% else %}Pending{% endif %}</p>
+  <p>Billing Completed: {% if billing_ok %}OK{% else %}Pending{% endif %}</p>
+  <p>Active Services: {{ active_services_count }}</p>
+
+  <hr>
+
+  {% if is_operational %}
+    <p style="color:green;"><strong>Your account is operational.</strong></p>
+  {% else %}
+    <p style="color:orange;"><strong>Setup in progress.</strong></p>
+  {% endif %}
+
+  {% if not phone_ok %}
+    <p>Verify your phone number.</p>
+  {% endif %}
+
+  {% if not profile_ok %}
+    <p>Complete your profile.</p>
+  {% endif %}
+
+  {% if not billing_ok %}
+    <p>Complete your billing information.</p>
+  {% endif %}
+
+  {% if active_services_count == 0 %}
+    <p>Add at least one active service.</p>
+  {% endif %}
+</div>
+
+<p><a href="{% url 'provider_services_list' %}">Manage Services</a></p>
+<p><a href="{% url 'provider_profile' %}">View Profile</a></p>
+<p><a href="{% url 'provider_complete_profile' %}">Complete Profile</a></p>
+<p><a href="{% url 'provider_complete_billing' %}">Complete Billing</a></p>
+{% endblock %}

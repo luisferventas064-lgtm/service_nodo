@@ -1,13 +1,26 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import List, Optional
 
-from django.db.models import ExpressionWrapper, F, FloatField, Value
+from django.db.models import (
+    Count,
+    ExpressionWrapper,
+    F,
+    FloatField,
+    IntegerField,
+    OuterRef,
+    Q,
+    Subquery,
+    Value,
+)
 from django.db.models import Func
 from django.db.models.functions import Cast, Coalesce, Concat, Greatest, Least
+from django.utils import timezone
 
+from jobs.models import Job, JobDispute
 from providers.models import Provider
 from providers.models import ProviderService
 from providers.models import ProviderSkillPrice
@@ -65,6 +78,13 @@ def marketplace_ranked_queryset(
         is_active=True,
         category__is_active=True,
         provider__is_active=True,
+        provider__is_phone_verified=True,
+        provider__profile_completed=True,
+        provider__billing_profile_completed=True,
+        provider__accepts_terms=True,
+    ).filter(
+        Q(provider__restricted_until__isnull=True)
+        | Q(provider__restricted_until__lt=timezone.now())
     )
 
     if service_category_id is not None:
@@ -85,6 +105,19 @@ def marketplace_ranked_queryset(
     if min_rating is not None and _provider_has_field("avg_rating"):
         qs = qs.filter(provider__avg_rating__gte=min_rating)
 
+    cutoff = timezone.now() - timedelta(days=365)
+    recent_disputes_subquery = (
+        JobDispute.objects.filter(
+            provider_id=OuterRef("provider_id"),
+            status=JobDispute.DisputeStatus.RESOLVED,
+            job__cancel_reason=Job.CancelReason.DISPUTE_APPROVED,
+            resolved_at__gte=cutoff,
+        )
+        .values("provider_id")
+        .annotate(total=Count("pk"))
+        .values("total")[:1]
+    )
+
     qs = qs.annotate(
         safe_rating=Coalesce(
             Cast(F("provider__avg_rating"), FloatField()),
@@ -93,6 +126,10 @@ def marketplace_ranked_queryset(
         ),
         safe_completed=Coalesce(F("provider__completed_jobs_count"), Value(0)),
         safe_cancelled=Coalesce(F("provider__cancelled_jobs_count"), Value(0)),
+        recent_disputes_last_12m=Coalesce(
+            Subquery(recent_disputes_subquery, output_field=IntegerField()),
+            Value(0),
+        ),
     )
 
     qs = qs.annotate(
@@ -122,11 +159,25 @@ def marketplace_ranked_queryset(
     )
 
     qs = qs.annotate(
-        hybrid_score=ExpressionWrapper(
+        dispute_penalty_last_12m=ExpressionWrapper(
+            Cast(F("recent_disputes_last_12m"), FloatField()) * Value(0.15),
+            output_field=FloatField(),
+        )
+    )
+
+    qs = qs.annotate(
+        quality_component=ExpressionWrapper(
             (F("safe_rating") * Value(0.5))
             + (F("volume_score") * Value(0.3))
-            + (F("verified_bonus") * Value(0.1))
-            - (F("cancellation_rate") * Value(0.2)),
+            - (F("cancellation_rate") * Value(0.2))
+            - F("dispute_penalty_last_12m"),
+            output_field=FloatField(),
+        )
+    )
+
+    qs = qs.annotate(
+        hybrid_score=ExpressionWrapper(
+            F("quality_component") + (F("verified_bonus") * Value(0.1)),
             output_field=FloatField(),
         )
     )

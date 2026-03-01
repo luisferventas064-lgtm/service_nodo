@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Complete Provider Billing{% endblock %}
+
+{% block content %}
+<h2>Complete Billing Information</h2>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Save Billing Info</button>
+</form>
+{% endblock %}

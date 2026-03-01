@@ -110,6 +110,7 @@ class MarketplaceClientDecisionTests(TestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
+        self.assertEqual(job.cancel_reason, Job.CancelReason.SYSTEM)
         self.assertIsNone(job.next_marketplace_alert_at)
 
     def test_cancel_job_from_pending_client_confirmation(self):
@@ -137,6 +138,7 @@ class MarketplaceClientDecisionTests(TestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
+        self.assertEqual(job.cancel_reason, Job.CancelReason.SYSTEM)
         self.assertIsNone(job.next_marketplace_alert_at)
         self.assertIsNone(job.marketplace_search_started_at)
         self.assertIsNone(job.client_confirmation_started_at)

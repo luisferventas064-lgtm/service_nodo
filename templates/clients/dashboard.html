@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block title %}Client Dashboard{% endblock %}
+
+{% block content %}
+<h1>Client Dashboard</h1>
+<p>Welcome, {{ client.first_name }}.</p>
+<p>Phone verified: {% if client.is_phone_verified %}Yes{% else %}No{% endif %}</p>
+<p>Profile completed: {% if client.profile_completed %}Yes{% else %}No{% endif %}</p>
+{% endblock %}

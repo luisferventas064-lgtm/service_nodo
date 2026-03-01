@@ -27,6 +27,8 @@ from clients.models import Client
 from jobs.models import Job
 from payments.views import stripe_webhook
 from providers.models import Provider
+from ui import views as ui_views
+from verifications import views_html as verification_html_views
 from workers.models import Worker
 
 
@@ -73,12 +75,17 @@ def dashboard_view(request):
 health_business_view = staff_member_required(health_business_view)
 
 urlpatterns = [
+    path("admin/quality/providers/", ui_views.quality_providers_dashboard_view, name="quality_providers_dashboard"),
     path("admin/", admin.site.urls),
     path("health/", health_view),
     path("dashboard/", dashboard_view),
+    path("clients/", include("clients.urls")),
+    path("providers/", include("providers.urls_web")),
+    path("verify-phone/", verification_html_views.verify_phone_page, name="verify_phone"),
     path("", include("ui.urls")),
     path("", include("jobs.urls")),
     path("settlements/", include("settlements.urls")),
+    path("api/verifications/", include("verifications.urls")),
     path("api/", include("providers.urls")),
     path("api/stripe/webhook/", stripe_webhook),
 ]

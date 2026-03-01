@@ -14,7 +14,7 @@ def _map_entity_type(provider_type: str) -> str:
 @receiver(post_save, sender=Provider)
 def ensure_provider_profiles(sender, instance: Provider, created: bool, **kwargs):
     """
-    Crea (si no existen) los objetos auxiliares del provider.
+    Create the provider helper objects if they do not exist.
     - Billing profile (1:1)
     - Invoice sequence (1:1) con prefix PROV-{provider_id}-
     Idempotente: si ya existe, no crea duplicado.

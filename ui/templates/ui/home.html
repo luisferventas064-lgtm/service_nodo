@@ -1,49 +1,26 @@
-{% extends "ui/base.html" %}
-{% load money %}
+{% extends "base.html" %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}NODO{% endblock %}
 
 {% block content %}
-<h2>Dashboard</h2>
+<h1>NODO Service Marketplace</h1>
 
-<div class="row g-3">
-  <div class="col-md-4">
-    <div class="card p-3">
-      <strong>Open Jobs</strong><br>
-      {{ open_jobs }}
-    </div>
-  </div>
+<h2>Clients</h2>
+<p><a href="{% url 'client_register' %}">Register as Client</a></p>
 
-  <div class="col-md-4">
-    <div class="card p-3">
-      <strong>Closed Today</strong><br>
-      {{ closed_today }}
-    </div>
-  </div>
+<h2>Providers</h2>
+<p><a href="{% url 'provider_register' %}">Register as Provider</a></p>
 
-  <div class="col-md-4">
-    <div class="card p-3">
-      <strong>Total Billed Today</strong><br>
-      {{ total_billed_today|cad }}
-    </div>
-  </div>
-</div>
+{% if request.session.verify_actor_id %}
+<p><a href="{% url 'verify_phone' %}">Continue Phone Verification</a></p>
+{% endif %}
 
-<hr>
+{% if request.session.provider_id %}
+<p><a href="{% url 'provider_dashboard' %}">Go to Provider Dashboard</a></p>
+<p><a href="{% url 'provider_services_list' %}">Manage Services</a></p>
+<p><a href="{% url 'provider_complete_profile' %}">Complete Profile</a></p>
+<p><a href="{% url 'provider_complete_billing' %}">Complete Billing</a></p>
+{% endif %}
 
-<div class="row g-3">
-  <div class="col-md-6">
-    <div class="card p-3">
-      <strong>Platform Revenue (Week)</strong><br>
-      {{ platform_week|cad }}
-    </div>
-  </div>
-
-  <div class="col-md-6">
-    <div class="card p-3">
-      <strong>Provider Net (Week)</strong><br>
-      {{ provider_week|cad }}
-    </div>
-  </div>
-</div>
+<p><a href="{% url 'ui:marketplace_search' %}">View Marketplace</a></p>
 {% endblock %}

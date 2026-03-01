@@ -32,6 +32,10 @@ class CreateNormalJobInput:
 
 @transaction.atomic
 def create_normal_job(data: CreateNormalJobInput) -> Job:
+    client = Client.objects.only("is_phone_verified").get(pk=data.client_id)
+    if not client.is_phone_verified:
+        raise PermissionError("PHONE_NOT_VERIFIED")
+
     job = Job.objects.create(
        job_status=Job.JobStatus.PENDING_PROVIDER_CONFIRMATION,
        

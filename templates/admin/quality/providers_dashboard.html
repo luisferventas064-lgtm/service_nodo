@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>Provider Quality Dashboard</h1>
+
+<table border="1" cellpadding="6">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Disputes (12m)</th>
+            <th>Warning</th>
+            <th>Restricted Until</th>
+            <th>Avg Rating</th>
+            <th>Cancel Rate</th>
+            <th>Hybrid Score</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in providers %}
+        <tr>
+            <td>{{ p.provider_id }}</td>
+            <td>{{ p.display_name }}</td>
+            <td>{{ p.disputes_last_12m }}</td>
+            <td>
+                {% if p.quality_warning_active %}
+                    Yes
+                {% else %}
+                    No
+                {% endif %}
+            </td>
+            <td>{{ p.restricted_until|default:"-" }}</td>
+            <td>{{ p.avg_rating }}</td>
+            <td>{{ p.cancel_rate|floatformat:2 }}</td>
+            <td>{{ p.hybrid_score|floatformat:3 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8">No providers found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,9 +1,14 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.test import TestCase
+from django.utils import timezone
 
+from jobs.models import Job, JobDispute
 from providers.models import Provider, ProviderService, ServiceCategory
+from providers.services import enforce_provider_quality_policy
 from providers.services_marketplace import search_provider_services
+from service_type.models import ServiceType
 
 
 class MarketplaceRankingTests(TestCase):
@@ -11,6 +16,10 @@ class MarketplaceRankingTests(TestCase):
         self.cat = ServiceCategory.objects.create(
             name="Plumbing",
             slug="plumbing",
+        )
+        self.service_type = ServiceType.objects.create(
+            name="Ranking Test Service Type",
+            description="Ranking Test Service Type",
         )
         self._email_seq = 0
 
@@ -21,6 +30,7 @@ class MarketplaceRankingTests(TestCase):
         cancelled,
         verified,
         price,
+        restricted_until=None,
     ):
         self._email_seq += 1
         p = Provider.objects.create(
@@ -30,6 +40,7 @@ class MarketplaceRankingTests(TestCase):
             contact_last_name=f"Provider{self._email_seq}",
             phone_number="5550000000",
             email=f"provider{self._email_seq}@example.com",
+            is_phone_verified=True,
             province="QC",
             city="Laval",
             postal_code="H7A0A1",
@@ -39,6 +50,7 @@ class MarketplaceRankingTests(TestCase):
             completed_jobs_count=completed,
             cancelled_jobs_count=cancelled,
             is_verified=verified,
+            restricted_until=restricted_until,
         )
 
         ProviderService.objects.create(
@@ -52,6 +64,31 @@ class MarketplaceRankingTests(TestCase):
         )
 
         return p
+
+    def _create_resolved_dispute(self, provider, *, days_ago):
+        job = Job.objects.create(
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.CANCELLED,
+            cancel_reason=Job.CancelReason.DISPUTE_APPROVED,
+            is_asap=False,
+            scheduled_date=timezone.localdate() + timedelta(days=3),
+            service_type=self.service_type,
+            selected_provider=provider,
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="123 Test St",
+        )
+        dispute = JobDispute.objects.create(
+            job=job,
+            client_id=1,
+            provider_id=provider.provider_id,
+            reason="Resolved dispute",
+        )
+        dispute.status = JobDispute.DisputeStatus.RESOLVED
+        dispute.resolved_at = timezone.now() - timedelta(days=days_ago)
+        dispute.save(update_fields=["status", "resolved_at"])
+        return dispute
 
     def test_order_by_hybrid_score(self):
         self._create_provider(4.9, 50, 0, True, 20000)
@@ -121,6 +158,88 @@ class MarketplaceRankingTests(TestCase):
 
         self.assertLessEqual(result["cancellation_rate"], 1.0)
         self.assertGreaterEqual(result["cancellation_rate"], 0.0)
+
+    def test_recent_dispute_reduces_hybrid_score_by_point_fifteen(self):
+        provider_without_dispute = self._create_provider(4.0, 10, 0, False, 10000)
+        provider_with_dispute = self._create_provider(4.0, 10, 0, False, 10000)
+        self._create_resolved_dispute(provider_with_dispute, days_ago=30)
+
+        rows = list(
+            search_provider_services(
+                service_category_id=self.cat.id,
+                province="QC",
+                city="Laval",
+            )
+        )
+        scores = {row["provider_id"]: row["hybrid_score"] for row in rows}
+
+        self.assertAlmostEqual(
+            scores[provider_without_dispute.provider_id]
+            - scores[provider_with_dispute.provider_id],
+            0.15,
+            places=6,
+        )
+
+    def test_restricted_provider_hidden_from_search(self):
+        self._create_provider(4.0, 10, 0, False, 10000)
+        self._create_provider(
+            4.0,
+            10,
+            0,
+            False,
+            10000,
+            restricted_until=timezone.now() + timedelta(days=30),
+        )
+
+        rows = list(
+            search_provider_services(
+                service_category_id=self.cat.id,
+                province="QC",
+                city="Laval",
+            )
+        )
+
+        self.assertEqual(len(rows), 1)
+
+    def test_quality_policy_escalates_warning_and_restriction_levels(self):
+        provider = self._create_provider(4.0, 10, 0, False, 10000)
+        self._create_resolved_dispute(provider, days_ago=10)
+        self._create_resolved_dispute(provider, days_ago=20)
+        self._create_resolved_dispute(provider, days_ago=30)
+
+        warning_result = enforce_provider_quality_policy(provider.provider_id)
+        provider.refresh_from_db()
+        self.assertTrue(warning_result.warning_activated)
+        self.assertEqual(warning_result.recent_disputes_last_12m, 3)
+        self.assertTrue(provider.quality_warning_active)
+        self.assertIsNone(provider.restricted_until)
+
+        self._create_resolved_dispute(provider, days_ago=40)
+        self._create_resolved_dispute(provider, days_ago=50)
+
+        restriction_30_result = enforce_provider_quality_policy(provider.provider_id)
+        provider.refresh_from_db()
+        self.assertFalse(restriction_30_result.warning_activated)
+        self.assertEqual(restriction_30_result.recent_disputes_last_12m, 5)
+        self.assertTrue(provider.quality_warning_active)
+        self.assertIsNotNone(provider.restricted_until)
+        self.assertGreater(provider.restricted_until, timezone.now() + timedelta(days=29))
+        self.assertLess(provider.restricted_until, timezone.now() + timedelta(days=31))
+
+        self._create_resolved_dispute(provider, days_ago=60)
+        restriction_60_result = enforce_provider_quality_policy(provider.provider_id)
+        provider.refresh_from_db()
+        self.assertEqual(restriction_60_result.recent_disputes_last_12m, 6)
+        self.assertGreater(provider.restricted_until, timezone.now() + timedelta(days=59))
+        self.assertLess(provider.restricted_until, timezone.now() + timedelta(days=61))
+
+        self._create_resolved_dispute(provider, days_ago=70)
+        self._create_resolved_dispute(provider, days_ago=80)
+        restriction_90_result = enforce_provider_quality_policy(provider.provider_id)
+        provider.refresh_from_db()
+        self.assertEqual(restriction_90_result.recent_disputes_last_12m, 8)
+        self.assertGreater(provider.restricted_until, timezone.now() + timedelta(days=89))
+        self.assertLess(provider.restricted_until, timezone.now() + timedelta(days=91))
 
     def test_log10_zero_jobs_safe(self):
         self._create_provider(

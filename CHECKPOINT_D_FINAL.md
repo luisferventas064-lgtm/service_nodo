@@ -21,7 +21,7 @@ Estado: LOCKED / STABLE
 ## Garantias del sistema
 
 - Todo job tiene ledger
-- Ningun ledger puede congelarse en estado invalido
+- No ledger can be frozen in an invalid state
 - Rebuild no rompe freeze
 - Toda mutacion financiera genera evidencia
 - Sistema idempotente y auditado

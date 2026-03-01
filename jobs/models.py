@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import zoneinfo
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
@@ -14,6 +17,13 @@ FIELD_SCHEDULED = "scheduled_date"
 
 KIND_ON_DEMAND = "on_demand"
 KIND_SCHEDULED = "scheduled"
+
+PROVINCE_TIMEZONE_MAP = {
+    "QC": "America/Toronto",
+    "ON": "America/Toronto",
+    "AB": "America/Edmonton",
+    "BC": "America/Vancouver",
+}
 
 
 def _get(obj, name: str):
@@ -54,7 +64,7 @@ def normalize_job_kind_and_schedule(job) -> None:
         job.is_asap = True
         return
 
-    raise ValidationError({FIELD_KIND: f"Valor invalido para job_mode: {kind!r}"})
+    raise ValidationError({FIELD_KIND: f"Invalid value for job_mode: {kind!r}"})
 
 
 class Job(models.Model):
@@ -77,6 +87,12 @@ class Job(models.Model):
         CLIENT = "client", "Client"
         PROVIDER = "provider", "Provider"
         SYSTEM = "system", "System"
+
+    class CancelReason(models.TextChoices):
+        DISPUTE_APPROVED = "dispute_approved", "Dispute approved"
+        PROVIDER_REJECTED = "provider_rejected", "Provider rejected"
+        AUTO_TIMEOUT = "auto_timeout", "Auto timeout"
+        SYSTEM = "system", "System action"
 
     hold_provider = models.ForeignKey(
         "providers.Provider",
@@ -127,6 +143,12 @@ class Job(models.Model):
     cancelled_by = models.CharField(
         max_length=20,
         choices=CancellationActor.choices,
+        null=True,
+        blank=True,
+    )
+    cancel_reason = models.CharField(
+        max_length=40,
+        choices=CancelReason.choices,
         null=True,
         blank=True,
     )
@@ -211,6 +233,71 @@ class Job(models.Model):
             self.is_asap = False
         return super().save(*args, **kwargs)
 
+    def get_job_timezone(self):
+        tz_name = "America/Toronto"
+        zone = getattr(self, "zone", None)
+        if zone and getattr(zone, "province", None):
+            province_code = zone.province
+        else:
+            province_code = self.province
+
+        province_code = (province_code or "").strip().upper()
+        if province_code:
+            tz_name = PROVINCE_TIMEZONE_MAP.get(province_code, tz_name)
+
+        return zoneinfo.ZoneInfo(tz_name)
+
+    def to_local_time(self, dt):
+        if not dt:
+            return None
+
+        return dt.astimezone(self.get_job_timezone())
+
+    def _get_active_assignment(self):
+        if hasattr(self, "active_assignment"):
+            return self.active_assignment
+
+        return (
+            self.assignments.filter(is_active=True).order_by("-assignment_id").first()
+        )
+
+    def _get_confirmed_event(self):
+        if hasattr(self, "confirmed_event"):
+            return self.confirmed_event
+
+        return (
+            self.events.filter(event_type=JobEvent.EventType.CLIENT_CONFIRMED)
+            .order_by("-created_at")
+            .first()
+        )
+
+    @property
+    def local_started_at(self):
+        assignment = self._get_active_assignment()
+        if assignment and assignment.accepted_at:
+            return self.to_local_time(assignment.accepted_at)
+        return None
+
+    @property
+    def local_completed_at(self):
+        assignment = self._get_active_assignment()
+        if assignment and assignment.completed_at:
+            return self.to_local_time(assignment.completed_at)
+        return None
+
+    @property
+    def local_confirmed_at(self):
+        event = self._get_confirmed_event()
+        if event:
+            return self.to_local_time(event.created_at)
+        return None
+
+    @property
+    def public_reference(self) -> str:
+        local_created_at = self.to_local_time(self.created_at)
+        year = local_created_at.year if local_created_at else timezone.now().year
+        return f"NODO-{year}-{str(self.job_id).zfill(7)}"
+
     class Meta:
         db_table = "jobs_job"
         constraints = [
@@ -228,10 +315,55 @@ class Job(models.Model):
                     | models.Q(scheduled_date__isnull=True)
                 ),
             ),
+            models.CheckConstraint(
+                name="cancel_reason_required_if_cancelled",
+                condition=(
+                    Q(job_status="cancelled", cancel_reason__isnull=False)
+                    | ~Q(job_status="cancelled")
+                ),
+            ),
         ]
 
     def __str__(self):
         return f"Job {self.job_id} - {self.job_status} - {self.city}"
+
+
+class JobDispute(models.Model):
+    class DisputeStatus(models.TextChoices):
+        OPEN = "open", "Open"
+        UNDER_REVIEW = "under_review", "Under Review"
+        RESOLVED = "resolved", "Resolved"
+        REJECTED = "rejected", "Rejected"
+
+    job = models.OneToOneField(
+        Job,
+        on_delete=models.CASCADE,
+        related_name="dispute",
+        db_index=True,
+    )
+    client_id = models.IntegerField(db_index=True)
+    provider_id = models.IntegerField(db_index=True)
+    reason = models.TextField()
+    status = models.CharField(
+        max_length=20,
+        choices=DisputeStatus.choices,
+        default=DisputeStatus.OPEN,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="resolved_disputes",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution_note = models.TextField(blank=True, default="")
+    public_resolution_note = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "job_dispute"
 
 
 class JobMedia(models.Model):

@@ -62,6 +62,7 @@ class Worker(models.Model):
     is_available_now = models.BooleanField(default=False)
 
     is_active = models.BooleanField(default=True)
+    disputes_lost_count = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

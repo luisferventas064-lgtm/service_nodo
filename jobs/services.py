@@ -5,6 +5,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Callable, Optional
 
 from django.conf import settings
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, models, transaction
 from django.db.models import (
     Case,
@@ -23,6 +24,7 @@ from django.db.models.functions import Cast
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 
+from assignments.models import JobAssignment
 from clients.lines import ensure_client_base_line
 from clients.lines_fee import ensure_client_fee_line
 from clients.models import ClientTicket
@@ -31,10 +33,23 @@ from clients.totals import recalc_client_ticket_totals
 from jobs.evidence import try_write_job_evidence_json
 from jobs.ledger import finalize_platform_ledger_for_job
 from jobs.metrics import log_job_event
-from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt, JobEvent, JobStatus
+from jobs.models import (
+    BroadcastAttemptStatus,
+    Job,
+    JobBroadcastAttempt,
+    JobDispute,
+    JobEvent,
+    JobStatus,
+)
 from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
+from notifications.services import (
+    send_dispute_resolution_email,
+    send_quality_warning_email,
+)
 from providers.lines import ensure_provider_base_line
 from providers.lines_fee import ensure_provider_fee_line
+from providers.models import Provider
+from providers.services import apply_dispute_loss_penalty, enforce_provider_quality_policy
 from providers.ticketing import ensure_provider_ticket, finalize_provider_ticket
 from providers.totals import recalc_provider_ticket_totals
 
@@ -731,6 +746,7 @@ def apply_client_marketplace_decision(
             Job.objects.filter(pk=job.job_id).update(
                 job_status=Job.JobStatus.CANCELLED,
                 cancelled_by=cancelled_by,
+                cancel_reason=Job.CancelReason.SYSTEM,
                 next_marketplace_alert_at=None,
                 marketplace_search_started_at=None,
                 client_confirmation_started_at=None,
@@ -756,6 +772,11 @@ def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
 
     with transaction.atomic():
         job = Job.objects.select_for_update().get(pk=job_id)
+        provider = Provider.objects.get(pk=provider_id)
+        if not provider.is_operational:
+            raise ValidationError(
+                "Provider is not operational. Complete onboarding requirements."
+            )
 
         if job.job_mode != Job.JobMode.SCHEDULED:
             raise MarketplaceAcceptConflict("INVALID_JOB_MODE_FOR_MARKETPLACE_ACCEPT")
@@ -1030,13 +1051,77 @@ def start_service_by_provider(*, job_id: int, provider_id: int) -> str:
         if job.job_status != Job.JobStatus.ASSIGNED:
             raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_SERVICE_START")
 
+        assignment = (
+            JobAssignment.objects.select_for_update()
+            .filter(job_id=job_id, is_active=True)
+            .first()
+        )
+        if assignment:
+            assignment.assignment_status = "in_progress"
+            if assignment.accepted_at is None:
+                assignment.accepted_at = timezone.now()
+            assignment.save(
+                update_fields=["assignment_status", "accepted_at", "updated_at"]
+            )
+
         job.job_status = Job.JobStatus.IN_PROGRESS
         job.save(update_fields=["job_status", "updated_at"])
 
     return "started"
 
 
-def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
+def complete_service_by_provider(*, job_id: int, provider_id: int) -> str:
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+
+        dispute = getattr(job, "dispute", None)
+        if dispute and dispute.status in (
+            dispute.DisputeStatus.OPEN,
+            dispute.DisputeStatus.UNDER_REVIEW,
+        ):
+            raise MarketplaceDecisionConflict("DISPUTE_OPEN")
+
+        resolved_provider_id = _resolve_active_provider_id_for_job(job)
+        if not resolved_provider_id or resolved_provider_id != provider_id:
+            raise PermissionDenied("provider_not_allowed")
+
+        if job.job_status == JobStatus.COMPLETED:
+            return "already_completed"
+
+        if job.job_status != JobStatus.IN_PROGRESS:
+            raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_COMPLETION")
+
+        assignment = (
+            JobAssignment.objects.select_for_update()
+            .filter(job_id=job_id, is_active=True)
+            .first()
+        )
+        if not assignment:
+            raise MarketplaceDecisionConflict("NO_ACTIVE_ASSIGNMENT")
+
+        assignment.assignment_status = "completed"
+        assignment.completed_at = timezone.now()
+        assignment.save(
+            update_fields=["assignment_status", "completed_at", "updated_at"]
+        )
+
+        job.job_status = JobStatus.COMPLETED
+        job.save(update_fields=["job_status", "updated_at"])
+
+        JobEvent.objects.create(
+            job=job,
+            event_type=JobEvent.EventType.CLIENT_CONFIRM_REQUESTED,
+            provider_id=provider_id,
+            assignment_id=assignment.assignment_id,
+            note="Provider marked job as completed",
+        )
+
+    return "completed"
+
+
+def confirm_service_closed_by_client(
+    *, job_id: int, client_id: int, source: str = "manual"
+) -> str:
     with transaction.atomic():
         job = Job.objects.select_for_update().get(pk=job_id)
 
@@ -1046,6 +1131,13 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
         provider_id = _resolve_active_provider_id_for_job(job)
         if not provider_id:
             raise MarketplaceDecisionConflict("MISSING_PROVIDER_FOR_JOB")
+
+        dispute = getattr(job, "dispute", None)
+        if dispute and dispute.status in (
+            dispute.DisputeStatus.OPEN,
+            dispute.DisputeStatus.UNDER_REVIEW,
+        ):
+            raise MarketplaceDecisionConflict("DISPUTE_OPEN")
 
         run_id = f"AUTO_CLOSE_{timezone.now().strftime('%Y%m%d_%H%M%S')}_job_{job.job_id}"
 
@@ -1149,5 +1241,91 @@ def confirm_service_closed_by_client(*, job_id: int, client_id: int) -> str:
             run_id=run_id,
             source="finalize",
         )
+        assignment = (
+            job.assignments.filter(is_active=True).order_by("-assignment_id").first()
+        )
+        log_job_event(
+            job_id=job.job_id,
+            event_type=JobEvent.EventType.CLIENT_CONFIRMED,
+            provider_id=provider_id,
+            assignment_id=getattr(assignment, "assignment_id", None),
+            note="auto_timeout_72h" if source == "auto_timeout" else "",
+        )
 
     return "closed_and_confirmed"
+
+
+def resolve_job_dispute_client_wins(
+    *, job_id: int, admin_user, resolution_note: str, public_resolution_note: str
+) -> str:
+    with transaction.atomic():
+        job = Job.objects.select_for_update().get(pk=job_id)
+
+        if not hasattr(job, "dispute"):
+            raise MarketplaceDecisionConflict("DISPUTE_NOT_FOUND")
+
+        dispute = job.dispute
+
+        if dispute.status not in (
+            JobDispute.DisputeStatus.OPEN,
+            JobDispute.DisputeStatus.UNDER_REVIEW,
+        ):
+            raise MarketplaceDecisionConflict("DISPUTE_NOT_ACTIVE")
+
+        if job.job_status == JobStatus.CONFIRMED:
+            raise MarketplaceDecisionConflict("JOB_ALREADY_CONFIRMED")
+
+        assignment = (
+            JobAssignment.objects.select_for_update()
+            .filter(job=job, is_active=True)
+            .order_by("-assignment_id")
+            .first()
+        )
+        provider_id = getattr(assignment, "provider_id", None) or _resolve_active_provider_id_for_job(job)
+
+        job.job_status = JobStatus.CANCELLED
+        job.cancel_reason = Job.CancelReason.DISPUTE_APPROVED
+        job.save(update_fields=["job_status", "cancel_reason", "updated_at"])
+
+        if assignment:
+            assignment.assignment_status = "cancelled"
+            assignment.is_active = False
+            assignment.save(
+                update_fields=["assignment_status", "is_active", "updated_at"]
+            )
+
+        dispute.status = JobDispute.DisputeStatus.RESOLVED
+        dispute.resolved_at = timezone.now()
+        dispute.resolved_by = admin_user
+        dispute.resolution_note = resolution_note
+        dispute.public_resolution_note = public_resolution_note
+        dispute.save(
+            update_fields=[
+                "status",
+                "resolved_at",
+                "resolved_by",
+                "resolution_note",
+                "public_resolution_note",
+            ]
+        )
+
+        if provider_id:
+            apply_dispute_loss_penalty(provider_id=provider_id)
+            quality_result = enforce_provider_quality_policy(provider_id=provider_id)
+        else:
+            quality_result = None
+
+        JobEvent.objects.create(
+            job=job,
+            event_type=JobEvent.EventType.CANCELLED,
+            note="dispute_resolved_client_wins",
+        )
+        transaction.on_commit(lambda: send_dispute_resolution_email(job))
+        if quality_result and quality_result.warning_activated:
+            transaction.on_commit(
+                lambda provider=quality_result.provider: send_quality_warning_email(
+                    provider
+                )
+            )
+
+    return "dispute_resolved_client_wins"

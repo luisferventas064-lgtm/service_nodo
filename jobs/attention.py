@@ -93,7 +93,7 @@ def accept_without_assign(*, since_hours: int = 168, limit: int = 50) -> list[At
 def assignment_inconsistencies(*, since_hours: int = 168, limit: int = 50) -> list[AttentionItem]:
     """
     Casos estructurales:
-    - evento ASSIGNED pero no existe JobAssignment activo para ese job.
+    - ASSIGNED event but no active JobAssignment exists for that job.
     """
     since = timezone.now() - timedelta(hours=since_hours)
 

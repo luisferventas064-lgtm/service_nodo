@@ -20,6 +20,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 STRIPE_MODE = os.getenv("STRIPE_MODE", "test")
+TWILIO_MODE = os.getenv("TWILIO_MODE", "mock")
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
+TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", TWILIO_PHONE_NUMBER)
 
 def _first_env(*names):
     for name in names:
@@ -111,6 +116,7 @@ INSTALLED_APPS = [
     'workers',
     'assignments.apps.AssignmentsConfig',
     "jobs.apps.JobsConfig",
+    "verifications.apps.VerificationsConfig",
     "ui.apps.UiConfig",
 
 ]
@@ -138,6 +144,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'clients.context_processors.client_session_context',
             ],
         },
     },

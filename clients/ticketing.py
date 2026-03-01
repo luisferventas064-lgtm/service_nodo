@@ -19,7 +19,7 @@ def ensure_client_ticket(
     tax_region_code: str = "",
 ) -> ClientTicket:
     """
-    Crea el ticket si no existe (idempotente).
+    Create the ticket if it does not exist (idempotent).
     Usa unique(client, ref_type, ref_id) para no duplicar.
     """
     with transaction.atomic():
