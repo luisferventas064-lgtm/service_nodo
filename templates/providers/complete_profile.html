@@ -3,10 +3,248 @@
 {% block title %}Complete Provider Profile{% endblock %}
 
 {% block content %}
-<h2>Complete Your Profile</h2>
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Continue</button>
-</form>
+<style>
+  .nodo-section { margin: 24px 0; }
+  .table { border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; }
+  .table-head, .table-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; padding: 10px 12px; align-items: center; }
+  .table-head { background: #F8FAFC; font-size: 12px; color: #64748B; font-weight: 600; }
+  .table-row { border-top: 1px solid #E2E8F0; }
+  .right { text-align: right; }
+  .btn-secondary { background: #F8FAFC; }
+</style>
+<div class="container page">
+  <div class="card" style="max-width:760px;margin:auto;">
+    <h1 class="card-title">Complete Your Profile</h1>
+    <p class="muted">Add required details to activate your provider account.</p>
+
+    {% if form.non_field_errors %}
+      {% for error in form.non_field_errors %}
+        <p style="color:#991B1B;">{{ error }}</p>
+      {% endfor %}
+    {% endif %}
+
+    <div class="nodo-section">
+      <h3>Service areas</h3>
+      <p class="muted">Add the cities where you offer services. You can add multiple.</p>
+
+      <form method="post" style="margin-bottom: 14px;">
+        {% csrf_token %}
+        <input type="hidden" name="area_action" value="add" />
+
+        <label for="area_province">Province</label>
+        <select name="area_province" id="area_province">
+          <option value="">Select province</option>
+          <option value="QC">Quebec (QC)</option>
+          <option value="ON">Ontario (ON)</option>
+          <option value="BC">British Columbia (BC)</option>
+          <option value="AB">Alberta (AB)</option>
+          <option value="MB">Manitoba (MB)</option>
+          <option value="SK">Saskatchewan (SK)</option>
+          <option value="NS">Nova Scotia (NS)</option>
+          <option value="NB">New Brunswick (NB)</option>
+          <option value="NL">Newfoundland and Labrador (NL)</option>
+          <option value="PE">Prince Edward Island (PE)</option>
+          <option value="NT">Northwest Territories (NT)</option>
+          <option value="NU">Nunavut (NU)</option>
+          <option value="YT">Yukon (YT)</option>
+        </select>
+
+        <label for="area_city" style="margin-top:10px;">City</label>
+        <select name="area_city" id="area_city">
+          <option value="">Select city</option>
+          <option value="OTHER">Other (type)</option>
+        </select>
+
+        <div id="area_city_other_wrap" style="display:none; margin-top:10px;">
+          <label for="area_city_other">If other, type city</label>
+          <input type="text" name="area_city_other" id="area_city_other" maxlength="100" />
+        </div>
+
+        <div style="margin-top:12px;">
+          <button class="btn" type="submit">Add area</button>
+        </div>
+      </form>
+
+      {% if areas %}
+        <div class="nodo-section">
+          <h4>Added areas</h4>
+          <div class="table">
+            <div class="table-head">
+              <div>City</div>
+              <div>Province</div>
+              <div></div>
+            </div>
+
+            {% for a in areas %}
+              <div class="table-row">
+                <div>{{ a.city }}</div>
+                <div>{{ a.province }}</div>
+                <div class="right">
+                  <form method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="area_action" value="remove" />
+                    <input type="hidden" name="area_id" value="{{ a.provider_service_area_id }}" />
+                    <button class="btn btn-secondary" type="submit">Remove</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <p class="muted">No areas added yet.</p>
+      {% endif %}
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.service_area %}{{ form.service_area.as_hidden }}{% endif %}
+
+      {% if form.legal_name %}
+        <label for="{{ form.legal_name.id_for_label }}">Legal name</label>
+        {{ form.legal_name }}
+        {% if form.legal_name.errors %}
+          <p style="color:#991B1B;">{{ form.legal_name.errors }}</p>
+        {% endif %}
+      {% endif %}
+
+      {% if form.contact_person_name %}
+        <label for="{{ form.contact_person_name.id_for_label }}">Contact person name</label>
+        {{ form.contact_person_name }}
+        {% if form.contact_person_name.errors %}
+          <p style="color:#991B1B;">{{ form.contact_person_name.errors }}</p>
+        {% endif %}
+      {% endif %}
+
+      {% if form.company_name %}
+        <label for="{{ form.company_name.id_for_label }}">Company name</label>
+        {{ form.company_name }}
+        {% if form.company_name.errors %}
+          <p style="color:#991B1B;">{{ form.company_name.errors }}</p>
+        {% endif %}
+      {% endif %}
+
+      {% if form.business_registration_number %}
+        <label for="{{ form.business_registration_number.id_for_label }}">Business registration number</label>
+        {{ form.business_registration_number }}
+        {% if form.business_registration_number.errors %}
+          <p style="color:#991B1B;">{{ form.business_registration_number.errors }}</p>
+        {% endif %}
+      {% endif %}
+
+      {% if form.employee_count %}
+        <label for="{{ form.employee_count.id_for_label }}">Team size</label>
+        {{ form.employee_count }}
+        {% if form.employee_count.errors %}
+          <p style="color:#991B1B;">{{ form.employee_count.errors }}</p>
+        {% endif %}
+      {% endif %}
+
+      <div style="margin-bottom:25px;text-align:left;">
+        <label>Languages spoken</label>
+        {% with selected_languages=form.languages_spoken.value %}
+          <div class="language-grid">
+            {% for value, label in form.fields.languages_spoken.choices %}
+              <label>
+                <input
+                  type="checkbox"
+                  name="languages_spoken"
+                  value="{{ value }}"
+                  {% if selected_languages and value in selected_languages %}checked{% endif %}
+                >
+                {{ label }}
+              </label>
+            {% endfor %}
+          </div>
+        {% endwith %}
+        {% if form.languages_spoken.errors %}
+          <p style="color:#991B1B;">{{ form.languages_spoken.errors }}</p>
+        {% endif %}
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label>
+          <input type="checkbox" name="accepts_terms" {% if form.accepts_terms.value %}checked{% endif %}>
+          I accept the terms.
+        </label>
+        {% if form.accepts_terms.errors %}
+          <p style="color:#991B1B;">{{ form.accepts_terms.errors }}</p>
+        {% endif %}
+      </div>
+
+      <button class="btn primary" type="submit">Continue</button>
+    </form>
+  </div>
+</div>
+<script id="1zlmj2">
+(function(){
+  const provinceEl = document.getElementById("area_province");
+  const cityEl = document.getElementById("area_city");
+  const otherWrap = document.getElementById("area_city_other_wrap");
+  const otherInput = document.getElementById("area_city_other");
+
+  const citiesByProvince = {
+    "QC": [
+      "Laval",
+      "Montreal",
+      "Longueuil",
+      "Quebec City",
+      "Gatineau",
+      "Sherbrooke",
+      "Terrebonne",
+      "Saint-Jerome",
+      "Brossard",
+      "Repentigny"
+    ],
+    "ON": [
+      "Toronto",
+      "Ottawa",
+      "Mississauga",
+      "Brampton",
+      "Hamilton"
+    ]
+  };
+
+  function resetCityOptions(items){
+    cityEl.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = "Select city";
+    cityEl.appendChild(opt0);
+
+    (items || []).forEach(function(name) {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      cityEl.appendChild(option);
+    });
+
+    const otherOpt = document.createElement("option");
+    otherOpt.value = "OTHER";
+    otherOpt.textContent = "Other (type)";
+    cityEl.appendChild(otherOpt);
+  }
+
+  function syncOther(){
+    if (cityEl.value === "OTHER") {
+      otherWrap.style.display = "block";
+      otherInput.focus();
+    } else {
+      otherWrap.style.display = "none";
+      otherInput.value = "";
+    }
+  }
+
+  provinceEl.addEventListener("change", function(){
+    const prov = provinceEl.value;
+    resetCityOptions(citiesByProvince[prov] || []);
+    syncOther();
+  });
+
+  cityEl.addEventListener("change", syncOther);
+
+  resetCityOptions([]);
+  syncOther();
+})();
+</script>
 {% endblock %}

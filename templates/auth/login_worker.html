@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Worker Login{% endblock %}
+
+{% block content %}
+<div class="container page">
+  <div class="card">
+    <h1 class="card-title">Worker Login</h1>
+    <p class="muted">Sign in to manage your jobs and account activity.</p>
+
+    <form method="post">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-row">
+          {% for error in form.non_field_errors %}
+            <p style="color:#b91c1c; margin:0 0 8px;">{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="form-row">
+        <label for="id_identifier">Email or phone</label>
+        {{ form.identifier }}
+      </div>
+
+      <div class="form-row">
+        <label for="id_password">Password</label>
+        {{ form.password }}
+      </div>
+
+      <div style="margin-top:10px;">
+        <a href="{% url 'ui:reset_password_request' %}" class="link-small">
+          Forgot your password?
+        </a>
+      </div>
+
+      <div class="auth-actions">
+        <button class="btn primary" type="submit">Login</button>
+        <a class="btn" href="{% url 'ui:home' %}">Back</a>
+      </div>
+    </form>
+
+    <div class="auth-helper">
+      <p class="muted">Don't have a profile yet?</p>
+      <div class="auth-actions">
+        <a class="btn primary" href="{% url 'worker_register' %}">Create a Worker Profile</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

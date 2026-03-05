@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card">
+
+<h2 style="text-align:center;">Create an account</h2>
+
+<p style="text-align:center;color:#64748B;">
+Choose how you want to sign up
+</p>
+
+<div class="role-grid">
+
+<a class="role-card client" href="{% url 'client_register' %}">
+
+<div class="role-title">Client</div>
+
+<div class="role-desc">
+Find and request trusted local services
+</div>
+
+<div class="role-action">
+Sign up as Client →
+</div>
+
+</a>
+
+
+<a class="role-card provider" href="{% url 'provider_register' %}">
+
+<div class="role-title">Provider</div>
+
+<div class="role-desc">
+Offer services and manage service requests
+</div>
+
+<div class="role-action">
+Sign up as Provider →
+</div>
+
+</a>
+
+
+<a class="role-card worker" href="{% url 'worker_register' %}">
+
+<div class="role-title">Worker</div>
+
+<div class="role-desc">
+Work with providers and complete service jobs
+</div>
+
+<div class="role-action">
+Sign up as Worker →
+</div>
+
+</a>
+
+</div>
+
+</div>
+
+{% endblock %}

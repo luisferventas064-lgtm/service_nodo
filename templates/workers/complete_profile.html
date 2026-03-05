@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 480px; margin: 40px auto;">
+  <h1>Complete Worker Profile</h1>
+  <p>Confirm your identity details and accept the terms to continue.</p>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save and Continue</button>
+  </form>
+</div>
+{% endblock %}

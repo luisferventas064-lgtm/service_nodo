@@ -3,6 +3,7 @@ import logging
 import random
 from datetime import timedelta
 
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -30,6 +31,11 @@ def _generate_otp_code() -> str:
 
 def _hash_code(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()
+
+
+def _is_dev_otp_override(code: str) -> bool:
+    override_code = str(getattr(settings, "DEV_OTP_CODE", "") or "")
+    return bool(settings.DEBUG and override_code and code == override_code)
 
 
 def record_security_event(
@@ -163,9 +169,11 @@ def verify_phone_code(actor_type: str, actor_id: int, code: str) -> bool:
                 error_message = "Too many attempts."
 
             if error_message is None:
-                hashed_input = _hash_code(code)
+                is_dev_otp_override = _is_dev_otp_override(code)
+                hashed_input = None if is_dev_otp_override else _hash_code(code)
 
-                if hashed_input != verification.code_hash:
+                # In debug, allow a fixed OTP to skip only the hash comparison.
+                if not is_dev_otp_override and hashed_input != verification.code_hash:
                     verification.attempts += 1
                     verification.save(update_fields=["attempts"])
                     if verification.attempts >= MAX_OTP_ATTEMPTS:

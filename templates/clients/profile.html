@@ -7,6 +7,15 @@
 
 <p>Full name: {{ client.first_name }} {{ client.last_name }}</p>
 <p>Email: {{ client.email }}</p>
+<p><strong>Languages spoken:</strong> {{ client.languages_spoken|default:"-" }}</p>
 <p>Phone verified: {{ client.is_phone_verified }}</p>
 <p>Profile completed: {{ client.profile_completed }}</p>
+
+<hr>
+<h3>Client Dashboard</h3>
+<ul>
+  <li><a href="{% url 'client_activity' %}">Activity</a></li>
+  <li><a href="{% url 'client_billing' %}">Billing</a></li>
+  <li><a href="{% url 'client_edit' %}">Account Settings</a></li>
+</ul>
 {% endblock %}

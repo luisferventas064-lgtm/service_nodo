@@ -28,7 +28,6 @@ from jobs.models import Job
 from payments.views import stripe_webhook
 from providers.models import Provider
 from ui import views as ui_views
-from verifications import views_html as verification_html_views
 from workers.models import Worker
 
 
@@ -79,9 +78,11 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("health/", health_view),
     path("dashboard/", dashboard_view),
+    path("portal/", include(("portal.urls", "portal"), namespace="portal")),
     path("clients/", include("clients.urls")),
     path("providers/", include("providers.urls_web")),
-    path("verify-phone/", verification_html_views.verify_phone_page, name="verify_phone"),
+    path("", include("workers.urls")),
+    path("verify-phone/", ui_views.verify_phone, name="verify_phone"),
     path("", include("ui.urls")),
     path("", include("jobs.urls")),
     path("settlements/", include("settlements.urls")),

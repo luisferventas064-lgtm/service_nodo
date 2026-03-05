@@ -1,0 +1,101 @@
+from datetime import timedelta
+
+from django.test import TestCase
+from django.utils import timezone
+
+from assignments.models import JobAssignment
+from clients.models import Client
+from jobs.models import Job
+from jobs.services import start_service_by_provider
+from providers.models import Provider
+from service_type.models import ServiceType
+
+
+class StartServiceAuthorizationTests(TestCase):
+    def setUp(self):
+        self.service_type = ServiceType.objects.create(
+            name="Start Authorization Test",
+            description="Start authorization test service type",
+        )
+        self.client = Client.objects.create(
+            first_name="Client",
+            last_name="StartAuth",
+            phone_number="555-444-0001",
+            email="client.start.auth@test.local",
+            country="Canada",
+            province="QC",
+            city="Montreal",
+            postal_code="H1H1H1",
+            address_line1="1 Client St",
+        )
+        self.provider_assigned = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Assigned",
+            contact_last_name="Provider",
+            phone_number="555-444-0002",
+            email="provider.assigned.start.auth@test.local",
+            province="QC",
+            city="Montreal",
+            postal_code="H1H1H1",
+            address_line1="2 Provider St",
+        )
+        self.provider_other = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Other",
+            contact_last_name="Provider",
+            phone_number="555-444-0003",
+            email="provider.other.start.auth@test.local",
+            province="QC",
+            city="Montreal",
+            postal_code="H1H1H1",
+            address_line1="3 Provider St",
+        )
+        self.job = Job.objects.create(
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.ASSIGNED,
+            is_asap=False,
+            scheduled_date=timezone.localdate() + timedelta(days=2),
+            service_type=self.service_type,
+            client=self.client,
+            selected_provider=self.provider_assigned,
+            province="QC",
+            city="Montreal",
+            postal_code="H1H1H1",
+            address_line1="4 Job St",
+        )
+
+    def test_start_requires_active_assignment(self):
+        with self.assertRaises(ValueError) as exc:
+            start_service_by_provider(
+                job_id=self.job.job_id,
+                provider_id=self.provider_assigned.provider_id,
+            )
+
+        self.assertEqual(str(exc.exception), "No active assignment for this job.")
+
+    def test_only_assigned_provider_can_start(self):
+        assignment = JobAssignment.objects.create(
+            job=self.job,
+            provider=self.provider_assigned,
+            is_active=True,
+            assignment_status="assigned",
+        )
+
+        with self.assertRaises(ValueError) as exc:
+            start_service_by_provider(
+                job_id=self.job.job_id,
+                provider_id=self.provider_other.provider_id,
+            )
+
+        self.assertEqual(str(exc.exception), "Provider not authorized to start this job.")
+
+        result = start_service_by_provider(
+            job_id=self.job.job_id,
+            provider_id=self.provider_assigned.provider_id,
+        )
+
+        self.assertEqual(result, "started")
+        self.job.refresh_from_db()
+        assignment.refresh_from_db()
+        self.assertEqual(self.job.job_status, Job.JobStatus.IN_PROGRESS)
+        self.assertEqual(assignment.assignment_status, "in_progress")

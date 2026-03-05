@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  .nodo-page { max-width: 1100px; margin: 0 auto; }
+  .nodo-card { background: #fff; border: 1px solid #E2E8F0; border-radius: 16px; padding: 24px; box-shadow: 0 8px 30px rgba(0,0,0,.06); }
+  .nodo-title { margin: 0 0 6px; }
+  .nodo-subtitle { margin: 0 0 20px; color: #64748B; }
+  .nodo-grid { display: grid; gap: 12px; }
+  .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .kpi { border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; background: #F8FAFC; }
+  .kpi-label { color: #64748B; font-size: 12px; }
+  .kpi-value { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .kpi-hint { color: #64748B; font-size: 12px; margin-top: 4px; }
+  .nodo-section { margin-top: 24px; }
+  .nodo-h2 { margin: 0 0 12px; font-size: 18px; }
+  .table { border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; }
+  .table-head, .table-row { display: grid; grid-template-columns: 1fr 1.5fr 1fr auto; gap: 10px; padding: 10px 12px; align-items: center; }
+  .table-head { background: #F8FAFC; font-size: 12px; color: #64748B; font-weight: 600; }
+  .table-row { border-top: 1px solid #E2E8F0; }
+  .right { text-align: right; }
+  .link { color: #1D4ED8; text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  .muted { color: #64748B; }
+</style>
+
+<div class="nodo-page">
+  <div class="nodo-card">
+    <h1 class="nodo-title">Provider Dashboard</h1>
+    <p class="nodo-subtitle">Track your jobs and recent activity.</p>
+
+    <div class="nodo-grid kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Total jobs</div>
+        <div class="kpi-value">{{ counts.total }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Open</div>
+        <div class="kpi-value">{{ counts.open }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Pending</div>
+        <div class="kpi-value">{{ counts.pending }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Completed</div>
+        <div class="kpi-value">{{ counts.completed }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Cancelled</div>
+        <div class="kpi-value">{{ counts.cancelled }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Completed revenue</div>
+        <div class="kpi-value">
+          {% if revenue_cents %}
+            ${{ revenue_amount|floatformat:2 }}
+          {% else %}
+            $0
+          {% endif %}
+        </div>
+        <div class="kpi-hint">Based on quoted totals</div>
+      </div>
+    </div>
+
+    <div class="nodo-section">
+      <h2 class="nodo-h2">Recent jobs</h2>
+      {% if recent_jobs %}
+        <div class="table">
+          <div class="table-head">
+            <div>ID</div>
+            <div>Status</div>
+            <div>Quoted total</div>
+            <div></div>
+          </div>
+          {% for j in recent_jobs %}
+            <div class="table-row">
+              <div>#{{ j.job_id }}</div>
+              <div>{{ j.get_job_status_display }}</div>
+              <div>
+                {% if j.quoted_total_price_cents %}
+                  ${{ j.quoted_total_amount|floatformat:2 }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+              <div class="right">
+                <a class="link" href="{% url 'ui:request_status' job_id=j.job_id %}">View</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No jobs yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

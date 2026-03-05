@@ -95,6 +95,7 @@ class MarketplaceClientDecisionTests(TestCase):
         self.assertEqual(job.job_mode, Job.JobMode.ON_DEMAND)
         self.assertIsNone(job.scheduled_date)
         self.assertEqual(job.job_status, Job.JobStatus.POSTED)
+        self.assertIsNotNone(job.next_alert_at)
         self.assertIsNone(job.next_marketplace_alert_at)
         self.assertIsNone(job.marketplace_search_started_at)
         self.assertEqual(job.marketplace_attempts, 0)

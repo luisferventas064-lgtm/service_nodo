@@ -6,7 +6,7 @@ from django.utils import timezone
 from assignments.models import JobAssignment
 from jobs.models import Job
 from jobs.services import MAX_ACTIVE_JOBS, get_broadcast_candidates_for_job
-from providers.models import Provider, ProviderServiceArea, ProviderServiceType
+from providers.models import Provider, ProviderService, ProviderServiceArea
 from service_type.models import ServiceType
 
 
@@ -29,11 +29,13 @@ class MarketplaceMatchingLoadTests(TestCase):
             postal_code="H7N1A1",
             address_line1=f"{n} Provider St",
         )
-        ProviderServiceType.objects.create(
+        ProviderService.objects.create(
             provider=provider,
             service_type=self.service_type,
-            price_type="fixed",
-            base_price="50.00",
+            custom_name="Load Match Service",
+            description="",
+            billing_unit="fixed",
+            price_cents=5000,
             is_active=True,
         )
         ProviderServiceArea.objects.create(

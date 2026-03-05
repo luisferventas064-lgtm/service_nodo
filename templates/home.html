@@ -1,13 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}NODO{% endblock %}
-
 {% block content %}
-<h1>NODO - Test Interface</h1>
-
-<h2>Client</h2>
-<p><a href="{% url 'client_register' %}">Register Client</a></p>
-
-<h2>Provider</h2>
-<p><a href="{% url 'provider_register' %}">Register Provider</a></p>
+<div style="max-width: 800px; margin: 60px auto; text-align: center;">
+    <h1>Welcome to NODO</h1>
+    <p>
+        Discover trusted professionals for your home and business needs.
+        Browse available services in the Marketplace or create an account to get started.
+    </p>
+</div>
 {% endblock %}

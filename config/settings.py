@@ -86,6 +86,7 @@ SECRET_KEY = 'django-insecure-d%3ebi)1nzk6*y3!mtijivxes#c7u)_%whx!05w^3g2gqhq!q)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", os.getenv("DEBUG", "False")).lower() == "true"
 ALLOW_LEDGER_REBUILD = False
+DEV_OTP_CODE = os.getenv("DEV_OTP_CODE", "12345")
 
 def _csv_env(name, default):
     raw = os.getenv(name, default)
@@ -116,6 +117,7 @@ INSTALLED_APPS = [
     'workers',
     'assignments.apps.AssignmentsConfig',
     "jobs.apps.JobsConfig",
+    "portal.apps.PortalConfig",
     "verifications.apps.VerificationsConfig",
     "ui.apps.UiConfig",
 

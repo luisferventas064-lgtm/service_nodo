@@ -60,6 +60,12 @@ class ServiceLifecycleTicketingTests(TestCase):
             service_type=self.service_type,
             client=self.client,
             selected_provider=self.provider,
+            quoted_base_price="120.00",
+            quoted_base_price_cents=12_000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="TestSnapshot",
+            quoted_total_price_cents=12_000,
             province="QC",
             city="Montreal",
             postal_code="H1H1H1",
@@ -85,6 +91,8 @@ class ServiceLifecycleTicketingTests(TestCase):
         self.assertEqual(pt.status, ProviderTicket.Status.FINALIZED)
         self.assertEqual(ct.stage, ClientTicket.Stage.FINAL)
         self.assertEqual(ct.status, ClientTicket.Status.FINALIZED)
+        self.assertEqual(pt.subtotal_cents, 12_000)
+        self.assertEqual(ct.subtotal_cents, 12_000)
 
     def test_close_is_idempotent(self):
         ok, *_ = confirm_normal_job_by_client(job_id=self.job.job_id, client_id=self.client.client_id)

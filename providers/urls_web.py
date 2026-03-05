@@ -9,6 +9,12 @@ urlpatterns = [
     path("complete-billing/", views.provider_complete_billing, name="provider_complete_billing"),
     path("dashboard/", views.provider_dashboard, name="provider_dashboard"),
     path("profile/", views.provider_profile, name="provider_profile"),
+    path("jobs/", views.provider_jobs, name="provider_jobs"),
+    path("activity/", views.provider_activity, name="provider_activity"),
+    path("billing/", views.provider_billing, name="provider_billing"),
+    path("compliance/", views.provider_compliance, name="provider_compliance"),
+    path("account/", views.provider_edit, name="provider_edit"),
+    path("edit/", views.provider_edit, name="provider_edit_legacy"),
     path("services/", views_services.provider_services_list, name="provider_services_list"),
     path("services/add/", views_services.provider_service_add, name="provider_service_add"),
     path(

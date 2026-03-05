@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Client Dashboard{% endblock %}
+
+{% block content %}
+<style>
+.portal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.portal-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.portal-stat {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 14px;
+  background: #F8FAFC;
+}
+
+.portal-stat .k {
+  font-size: 12px;
+  color: #64748B;
+}
+
+.portal-stat .v {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.portal-alert {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+}
+
+.portal-job-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-job {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 14px;
+  background: #FFFFFF;
+}
+
+.portal-job-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.portal-job-meta {
+  color: #64748B;
+  font-size: 13px;
+  margin-top: 6px;
+}
+</style>
+
+<div class="card">
+  <h1 class="card-title">Client Dashboard</h1>
+  <p class="muted">
+    Welcome back, {{ client.first_name }}.
+  </p>
+  <p class="muted">
+    {{ client.city }}, {{ client.province }}{% if languages %} | Languages: {{ languages|join:" • " }}{% endif %}
+  </p>
+
+  <div class="portal-actions">
+    <a class="btn primary" href="{% url 'ui:marketplace_search' %}">Search Marketplace</a>
+    <a class="btn" href="{% url 'client_activity' %}">View Activity</a>
+    <a class="btn" href="{% url 'client_profile' %}">Profile</a>
+    <a class="btn" href="{% url 'client_billing' %}">Billing</a>
+  </div>
+
+  {% if not client.profile_completed %}
+    <div class="portal-alert">
+      Your profile is incomplete.
+      <a href="{% url 'client_complete_profile' %}">Complete it here</a>.
+    </div>
+  {% endif %}
+</div>
+
+<div class="portal-stats">
+  <div class="portal-stat">
+    <div class="k">Total Jobs</div>
+    <div class="v">{{ stats.total_jobs|default:0 }}</div>
+  </div>
+  <div class="portal-stat">
+    <div class="k">Open Jobs</div>
+    <div class="v">{{ stats.open_jobs|default:0 }}</div>
+  </div>
+  <div class="portal-stat">
+    <div class="k">Pending Your Action</div>
+    <div class="v">{{ stats.pending_client_action_jobs|default:0 }}</div>
+  </div>
+  <div class="portal-stat">
+    <div class="k">Completed</div>
+    <div class="v">{{ stats.completed_jobs|default:0 }}</div>
+  </div>
+  <div class="portal-stat">
+    <div class="k">Cancelled</div>
+    <div class="v">{{ stats.cancelled_jobs|default:0 }}</div>
+  </div>
+  <div class="portal-stat">
+    <div class="k">Total Finalized Billing</div>
+    <div class="v">${{ billed_total_amount|floatformat:2 }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">Recent Jobs</h2>
+
+  {% if recent_jobs %}
+    <div class="portal-job-list">
+      {% for job in recent_jobs %}
+        <div class="portal-job">
+          <div class="portal-job-head">
+            <strong>{{ job.public_reference }}</strong>
+            <span>{{ job.get_job_status_display }}</span>
+          </div>
+          <div class="portal-job-meta">
+            {{ job.service_type.name }} | {{ job.city }}, {{ job.province }}
+          </div>
+          <div class="portal-job-meta">
+            Provider:
+            {% if job.selected_provider %}
+              {{ job.selected_provider }}
+            {% else %}
+              Not assigned yet
+            {% endif %}
+          </div>
+          <div class="portal-job-meta">
+            Created: {{ job.created_at|date:"M d, Y H:i" }}
+          </div>
+          <div class="portal-actions">
+            <a class="btn" href="{% url 'ui:request_status' job_id=job.job_id %}">View Status</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">No jobs yet. Start by exploring the marketplace.</p>
+    <a class="btn primary" href="{% url 'ui:marketplace_search' %}">Explore Marketplace</a>
+  {% endif %}
+</div>
+{% endblock %}

@@ -19,20 +19,21 @@ from django.db.models import Q
 
 from providers.models import Provider
 from providers.models import ProviderService
-from providers.models import ServiceCategory
+from providers.models import ProviderServiceArea
 from providers.models import ServiceZone
+from service_type.models import ServiceType
 
 
-CATEGORY_DEFINITIONS = [
+SERVICE_TYPE_DEFINITIONS = [
     {
         "id": 1,
-        "name": "Marketplace Test Category 1",
-        "slug": "marketplace-test-category-1",
+        "name": "Marketplace Test Service Type 1",
+        "description": "Marketplace test service type 1",
     },
     {
         "id": 2,
-        "name": "Marketplace Test Category 2",
-        "slug": "marketplace-test-category-2",
+        "name": "Marketplace Test Service Type 2",
+        "description": "Marketplace test service type 2",
     },
 ]
 
@@ -55,8 +56,8 @@ ZONE_DEFINITIONS = [
 SLICE_DEFINITIONS = [
     {
         "id_base": 3000,
-        "label": "qc-laval-cat1",
-        "category_id": 1,
+        "label": "qc-laval-st1",
+        "service_type_id": 1,
         "province": "QC",
         "city": "Laval",
         "count": 20,
@@ -69,8 +70,8 @@ SLICE_DEFINITIONS = [
     },
     {
         "id_base": 3100,
-        "label": "qc-montreal-cat1",
-        "category_id": 1,
+        "label": "qc-montreal-st1",
+        "service_type_id": 1,
         "province": "QC",
         "city": "Montreal",
         "count": 20,
@@ -83,8 +84,8 @@ SLICE_DEFINITIONS = [
     },
     {
         "id_base": 3200,
-        "label": "qc-laval-cat2",
-        "category_id": 2,
+        "label": "qc-laval-st2",
+        "service_type_id": 2,
         "province": "QC",
         "city": "Laval",
         "count": 15,
@@ -97,8 +98,8 @@ SLICE_DEFINITIONS = [
     },
     {
         "id_base": 3300,
-        "label": "qc-montreal-cat2",
-        "category_id": 2,
+        "label": "qc-montreal-st2",
+        "service_type_id": 2,
         "province": "QC",
         "city": "Montreal",
         "count": 15,
@@ -111,8 +112,8 @@ SLICE_DEFINITIONS = [
     },
     {
         "id_base": 3400,
-        "label": "on-toronto-cat1",
-        "category_id": 1,
+        "label": "on-toronto-st1",
+        "service_type_id": 1,
         "province": "ON",
         "city": "Toronto",
         "count": 20,
@@ -125,8 +126,8 @@ SLICE_DEFINITIONS = [
     },
     {
         "id_base": 3500,
-        "label": "on-toronto-cat2",
-        "category_id": 2,
+        "label": "on-toronto-st2",
+        "service_type_id": 2,
         "province": "ON",
         "city": "Toronto",
         "count": 20,
@@ -198,19 +199,19 @@ def build_profiles():
     return profiles
 
 
-def ensure_categories():
-    categories = {}
-    for definition in CATEGORY_DEFINITIONS:
-        category, _ = ServiceCategory.objects.update_or_create(
+def ensure_service_types():
+    service_types = {}
+    for definition in SERVICE_TYPE_DEFINITIONS:
+        service_type, _ = ServiceType.objects.update_or_create(
             id=definition["id"],
             defaults={
                 "name": definition["name"],
-                "slug": definition["slug"],
+                "description": definition["description"],
                 "is_active": True,
             },
         )
-        categories[definition["id"]] = category
-    return categories
+        service_types[definition["id"]] = service_type
+    return service_types
 
 
 def ensure_zones():
@@ -240,7 +241,7 @@ def clamp(value, minimum, maximum):
     return max(minimum, min(maximum, value))
 
 
-def create_slice(*, definition, category, profiles, zones_by_city):
+def create_slice(*, definition, service_type, profiles, zones_by_city):
     created = 0
     slice_zones = zones_by_city.get((definition["province"], definition["city"]), [])
     for index in range(definition["count"]):
@@ -261,7 +262,7 @@ def create_slice(*, definition, category, profiles, zones_by_city):
         provider = Provider.objects.create(
             provider_id=provider_id,
             provider_type="company" if profile["verified"] else "self_employed",
-            company_name=f"Seed {definition['city']} Cat{category.id} #{index + 1:02d}",
+            company_name=f"Seed {definition['city']} St{service_type.id} #{index + 1:02d}",
             contact_first_name="Marketplace",
             contact_last_name=f"Seed{provider_id}",
             phone_number=f"+1-555-{provider_id:04d}",
@@ -281,10 +282,16 @@ def create_slice(*, definition, category, profiles, zones_by_city):
             is_verified=profile["verified"],
             acceptance_rate=acceptance_rate,
         )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city=definition["city"],
+            province=definition["province"],
+            is_active=True,
+        )
 
         ProviderService.objects.create(
             provider=provider,
-            category=category,
+            service_type=service_type,
             custom_name=f"{definition['label']} service",
             description=f"Seeded for marketplace sensitivity analysis ({profile['segment']}).",
             billing_unit="hour",
@@ -299,7 +306,7 @@ def create_slice(*, definition, category, profiles, zones_by_city):
 @transaction.atomic
 def main():
     deleted_providers, deleted_objects = delete_existing_seed_data()
-    categories = ensure_categories()
+    service_types = ensure_service_types()
     zones_by_city = ensure_zones()
     profiles = build_profiles()
 
@@ -312,7 +319,7 @@ def main():
     for definition in SLICE_DEFINITIONS:
         created = create_slice(
             definition=definition,
-            category=categories[definition["category_id"]],
+            service_type=service_types[definition["service_type_id"]],
             profiles=profiles,
             zones_by_city=zones_by_city,
         )
@@ -320,7 +327,7 @@ def main():
         print(
             "Created slice "
             f"{definition['label']}: {created} providers "
-            f"(category={definition['category_id']}, "
+            f"(service_type={definition['service_type_id']}, "
             f"{definition['province']}/{definition['city']})"
         )
 

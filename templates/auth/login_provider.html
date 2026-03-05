@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Provider Login{% endblock %}
+
+{% block content %}
+<div class="container page">
+  <div class="card">
+    <h1 class="card-title">Provider Login</h1>
+    <p class="muted">Sign in to manage your services and requests.</p>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="form-row">
+        <label for="{{ form.identifier.id_for_label }}">Email or phone</label>
+        {{ form.identifier }}
+        {% if form.identifier.errors %}
+          <div class="muted">{{ form.identifier.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-row">
+        <label for="{{ form.password.id_for_label }}">Password</label>
+        {{ form.password }}
+        {% if form.password.errors %}
+          <div class="muted">{{ form.password.errors }}</div>
+        {% endif %}
+      </div>
+
+      <div style="margin-top:10px;">
+        <a href="{% url 'ui:reset_password_request' %}" class="link-small">
+          Forgot your password?
+        </a>
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="muted">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="auth-actions">
+        <button class="btn primary" type="submit">Login</button>
+        <a class="btn" href="{% url 'ui:home' %}">Back</a>
+      </div>
+    </form>
+
+    <div class="auth-helper">
+      <p class="muted">Don't have a profile yet?</p>
+      <div class="auth-actions">
+        <a class="btn primary" href="{% url 'provider_register' %}">Create a Provider Profile</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

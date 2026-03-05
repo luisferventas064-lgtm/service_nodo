@@ -1,11 +1,13 @@
-﻿import random
+import random
+
 from django.db import transaction
-from providers.models import Provider, ProviderService, ServiceCategory
+
+from providers.models import Provider, ProviderService, ProviderServiceArea
+from service_type.models import ServiceType
 
 
 @transaction.atomic
 def run():
-
     print("Cleaning test providers...")
 
     ProviderService.objects.filter(provider__provider_id__gte=2000).delete()
@@ -13,13 +15,12 @@ def run():
 
     print("Creating providers...")
 
-    category, _ = ServiceCategory.objects.get_or_create(
+    service_type, _ = ServiceType.objects.get_or_create(
         id=1,
-        defaults={"name": "Test Category", "slug": "test-category", "is_active": True},
+        defaults={"name": "Test Service Type", "description": "", "is_active": True},
     )
 
     for i in range(2000, 2030):
-
         rating = round(random.uniform(3.5, 5.0), 2)
         completed = random.randint(0, 300)
         cancelled = random.randint(0, min(50, completed))
@@ -37,15 +38,26 @@ def run():
             city="Laval",
             postal_code="H7A 0A1",
             address_line1="123 Test St",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+            service_area="Laval",
             avg_rating=rating,
             completed_jobs_count=completed,
             cancelled_jobs_count=cancelled,
             is_verified=verified,
         )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Laval",
+            province="QC",
+            is_active=True,
+        )
 
         ProviderService.objects.create(
             provider=provider,
-            category=category,
+            service_type=service_type,
             custom_name="Test Service",
             description="Seeded for marketplace ranking tests.",
             billing_unit="hour",

@@ -20,10 +20,7 @@ from django.db.models import Count
 from providers.models import ProviderService
 from providers.services_marketplace import search_provider_services
 
-RATING_WEIGHT = 0.5
-VOLUME_WEIGHT = 0.3
 VERIFIED_WEIGHT = 0.1
-CANCELLATION_WEIGHT = 0.2
 
 
 def parse_args():
@@ -31,9 +28,9 @@ def parse_args():
         description="Compare marketplace ranking with and without verified bonus.",
     )
     parser.add_argument(
-        "--service-category-id",
+        "--service-type-id",
         type=int,
-        help="Service category to analyze.",
+        help="Service type to analyze.",
     )
     parser.add_argument(
         "--province",
@@ -100,11 +97,7 @@ def _i(value, default=0):
 
 
 def compute_base_score(row):
-    return (
-        (_f(row.get("safe_rating")) * RATING_WEIGHT)
-        + (_f(row.get("volume_score")) * VOLUME_WEIGHT)
-        - (_f(row.get("cancellation_rate")) * CANCELLATION_WEIGHT)
-    )
+    return _f(row.get("hybrid_score")) - (_f(row.get("verified_bonus")) * VERIFIED_WEIGHT)
 
 
 def compute_with_verified_scale(row, verified_scale):
@@ -275,9 +268,9 @@ def build_scenarios(rows):
     }
 
 
-def analyze_slice(*, service_category_id, province, city, limit, offset):
+def analyze_slice(*, service_type_id, province, city, limit, offset):
     raw_rows = search_provider_services(
-        service_category_id=service_category_id,
+        service_type_id=service_type_id,
         province=province,
         city=city,
         limit=limit,
@@ -301,16 +294,16 @@ def discover_slices(*, scope, min_rows, max_slices):
 
     if scope in {"province", "both"}:
         province_rows = (
-            base_qs.values("category_id", "provider__province")
+            base_qs.values("service_type_id", "provider__province")
             .annotate(row_count=Count("id"))
             .filter(row_count__gte=min_rows)
-            .order_by("-row_count", "category_id", "provider__province")[:max_slices]
+            .order_by("-row_count", "service_type_id", "provider__province")[:max_slices]
         )
         for row in province_rows:
             candidates.append(
                 {
                     "scope": "province",
-                    "service_category_id": row["category_id"],
+                    "service_type_id": row["service_type_id"],
                     "province": row["provider__province"],
                     "city": None,
                     "row_count": row["row_count"],
@@ -321,16 +314,16 @@ def discover_slices(*, scope, min_rows, max_slices):
         city_rows = (
             base_qs.exclude(provider__city__isnull=True)
             .exclude(provider__city="")
-            .values("category_id", "provider__province", "provider__city")
+            .values("service_type_id", "provider__province", "provider__city")
             .annotate(row_count=Count("id"))
             .filter(row_count__gte=min_rows)
-            .order_by("-row_count", "category_id", "provider__province", "provider__city")[:max_slices]
+            .order_by("-row_count", "service_type_id", "provider__province", "provider__city")[:max_slices]
         )
         for row in city_rows:
             candidates.append(
                 {
                     "scope": "city",
-                    "service_category_id": row["category_id"],
+                    "service_type_id": row["service_type_id"],
                     "province": row["provider__province"],
                     "city": row["provider__city"],
                     "row_count": row["row_count"],
@@ -340,7 +333,7 @@ def discover_slices(*, scope, min_rows, max_slices):
     candidates.sort(
         key=lambda item: (
             -item["row_count"],
-            item["service_category_id"],
+            item["service_type_id"],
             item["province"],
             item["city"] or "",
             item["scope"],
@@ -351,7 +344,7 @@ def discover_slices(*, scope, min_rows, max_slices):
 
 def format_slice_label(slice_info):
     label = (
-        f"cat={slice_info['service_category_id']} "
+        f"service_type={slice_info['service_type_id']} "
         f"prov={slice_info['province']}"
     )
     if slice_info.get("city"):
@@ -408,7 +401,7 @@ def main():
         results = []
         for slice_info in candidates:
             scenarios = analyze_slice(
-                service_category_id=slice_info["service_category_id"],
+                service_type_id=slice_info["service_type_id"],
                 province=slice_info["province"],
                 city=slice_info["city"],
                 limit=args.limit,
@@ -433,13 +426,13 @@ def main():
         print_matrix_summary(results)
         return
 
-    if args.service_category_id is None or not args.province:
+    if args.service_type_id is None or not args.province:
         raise SystemExit(
-            "--service-category-id and --province are required unless --auto-discover is used."
+            "--service-type-id and --province are required unless --auto-discover is used."
         )
 
     scenarios = analyze_slice(
-        service_category_id=args.service_category_id,
+        service_type_id=args.service_type_id,
         province=args.province,
         city=args.city,
         limit=args.limit,
@@ -459,8 +452,8 @@ def main():
 
     print("=== PARAMETERS ===")
     print(
-        "service_category_id="
-        f"{args.service_category_id} "
+        "service_type_id="
+        f"{args.service_type_id} "
         f"province={args.province!r} "
         f"city={args.city!r} "
         f"limit={args.limit} "

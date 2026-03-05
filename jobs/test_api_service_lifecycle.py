@@ -75,6 +75,12 @@ class ApiServiceLifecycleTests(TestCase):
             city="Montreal",
             postal_code="H1H1H1",
             address_line1="3 Job St",
+            quoted_base_price="100.00",
+            quoted_base_price_cents=10_000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="LegacyJobSnapshot",
+            quoted_total_price_cents=10_000,
         )
         JobAssignment.objects.create(
             job=self.job,
@@ -93,12 +99,21 @@ class ApiServiceLifecycleTests(TestCase):
         self.assertTrue(body["ok"])
         self.assertEqual(body["result"], "started")
 
-    def test_start_wrong_provider_403(self):
+    def test_start_wrong_provider_400(self):
         resp = self._post(f"/api/jobs/{self.job.job_id}/start", {"provider_id": self.provider_other.provider_id})
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 400)
         body = resp.json()
         self.assertFalse(body["ok"])
-        self.assertEqual(body["error"], "provider_not_allowed")
+        self.assertEqual(body["error"], "Provider not authorized to start this job.")
+
+    def test_start_without_active_assignment_400(self):
+        JobAssignment.objects.filter(job=self.job, is_active=True).update(is_active=False)
+
+        resp = self._post(f"/api/jobs/{self.job.job_id}/start", {"provider_id": self.provider_ok.provider_id})
+        self.assertEqual(resp.status_code, 400)
+        body = resp.json()
+        self.assertFalse(body["ok"])
+        self.assertEqual(body["error"], "No active assignment for this job.")
 
     def test_start_idempotent_ok(self):
         first = self._post(f"/api/jobs/{self.job.job_id}/start", {"provider_id": self.provider_ok.provider_id})

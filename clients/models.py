@@ -12,12 +12,15 @@ class Client(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
 
-    phone_number = models.CharField(max_length=20)
-    email = models.EmailField()
+    phone_number = models.CharField(max_length=20, unique=True)
+    email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128, blank=True, default="")
     is_phone_verified = models.BooleanField(default=False)
     phone_verified_at = models.DateTimeField(null=True, blank=True)
     phone_verification_attempts = models.IntegerField(default=0)
+    accepts_terms = models.BooleanField(default=False)
     profile_completed = models.BooleanField(default=False)
+    languages_spoken = models.CharField(max_length=200, blank=True, default="")
 
     country = models.CharField(max_length=100)
     province = models.CharField(max_length=100)
@@ -35,6 +38,28 @@ class Client(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    def evaluate_profile_completion(self) -> bool:
+        is_complete = all(
+            [
+                self.first_name,
+                self.last_name,
+                self.country,
+                self.province,
+                self.city,
+                self.postal_code,
+                self.address_line1,
+                self.accepts_terms,
+            ]
+        )
+
+        if self.profile_completed != is_complete:
+            self.profile_completed = is_complete
+            self.save(update_fields=["profile_completed", "updated_at"])
+        else:
+            self.profile_completed = is_complete
+
+        return self.profile_completed
 
 
 class ClientInvoiceSequence(models.Model):

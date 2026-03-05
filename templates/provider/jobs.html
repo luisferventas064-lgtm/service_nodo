@@ -96,9 +96,32 @@
     {% if jobs %}
         {% for job in jobs %}
             <div class="job">
-                Client: {{ job.client.first_name }} {{ job.client.last_name }}<br>
-                City: {{ job.city }}<br>
-                Service Type: {{ job.service_type.name }}<br>
+                <p><strong>Client:</strong> {% if job.client %}{{ job.client.first_name }} {{ job.client.last_name }}{% else %}&mdash;{% endif %}</p>
+                <p><strong>Service Type:</strong> {% if job.service_type %}{{ job.service_type.name }}{% else %}&mdash;{% endif %}</p>
+                <p><strong>Mode:</strong>
+                    {% if job.is_asap %}
+                        ASAP
+                    {% else %}
+                        Scheduled
+                    {% endif %}
+                </p>
+                <p><strong>Date:</strong>
+                    {% if job.scheduled_date %}
+                        {{ job.scheduled_date }}
+                    {% else %}
+                        &mdash;
+                    {% endif %}
+                </p>
+                <p><strong>Time:</strong>
+                    {% if job.scheduled_start_time %}
+                        {{ job.scheduled_start_time }}
+                    {% else %}
+                        &mdash;
+                    {% endif %}
+                </p>
+                <p><strong>Address:</strong>
+                    {{ job.address_line1 }}, {{ job.city }}, {{ job.province }}, {{ job.postal_code }}
+                </p>
                 <div class="meta">Status: {{ job.get_job_status_display }}</div>
                 <div class="lifecycle">
                     <span class="{% if job.job_status == 'assigned' or job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Assigned</span>

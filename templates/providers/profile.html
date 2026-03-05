@@ -5,9 +5,26 @@
 {% block content %}
 <h2>Provider Profile</h2>
 
+{% if not provider.profile_completed %}
+<p>
+  <a class="btn primary" href="{% url 'provider_complete_profile' %}">Complete your profile</a>
+</p>
+{% endif %}
+
 <p>Type: {{ provider.provider_type }}</p>
+<p><strong>Languages spoken:</strong> {{ provider.languages_spoken|default:"-" }}</p>
 <p>Phone verified: {{ provider.is_phone_verified }}</p>
 <p>Profile completed: {{ provider.profile_completed }}</p>
 <p>Billing completed: {{ provider.billing_profile_completed }}</p>
 <p>Operational: {{ provider.is_operational }}</p>
+
+<hr>
+<h3>Provider Dashboard</h3>
+<ul>
+  <li><a href="{% url 'provider_jobs' %}">Jobs</a></li>
+  <li><a href="{% url 'provider_activity' %}">Activity</a></li>
+  <li><a href="{% url 'provider_billing' %}">Billing</a></li>
+  <li><a href="{% url 'provider_compliance' %}">Compliance</a></li>
+  <li><a href="{% url 'provider_edit' %}">Account Settings</a></li>
+</ul>
 {% endblock %}

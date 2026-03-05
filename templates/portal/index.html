@@ -1,92 +1,54 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>NODO Internal Portal</title>
-    <style>
-        body { font-family: Arial; background:#f5f7fa; padding:40px; }
-        .container {
-            max-width:760px;
-            margin:auto;
-            background:white;
-            padding:24px;
-            border-radius:10px;
-            box-shadow:0 3px 10px rgba(0,0,0,0.06);
-        }
-        h1 { margin-top:0; }
-        h2 { margin-bottom:8px; }
-        hr { margin:20px 0; border:none; border-top:1px solid #e5e7eb; }
-        ul { margin:0; padding-left:20px; }
-        li { margin:8px 0; }
-        form {
-            display:inline-flex;
-            gap:8px;
-            align-items:center;
-            margin-left:8px;
-        }
-        input {
-            width:120px;
-            padding:8px 10px;
-            border:1px solid #d1d5db;
-            border-radius:6px;
-        }
-        button {
-            padding:8px 12px;
-            border:none;
-            border-radius:6px;
-            background:#111827;
-            color:white;
-            cursor:pointer;
-        }
-        a { color:#0b5cab; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
-<div class="container">
-    <h1>NODO Internal Portal</h1>
+{% block title %}NODO Internal Portal{% endblock %}
 
-    <hr>
+{% block content %}
+<div style="max-width:760px; margin:24px auto; background:white; padding:24px; border-radius:10px; box-shadow:0 3px 10px rgba(0,0,0,0.06);">
+  <h1 style="margin-top:0;">NODO Internal Portal</h1>
 
-    <h2>Client</h2>
-    <ul>
-        <li><a href="/marketplace/">Marketplace Search</a></li>
-    </ul>
+  <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
 
-    <hr>
+  <h2 style="margin-bottom:8px;">Requests</h2>
+  <ul style="margin:0; padding-left:20px;">
+    <li style="margin:8px 0;">
+      Open Job by ID:
+      <form method="get" action="{% url 'ui:request_status_lookup' %}" style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
+        <input
+          type="number"
+          name="job_id"
+          placeholder="Job ID"
+          style="width:120px; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px;"
+        >
+        <button
+          type="submit"
+          style="padding:8px 12px; border:none; border-radius:6px; background:#111827; color:white; cursor:pointer;"
+        >
+          Open
+        </button>
+      </form>
+    </li>
+  </ul>
 
-    <h2>Solicitudes</h2>
-    <ul>
-        <li>
-            Ver Job por ID:
-            <form method="get" action="{% url 'ui:request_status_lookup' %}">
-                <input type="number" name="job_id" placeholder="Job ID">
-                <button type="submit">Abrir</button>
-            </form>
-        </li>
-    </ul>
+  <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
 
-    <hr>
+  <h2 style="margin-bottom:8px;">Provider</h2>
+  <ul style="margin:0; padding-left:20px;">
+    <li style="margin:8px 0;"><a href="/provider/jobs/" style="color:#0b5cab;">Provider Jobs</a></li>
+  </ul>
 
-    <h2>Provider</h2>
-    <ul>
-        <li><a href="/provider/jobs/">Provider Jobs (pending response)</a></li>
-    </ul>
+  <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
 
-    <hr>
+  <h2 style="margin-bottom:8px;">Analytics</h2>
+  <ul style="margin:0; padding-left:20px;">
+    <li style="margin:8px 0;"><a href="/dashboard/marketplace/" style="color:#0b5cab;">Marketplace Dashboard</a></li>
+    <li style="margin:8px 0;"><a href="/internal/analytics/marketplace/" style="color:#0b5cab;">Analytics JSON</a></li>
+  </ul>
 
-    <h2>Analytics</h2>
-    <ul>
-        <li><a href="/dashboard/marketplace/">Marketplace Dashboard</a></li>
-        <li><a href="/internal/analytics/marketplace/">Analytics JSON</a></li>
-    </ul>
+  <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
 
-    <hr>
-
-    <h2>Admin</h2>
-    <ul>
-        <li><a href="/admin/">Django Admin</a></li>
-    </ul>
+  <h2 style="margin-bottom:8px;">Admin</h2>
+  <ul style="margin:0; padding-left:20px;">
+    <li style="margin:8px 0;"><a href="/admin/" style="color:#0b5cab;">Django Admin</a></li>
+  </ul>
 </div>
-
-</body>
-</html>
+{% endblock %}

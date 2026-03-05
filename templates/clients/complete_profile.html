@@ -3,9 +3,84 @@
 {% block title %}Complete Profile{% endblock %}
 
 {% block content %}
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Complete Profile</button>
-</form>
+<div class="container page">
+  <div class="card" style="max-width:720px;margin:auto;">
+    <h1 class="card-title">Complete Profile</h1>
+    <p class="muted">Update your address and language preferences to continue.</p>
+
+    {% if form.non_field_errors %}
+      {% for error in form.non_field_errors %}
+        <p style="color:#991B1B;">{{ error }}</p>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <label for="{{ form.country.id_for_label }}">Country</label>
+      {{ form.country }}
+      {% if form.country.errors %}
+        <p style="color:#991B1B;">{{ form.country.errors }}</p>
+      {% endif %}
+
+      <label for="{{ form.province.id_for_label }}">Province</label>
+      {{ form.province }}
+      {% if form.province.errors %}
+        <p style="color:#991B1B;">{{ form.province.errors }}</p>
+      {% endif %}
+
+      <label for="{{ form.city.id_for_label }}">City</label>
+      {{ form.city }}
+      {% if form.city.errors %}
+        <p style="color:#991B1B;">{{ form.city.errors }}</p>
+      {% endif %}
+
+      <label for="{{ form.postal_code.id_for_label }}">Postal code</label>
+      {{ form.postal_code }}
+      {% if form.postal_code.errors %}
+        <p style="color:#991B1B;">{{ form.postal_code.errors }}</p>
+      {% endif %}
+
+      <label for="{{ form.address_line1.id_for_label }}">Address</label>
+      {{ form.address_line1 }}
+      {% if form.address_line1.errors %}
+        <p style="color:#991B1B;">{{ form.address_line1.errors }}</p>
+      {% endif %}
+
+      <div style="margin-bottom:25px;text-align:left;">
+        <label>Languages spoken</label>
+        {% with selected_languages=form.languages_spoken.value %}
+          <div class="language-grid">
+            {% for value, label in form.fields.languages_spoken.choices %}
+              <label>
+                <input
+                  type="checkbox"
+                  name="languages_spoken"
+                  value="{{ value }}"
+                  {% if selected_languages and value in selected_languages %}checked{% endif %}
+                >
+                {{ label }}
+              </label>
+            {% endfor %}
+          </div>
+        {% endwith %}
+        {% if form.languages_spoken.errors %}
+          <p style="color:#991B1B;">{{ form.languages_spoken.errors }}</p>
+        {% endif %}
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label>
+          <input type="checkbox" name="accepts_terms" {% if form.accepts_terms.value %}checked{% endif %}>
+          I accept the terms.
+        </label>
+        {% if form.accepts_terms.errors %}
+          <p style="color:#991B1B;">{{ form.accepts_terms.errors }}</p>
+        {% endif %}
+      </div>
+
+      <button class="btn primary" type="submit">Complete Profile</button>
+    </form>
+  </div>
+</div>
 {% endblock %}

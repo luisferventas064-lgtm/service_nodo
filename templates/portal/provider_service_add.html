@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Add Service{% endblock %}
+
+{% block content %}
+<div class="container page">
+  <div class="card" style="max-width:760px;margin:auto;">
+    <h1 class="card-title">Add Service</h1>
+    <p class="muted">
+      You are adding: <strong>{{ service_type.name }}</strong>
+    </p>
+
+    {% if form.non_field_errors %}
+      {% for error in form.non_field_errors %}
+        <p style="color:#991B1B;">{{ error }}</p>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <label for="{{ form.custom_name.id_for_label }}">Service name</label>
+      {{ form.custom_name }}
+      {% if form.custom_name.errors %}
+        <p style="color:#991B1B;">{{ form.custom_name.errors }}</p>
+      {% endif %}
+
+      <label for="{{ form.description.id_for_label }}">Description</label>
+      {{ form.description }}
+      {% if form.description.errors %}
+        <p style="color:#991B1B;">{{ form.description.errors }}</p>
+      {% endif %}
+
+      <label for="{{ form.billing_unit.id_for_label }}">Billing unit</label>
+      {{ form.billing_unit }}
+      {% if form.billing_unit.errors %}
+        <p style="color:#991B1B;">{{ form.billing_unit.errors }}</p>
+      {% endif %}
+
+      <label for="{{ form.price.id_for_label }}">Price (CAD)</label>
+      {{ form.price }}
+      {% if form.price.help_text %}
+        <p class="muted" style="margin-top:-10px;">{{ form.price.help_text }}</p>
+      {% endif %}
+      {% if form.price.errors %}
+        <p style="color:#991B1B;">{{ form.price.errors }}</p>
+      {% endif %}
+
+      <div class="auth-actions">
+        <button class="btn primary" type="submit">Save service</button>
+        <a class="btn" href="{% url 'portal:provider_services' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

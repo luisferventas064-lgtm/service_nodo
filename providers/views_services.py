@@ -18,6 +18,7 @@ def _ensure_provider_can_manage_services(request, provider):
         return redirect("provider_complete_profile")
 
     if not provider.profile_completed:
+        messages.info(request, "Please complete your profile to activate your provider account.")
         return redirect("provider_complete_profile")
 
     return None
@@ -33,8 +34,8 @@ def provider_services_list(request):
 
     services = list(
         ProviderService.objects.filter(provider=provider)
-        .select_related("category")
-        .order_by("category__name", "custom_name", "id")
+        .select_related("service_type")
+        .order_by("service_type__name", "custom_name", "id")
     )
     for service in services:
         service.display_price = service.price_cents / 100

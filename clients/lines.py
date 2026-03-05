@@ -38,8 +38,30 @@ def ensure_client_base_line(
             meta={},
         ),
     )
+    line.line_type = "base"
+    line.description = description
+    line.qty = 1
+    line.unit_price_cents = unit_price_cents
+    line.line_subtotal_cents = unit_price_cents
+    line.tax_cents = tax_cents
+    line.line_total_cents = unit_price_cents + tax_cents
+    line.tax_region_code = tax_region_code or t.tax_region_code or ""
+    line.tax_code = tax_code
     apply_tax_snapshot_to_line(line, region_code=t.tax_region_code)
-    line.save(update_fields=["tax_region_code", "tax_rate_bps", "tax_cents"])
+    line.save(
+        update_fields=[
+            "line_type",
+            "description",
+            "qty",
+            "unit_price_cents",
+            "line_subtotal_cents",
+            "tax_cents",
+            "line_total_cents",
+            "tax_region_code",
+            "tax_code",
+            "tax_rate_bps",
+        ]
+    )
 
     recalc_client_ticket_totals(t.pk)
     return line

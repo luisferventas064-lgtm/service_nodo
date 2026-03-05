@@ -1,197 +1,141 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>NODO Request</title>
-    <style>
-        body { font-family: Arial; background:#f5f7fa; padding:40px; }
-        .container {
-            max-width:760px;
-            margin:auto;
-            background:white;
-            padding:24px;
-            border-radius:10px;
-            box-shadow:0 3px 10px rgba(0,0,0,0.06);
-        }
-        h2, h3 { margin-top:0; }
-        .provider-box {
-            background:#f9fafb;
-            border:1px solid #e5e7eb;
-            border-radius:8px;
-            padding:14px 16px;
-            margin-bottom:20px;
-        }
-        .grid {
-            display:grid;
-            grid-template-columns:repeat(2, minmax(0, 1fr));
-            gap:14px;
-        }
-        .full { grid-column:1 / -1; }
-        label {
-            display:block;
-            font-size:13px;
-            font-weight:bold;
-            margin-bottom:6px;
-        }
-        input, select {
-            width:100%;
-            box-sizing:border-box;
-            padding:10px;
-            border:1px solid #d1d5db;
-            border-radius:6px;
-        }
-        .radio-group {
-            display:flex;
-            gap:18px;
-            flex-wrap:wrap;
-            padding-top:8px;
-        }
-        .radio-group label {
-            display:flex;
-            gap:8px;
-            align-items:center;
-            font-weight:normal;
-            margin:0;
-        }
-        .radio-group input { width:auto; margin:0; }
-        .error {
-            color:#b91c1c;
-            margin-bottom:16px;
-        }
-        button {
-            margin-top:20px;
-            background:#111827;
-            color:white;
-            border:none;
-            border-radius:6px;
-            padding:12px 18px;
-            cursor:pointer;
-        }
-        @media (max-width: 700px) {
-            body { padding:20px; }
-            .grid { grid-template-columns:1fr; }
-        }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
-<div class="container">
-    <h2>Solicitar servicio con {{ provider }}</h2>
+{% block title %}Request Service{% endblock %}
 
-    <div class="provider-box">
-        <strong>Provider:</strong> {{ provider }}<br>
-        <strong>Rating:</strong> {{ provider.avg_rating }}<br>
-        {% if selected_offer %}
-            <strong>Precio:</strong> ${{ selected_offer.display_price|floatformat:2 }}<br>
-            <strong>Categoria:</strong> {{ selected_offer.category.name }}<br>
-        {% endif %}
-        {% if provider.zone %}
-            <strong>Zona:</strong> {{ provider.zone.name }}
-        {% endif %}
+{% block content %}
+<div style="max-width:760px; margin:24px auto; background:white; padding:24px; border-radius:10px; box-shadow:0 3px 10px rgba(0,0,0,0.06);">
+  <h2 style="margin-top:0;">Request Service with {{ provider }}</h2>
+
+  <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; margin-bottom:20px;">
+    <strong>Provider:</strong> {{ provider }}<br>
+    <strong>Rating:</strong> {{ provider.avg_rating }}<br>
+    {% if selected_offer %}
+      <strong>Price:</strong> ${{ selected_offer.display_price|floatformat:2 }}<br>
+      <strong>Service Type:</strong> {{ selected_offer.service_type.name }}<br>
+    {% endif %}
+    {% if provider.zone %}
+      <strong>Zone:</strong> {{ provider.zone.name }}
+    {% endif %}
+  </div>
+
+  {% if error %}
+    <div style="color:#b91c1c; margin-bottom:16px;">{{ error }}</div>
+  {% endif %}
+  {% if compliance_blocked %}
+    <div style="color:#9a3412; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:10px 12px; margin-bottom:16px;">
+      This provider cannot receive requests for this service until compliance is completed.
     </div>
+  {% endif %}
 
-    {% if error %}
-        <div class="error">{{ error }}</div>
+  <form method="post">
+    {% csrf_token %}
+    {% if service_type_id %}
+      <input type="hidden" name="service_type_id" value="{{ service_type_id }}">
     {% endif %}
 
-    <form method="post">
-        {% csrf_token %}
-        {% if category_id %}
-            <input type="hidden" name="category_id" value="{{ category_id }}">
-        {% endif %}
+    {% if not client_authenticated %}
+      <h3 style="margin-top:0;">Client Information</h3>
 
-        <h3>Datos del cliente</h3>
-
-        <div class="grid">
-            <div>
-                <label for="first_name">Nombre</label>
-                <input id="first_name" type="text" name="first_name" required value="{{ form_data.first_name|default:'' }}">
-            </div>
-            <div>
-                <label for="last_name">Apellido</label>
-                <input id="last_name" type="text" name="last_name" required value="{{ form_data.last_name|default:'' }}">
-            </div>
-            <div>
-                <label for="phone_number">Telefono</label>
-                <input id="phone_number" type="text" name="phone_number" required value="{{ form_data.phone_number|default:'' }}">
-            </div>
-            <div>
-                <label for="email">Email</label>
-                <input id="email" type="email" name="email" required value="{{ form_data.email|default:'' }}">
-            </div>
-            <div>
-                <label for="country">Country</label>
-                <input id="country" type="text" name="country" required value="{{ form_data.country|default:'CA' }}">
-            </div>
-            <div>
-                <label for="province">Province</label>
-                <input id="province" type="text" name="province" required value="{{ form_data.province|default:'' }}">
-            </div>
-            <div>
-                <label for="city">City</label>
-                <input id="city" type="text" name="city" required value="{{ form_data.city|default:'' }}">
-            </div>
-            <div>
-                <label for="postal_code">Postal code</label>
-                <input id="postal_code" type="text" name="postal_code" required value="{{ form_data.postal_code|default:'' }}">
-            </div>
-            <div class="full">
-                <label for="address_line1">Direccion</label>
-                <input id="address_line1" type="text" name="address_line1" required value="{{ form_data.address_line1|default:'' }}">
-            </div>
+      <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+        <div>
+          <label for="first_name" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">First name</label>
+          <input id="first_name" type="text" name="first_name" required value="{{ form_data.first_name|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
         </div>
-
-        <h3 style="margin-top:24px;">Detalles del servicio</h3>
-
-        <div class="grid">
-            <div class="full">
-                <label for="service_type">Service type</label>
-                <select id="service_type" name="service_type" required>
-                    <option value="">Seleccione</option>
-                    {% for st in service_types %}
-                        <option value="{{ st.service_type_id }}"{% if form_data.service_type == st.service_type_id|stringformat:"s" %} selected{% endif %}>
-                            {{ st.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="full">
-                <label>Modo</label>
-                <div class="radio-group">
-                    <label>
-                        <input
-                            type="radio"
-                            name="job_mode"
-                            value="on_demand"
-                            {% if form_data.job_mode|default:'on_demand' == 'on_demand' %}checked{% endif %}
-                        >
-                        On Demand (ASAP)
-                    </label>
-                    <label>
-                        <input
-                            type="radio"
-                            name="job_mode"
-                            value="scheduled"
-                            {% if form_data.job_mode == 'scheduled' %}checked{% endif %}
-                        >
-                        Programado
-                    </label>
-                </div>
-            </div>
-
-            <div>
-                <label for="scheduled_date">Scheduled date</label>
-                <input id="scheduled_date" type="date" name="scheduled_date" value="{{ form_data.scheduled_date|default:'' }}">
-            </div>
-            <div>
-                <label for="scheduled_time">Scheduled time</label>
-                <input id="scheduled_time" type="time" name="scheduled_time" value="{{ form_data.scheduled_start_time|default:'' }}">
-            </div>
+        <div>
+          <label for="last_name" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Last name</label>
+          <input id="last_name" type="text" name="last_name" required value="{{ form_data.last_name|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
         </div>
+        <div>
+          <label for="phone_number" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Phone</label>
+          <input id="phone_number" type="text" name="phone_number" required value="{{ form_data.phone_number|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        </div>
+        <div>
+          <label for="email" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Email</label>
+          <input id="email" type="email" name="email" required value="{{ form_data.email|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        </div>
+        <div>
+          <label for="country" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Country</label>
+          <input id="country" type="text" name="country" required value="{{ form_data.country|default:'CA' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        </div>
+        <div>
+          <label for="province" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Province</label>
+          <input id="province" type="text" name="province" required value="{{ form_data.province|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        </div>
+        <div>
+          <label for="city" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">City</label>
+          <input id="city" type="text" name="city" required value="{{ form_data.city|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        </div>
+        <div>
+          <label for="postal_code" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Postal code</label>
+          <input id="postal_code" type="text" name="postal_code" required value="{{ form_data.postal_code|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label for="address_line1" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Address</label>
+          <input id="address_line1" type="text" name="address_line1" required value="{{ form_data.address_line1|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        </div>
+      </div>
+    {% else %}
+      <p style="margin-top:0; margin-bottom:24px;">Logged in as {{ client.first_name }} {{ client.last_name }}</p>
+    {% endif %}
 
-        <button type="submit">Confirmar solicitud</button>
-    </form>
+    <h3 style="margin-top:24px;">Service Details</h3>
+
+    <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+      <div style="grid-column:1 / -1;">
+        <label for="service_type" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Service type</label>
+        <select id="service_type" name="service_type" required style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+          <option value="">Select</option>
+          {% for st in service_types %}
+            <option value="{{ st.service_type_id }}"{% if form_data.service_type == st.service_type_id|stringformat:"s" %} selected{% endif %}>
+              {{ st.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="grid-column:1 / -1;">
+        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Mode</label>
+        <div style="display:flex; gap:18px; flex-wrap:wrap; padding-top:8px;">
+          <label style="display:flex; gap:8px; align-items:center; font-weight:normal; margin:0;">
+            <input
+              type="radio"
+              name="job_mode"
+              value="on_demand"
+              {% if form_data.job_mode|default:'on_demand' == 'on_demand' %}checked{% endif %}
+              style="width:auto; margin:0;"
+            >
+            On Demand (ASAP)
+          </label>
+          <label style="display:flex; gap:8px; align-items:center; font-weight:normal; margin:0;">
+            <input
+              type="radio"
+              name="job_mode"
+              value="scheduled"
+              {% if form_data.job_mode == 'scheduled' %}checked{% endif %}
+              style="width:auto; margin:0;"
+            >
+            Scheduled
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label for="scheduled_date" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Scheduled date</label>
+        <input id="scheduled_date" type="date" name="scheduled_date" value="{{ form_data.scheduled_date|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+      </div>
+      <div>
+        <label for="scheduled_time" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Scheduled time</label>
+        <input id="scheduled_time" type="time" name="scheduled_time" value="{{ form_data.scheduled_start_time|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+      </div>
+    </div>
+
+    <button
+      type="submit"
+      {% if compliance_blocked %}disabled aria-disabled="true"{% endif %}
+      style="margin-top:20px; background:#111827; color:white; border:none; border-radius:6px; padding:12px 18px; cursor:{% if compliance_blocked %}not-allowed{% else %}pointer{% endif %}; opacity:{% if compliance_blocked %}.55{% else %}1{% endif %};"
+    >
+      Submit Request
+    </button>
+  </form>
 </div>
-
-</body>
-</html>
+{% endblock %}

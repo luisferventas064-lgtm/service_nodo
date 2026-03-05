@@ -5,6 +5,7 @@ from clients.lines_fee import ensure_client_fee_line
 from clients.ticketing import ensure_client_ticket
 from jobs.models import Job
 from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
+from jobs.services_pricing_snapshot import job_snapshot_currency, job_snapshot_subtotal_cents
 from assignments.models import JobAssignment
 from providers.lines import ensure_provider_base_line
 from providers.lines_fee import ensure_provider_fee_line
@@ -60,6 +61,9 @@ def confirm_normal_job_by_client(*, job_id: int, client_id: int):
     if job.client_id != client_id:
         return False, "CLIENT_NOT_ALLOWED_FOR_THIS_JOB"
 
+    base_cents = job_snapshot_subtotal_cents(job)
+    currency = job_snapshot_currency(job)
+
     job.job_status = "assigned"
     job.save(update_fields=["job_status", "updated_at"])
 
@@ -71,16 +75,16 @@ def confirm_normal_job_by_client(*, job_id: int, client_id: int):
         ref_id=job.job_id,
         stage="estimate",
         status="open",
-        subtotal_cents=0,
+        subtotal_cents=base_cents,
         tax_cents=0,
-        total_cents=0,
-        currency="CAD",
+        total_cents=base_cents,
+        currency=currency,
         tax_region_code=tax_region_code,
     )
     ensure_provider_base_line(
         pt.pk,
         description="Service (estimate)",
-        unit_price_cents=pt.subtotal_cents or 0,
+        unit_price_cents=base_cents,
         tax_cents=pt.tax_cents or 0,
         tax_region_code=pt.tax_region_code or "",
         tax_code="",
@@ -92,16 +96,16 @@ def confirm_normal_job_by_client(*, job_id: int, client_id: int):
             ref_id=job.job_id,
             stage="estimate",
             status="open",
-            subtotal_cents=0,
+            subtotal_cents=base_cents,
             tax_cents=0,
-            total_cents=0,
-            currency="CAD",
+            total_cents=base_cents,
+            currency=currency,
             tax_region_code=tax_region_code,
         )
         ensure_client_base_line(
             ct.pk,
             description="Service (estimate)",
-            unit_price_cents=ct.subtotal_cents or 0,
+            unit_price_cents=base_cents,
             tax_cents=ct.tax_cents or 0,
             tax_region_code=ct.tax_region_code or "",
             tax_code="",

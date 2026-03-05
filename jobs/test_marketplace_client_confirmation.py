@@ -59,6 +59,12 @@ class MarketplaceClientConfirmationTests(TestCase):
             scheduled_date=timezone.localdate() + timedelta(days=3),
             scheduled_start_time=time(hour=12, minute=0),
             service_type=self.service_type,
+            quoted_base_price="120.00",
+            quoted_base_price_cents=12_000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="TestSnapshot",
+            quoted_total_price_cents=12_000,
             province="QC",
             city="Laval",
             postal_code="H7N1A1",
@@ -96,6 +102,7 @@ class MarketplaceClientConfirmationTests(TestCase):
         self.assertTrue(ticket.ticket_no.startswith(f"PROV-{self.provider.provider_id}-"))
         self.assertEqual(ticket.stage, ProviderTicket.Stage.ESTIMATE)
         self.assertEqual(ticket.status, ProviderTicket.Status.OPEN)
+        self.assertEqual(ticket.subtotal_cents, 12_000)
         client_ticket = ClientTicket.objects.get(
             client=job.client,
             ref_type="job",
@@ -103,6 +110,7 @@ class MarketplaceClientConfirmationTests(TestCase):
         )
         self.assertEqual(client_ticket.stage, ClientTicket.Stage.ESTIMATE)
         self.assertEqual(client_ticket.status, ClientTicket.Status.OPEN)
+        self.assertEqual(client_ticket.subtotal_cents, 12_000)
 
     def test_confirm_marketplace_provider_rejects_timeout(self):
         job = self._mk_job(started_delta_minutes=61)

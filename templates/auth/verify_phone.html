@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width:400px;margin:80px auto;text-align:center;">
+    <h2>Verify your phone number</h2>
+    <p>Enter the verification code sent to your phone.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="text" name="code" placeholder="6-digit code" required style="padding:10px;width:100%;margin:15px 0;">
+        <button type="submit" style="padding:10px 20px;">Verify</button>
+    </form>
+
+    {% if error %}
+    <p style="color:#b91c1c; margin-top:12px;">{{ error }}</p>
+    {% endif %}
+
+    <div id="resendMessage" style="margin-top:15px; font-size:14px;"></div>
+
+    <div style="margin-top:20px; text-align:center;">
+        <button id="resendBtn" type="button" disabled style="padding:8px 16px;">
+            Resend code (<span id="countdown">60</span>s)
+        </button>
+    </div>
+</div>
+
+<script>
+let seconds = 60;
+const resendBtn = document.getElementById("resendBtn");
+let countdownEl = document.getElementById("countdown");
+const messageBox = document.getElementById("resendMessage");
+const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+let timer = null;
+
+function startTimer() {
+    if (timer) {
+        clearInterval(timer);
+    }
+
+    resendBtn.disabled = true;
+    seconds = 60;
+    countdownEl.textContent = seconds;
+
+    timer = setInterval(function() {
+        seconds--;
+        countdownEl.textContent = seconds;
+
+        if (seconds <= 0) {
+            clearInterval(timer);
+            timer = null;
+            resendBtn.disabled = false;
+            resendBtn.textContent = "Resend code";
+        }
+    }, 1000);
+}
+
+resendBtn.addEventListener("click", function() {
+    resendBtn.disabled = true;
+    messageBox.textContent = "";
+    messageBox.style.color = "";
+
+    fetch("{% url 'ui:resend_code' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            messageBox.style.color = "green";
+            messageBox.textContent = "A new verification code has been sent.";
+            resendBtn.innerHTML = 'Resend code (<span id="countdown">60</span>s)';
+            countdownEl = document.getElementById("countdown");
+            startTimer();
+        } else {
+            messageBox.style.color = "red";
+            messageBox.textContent = data.error || "Unable to resend code.";
+            resendBtn.disabled = false;
+            resendBtn.textContent = "Resend code";
+        }
+    })
+    .catch(() => {
+        messageBox.style.color = "red";
+        messageBox.textContent = "Network error. Please try again.";
+        resendBtn.disabled = false;
+        resendBtn.textContent = "Resend code";
+    });
+});
+
+startTimer();
+</script>
+{% endblock %}

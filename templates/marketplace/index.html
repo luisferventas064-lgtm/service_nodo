@@ -1,157 +1,106 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>NODO Marketplace</title>
-    <style>
-        body { font-family: Arial; background:#f5f7fa; }
-        .container { max-width:900px; margin:auto; padding:20px; }
-        .card {
-            background:white;
-            padding:18px;
-            margin-bottom:15px;
-            border-radius:10px;
-            box-shadow:0 3px 10px rgba(0,0,0,0.05);
-        }
-        .verified {
-            background:#2ecc71;
-            color:white;
-            padding:3px 8px;
-            border-radius:5px;
-            font-size:12px;
-        }
-        .meta { font-size:14px; color:#555; }
-        .debug { font-size:12px; color:gray; }
-        .error { color:red; margin-bottom:15px; }
-        form { margin-bottom:20px; }
-        input { padding:6px; margin-right:8px; }
-        button { padding:6px 12px; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
-<div class="container">
-    <h1>Marketplace</h1>
+{% block content %}
+<div class="container page">
+<div class="card">
+  <h2 class="card-title">Marketplace</h2>
 
-    <form method="get">
-        <input type="number" name="service_category_id"
-               placeholder="Category ID"
-               value="{{ service_category_id }}">
+  <form method="get" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:end; margin-bottom:24px;">
+    <div>
+      <label for="service_type" style="display:block; margin-bottom:6px; font-weight:bold;">Service</label>
+      <select id="service_type" name="service_type" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        <option value="">Select service</option>
+        {% for st in service_types %}
+          {% if st.service_type_id %}
+            <option value="{{ st.service_type_id }}"{% if selected_service_type and selected_service_type.service_type_id == st.service_type_id %} selected{% endif %}>
+              {{ st.name }}
+            </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
 
-        <input type="text" name="province"
-               placeholder="Province"
-               value="{{ province }}">
+    <div>
+      <label for="city" style="display:block; margin-bottom:6px; font-weight:bold;">City</label>
+      <input id="city" type="text" name="city" placeholder="City" value="{{ selected_city|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+    </div>
 
-        <input type="text" name="city"
-               placeholder="City (optional)"
-               value="{{ city }}">
+    <div>
+      <label for="zone" style="display:block; margin-bottom:6px; font-weight:bold;">Zone</label>
+      <input id="zone" type="text" name="zone" placeholder="Zone" value="{{ selected_zone|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+    </div>
 
-        <select name="zone_id" id="zone_id" {% if not zones %}disabled{% endif %}>
-            <option value="">All zones</option>
-            {% for zone in zones %}
-                <option value="{{ zone.id }}"{% if selected_zone_id == zone.id|stringformat:"s" %} selected{% endif %}>
-                    {{ zone.name }}
-                </option>
-            {% endfor %}
-        </select>
+    <div>
+      <label for="language" style="display:block; margin-bottom:6px; font-weight:bold;">Language</label>
+      <select id="language" name="language" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+        <option value="">Any language</option>
+        {% for language in language_options %}
+          <option value="{{ language }}"{% if selected_language == language %} selected{% endif %}>
+            {{ language }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
 
-        <button type="submit">Buscar</button>
-    </form>
+    <label style="display:flex; align-items:center; gap:8px; font-weight:bold; min-height:42px;">
+      <input type="checkbox" name="only_certified" value="1"{% if only_certified %} checked{% endif %}>
+      Only certified
+    </label>
 
-    {% if error %}
-        <div class="error">{{ error }}</div>
-    {% endif %}
+    <label style="display:flex; align-items:center; gap:8px; font-weight:bold; min-height:42px;">
+      <input type="checkbox" name="only_insured" value="1"{% if only_insured %} checked{% endif %}>
+      Only insured
+    </label>
 
-    {% for provider in providers %}
-        <div class="card">
-            <h3>
-                {{ provider.provider_display_name }}
-                {% if provider.verified_bonus == 1.0 %}
-                    <span class="verified">Verified</span>
-                {% endif %}
-            </h3>
+    <label style="display:flex; align-items:center; gap:8px; font-weight:bold; min-height:42px;">
+      <input type="checkbox" name="available_now"{% if available_now %} checked{% endif %}>
+      Available now
+    </label>
 
-            <div class="meta">
-                <div>
-                    Precio: ${{ provider.display_price|floatformat:2 }}
-                </div>
+    <button type="submit" style="background:#111827; color:white; border:none; border-radius:6px; padding:10px 16px; cursor:pointer;">Search</button>
+  </form>
 
-                <div>
-                    ⭐ {{ provider.safe_rating }}
-                </div>
+  {% if mode == "services" %}
+    <h2>Popular Services</h2>
 
-                <div>
-                    Completed: {{ provider.safe_completed }}
-                </div>
-            </div>
+    <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;">
+      {% for service in service_types %}
+        <a href="?service_type={{ service.service_type_id }}"
+           style="display:block; padding:12px; border:1px solid #ccc; border-radius:10px; text-decoration:none;">
+          <div style="font-weight:600;">{{ service.name }}</div>
+          <div style="font-size:12px; opacity:.7;">ID: {{ service.service_type_id }}</div>
+        </a>
+      {% empty %}
+        <p>No services available.</p>
+      {% endfor %}
+    </div>
+  {% endif %}
 
-            {% if debug_mode %}
-                <div class="debug">
-                    Hybrid Score: {{ provider.hybrid_score }}
-                </div>
-            {% endif %}
-        </div>
-    {% empty %}
-        {% if service_category_id and province %}
-            <p>No hay resultados.</p>
+  {% if mode == "providers" %}
+    <h2>{{ selected_service_type.name }} Providers</h2>
+
+    {% for p in providers %}
+      <div style="border:1px solid #e5e7eb; border-radius:8px; padding:16px; margin-bottom:12px;">
+        <h3 style="margin:0 0 8px;">{{ p.provider }}</h3>
+        {% if p.provider.has_required_certifications %}
+          <span class="badge verified" style="display:inline-block; margin-bottom:8px; background:#dcfce7; color:#166534; border-radius:999px; padding:3px 10px; font-size:12px; font-weight:600;">Certified</span>
+        {% else %}
+          <span class="badge warning" style="display:inline-block; margin-bottom:8px; background:#fef3c7; color:#92400e; border-radius:999px; padding:3px 10px; font-size:12px; font-weight:600;">Certification Required</span>
         {% endif %}
+        <p style="margin:4px 0;">Rating: {{ p.provider.avg_rating }}</p>
+        <p style="margin:4px 0;">Price: {{ p.price_cents }}</p>
+        <p style="margin:4px 0;">
+          {% if p.is_compliant %}
+            <a href="{% url 'ui:request_create' p.provider_id %}?service_type_id={{ p.service_type_id }}">Request</a>
+          {% else %}
+            <span style="color:#9A3412; font-weight:600;">Compliance required</span>
+          {% endif %}
+        </p>
+      </div>
+    {% empty %}
+      <p>No providers found.</p>
     {% endfor %}
-
+  {% endif %}
 </div>
-
-<script>
-    (function() {
-        const provinceInput = document.querySelector('input[name="province"]');
-        const cityInput = document.querySelector('input[name="city"]');
-        const zoneSelect = document.getElementById("zone_id");
-        const selectedZoneId = "{{ selected_zone_id|default:''|escapejs }}";
-
-        function resetZones() {
-            zoneSelect.innerHTML = '<option value="">All zones</option>';
-            zoneSelect.disabled = true;
-        }
-
-        function populateZones(zones) {
-            resetZones();
-            for (const zone of zones) {
-                const option = document.createElement("option");
-                option.value = String(zone.id);
-                option.textContent = zone.name;
-                if (selectedZoneId && option.value === selectedZoneId) {
-                    option.selected = true;
-                }
-                zoneSelect.appendChild(option);
-            }
-            zoneSelect.disabled = zones.length === 0;
-        }
-
-        async function loadZones() {
-            const province = provinceInput.value.trim();
-            const city = cityInput.value.trim();
-
-            if (!province || !city) {
-                resetZones();
-                return;
-            }
-
-            try {
-                const params = new URLSearchParams({ province, city });
-                const response = await fetch(`/api/zones/?${params.toString()}`);
-                if (!response.ok) {
-                    resetZones();
-                    return;
-                }
-                const zones = await response.json();
-                populateZones(zones);
-            } catch (error) {
-                resetZones();
-            }
-        }
-
-        provinceInput.addEventListener("change", loadZones);
-        cityInput.addEventListener("change", loadZones);
-        loadZones();
-    })();
-</script>
-
-</body>
-</html>
+</div>
+{% endblock %}

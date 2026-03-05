@@ -45,8 +45,8 @@ def _load_marketplace_rows():
         marketplace_ranked_queryset().values(
             "id",
             "provider_id",
-            "category_id",
-            "service_category_name",
+            "service_type_id",
+            "service_type_name",
             "price_cents",
             "hybrid_score",
             "provider__province",
@@ -286,7 +286,7 @@ def hybrid_score_spread(
     *,
     province: str | None = None,
     city: str | None = None,
-    category_id: int | None = None,
+    service_type_id: int | None = None,
     limit: int | None = None,
     offer_rows=None,
 ):
@@ -299,7 +299,7 @@ def hybrid_score_spread(
             continue
         if city and row["provider__city"] != city:
             continue
-        if category_id is not None and row["category_id"] != category_id:
+        if service_type_id is not None and row["service_type_id"] != service_type_id:
             continue
         filtered_rows.append(row)
 
@@ -318,8 +318,8 @@ def hybrid_score_spread(
         key = (
             row["provider__province"],
             row["provider__city"],
-            row["category_id"],
-            row["service_category_name"],
+            row["service_type_id"],
+            row["service_type_name"],
         )
         entry = slice_stats.setdefault(
             key,
@@ -341,8 +341,8 @@ def hybrid_score_spread(
             {
                 "provider__province": key[0],
                 "provider__city": key[1],
-                "category_id": key[2],
-                "service_category_name": key[3],
+                "service_type_id": key[2],
+                "service_type_name": key[3],
                 "providers": len(entry["provider_ids"]),
                 "offers": entry["offers"],
                 "avg_hybrid_score": _mean(score_values, digits=4),
@@ -379,7 +379,7 @@ def hybrid_score_spread(
             -row["providers"],
             row["provider__province"],
             row["provider__city"],
-            row["category_id"],
+            row["service_type_id"],
         )
     )
 
@@ -598,7 +598,7 @@ def marketplace_analytics_to_csv(snapshot: dict) -> str:
         slice_label = (
             f'{row.get("provider__province")}'
             f'-{row.get("provider__city")}'
-            f'-cat{row.get("category_id")}'
+            f'-service-type{row.get("service_type_id")}'
         )
         writer.writerow(
             [

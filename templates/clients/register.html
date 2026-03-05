@@ -3,9 +3,90 @@
 {% block title %}Client Register{% endblock %}
 
 {% block content %}
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Register</button>
-</form>
+<div class="card">
+  <h2>Create your Client account</h2>
+
+  <p style="color:#64748B;">
+    Fill the information below to continue.
+  </p>
+
+  <p style="color:#64748B;">
+    Find and request trusted services.
+  </p>
+
+  {% if form.non_field_errors %}
+    <p style="color:#991B1B;">{{ form.non_field_errors }}</p>
+  {% endif %}
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <label for="{{ form.full_name.id_for_label }}">Full name</label>
+    {{ form.full_name }}
+    {% if form.full_name.errors %}
+      <p style="color:#991B1B;">{{ form.full_name.errors }}</p>
+    {% endif %}
+
+    <label for="{{ form.email.id_for_label }}">Email</label>
+    {{ form.email }}
+    {% if form.email.errors %}
+      <p style="color:#991B1B;">{{ form.email.errors }}</p>
+    {% endif %}
+
+    <label for="{{ form.country.id_for_label }}">Country</label>
+    {{ form.country }}
+    {% if form.country.errors %}
+      <p style="color:#991B1B;">{{ form.country.errors }}</p>
+    {% endif %}
+
+    <label for="{{ form.phone_local.id_for_label }}">Phone number</label>
+    {{ form.phone_local }}
+    {% if form.phone_local.errors %}
+      <p style="color:#991B1B;">{{ form.phone_local.errors }}</p>
+    {% endif %}
+
+    <div style="margin-bottom:25px;text-align:left;">
+      <label>Languages spoken</label>
+      {% with selected_languages=form.languages_spoken.value %}
+        <div class="language-grid">
+          {% for value, label in form.fields.languages_spoken.choices %}
+            <label>
+              <input
+                type="checkbox"
+                name="languages_spoken"
+                value="{{ value }}"
+                {% if selected_languages and value in selected_languages %}checked{% endif %}
+              >
+              {{ label }}
+            </label>
+          {% endfor %}
+        </div>
+      {% endwith %}
+      {% if form.languages_spoken.errors %}
+        <p style="color:#991B1B;">{{ form.languages_spoken.errors }}</p>
+      {% endif %}
+    </div>
+
+    <label for="{{ form.password.id_for_label }}">Password</label>
+    {{ form.password }}
+    {% if form.password.errors %}
+      <p style="color:#991B1B;">{{ form.password.errors }}</p>
+    {% endif %}
+
+    <label for="{{ form.confirm_password.id_for_label }}">Confirm password</label>
+    {{ form.confirm_password }}
+    {% if form.confirm_password.errors %}
+      <p style="color:#991B1B;">{{ form.confirm_password.errors }}</p>
+    {% endif %}
+
+    <button class="btn primary" type="submit">
+      Create account
+    </button>
+  </form>
+
+  <p style="margin-top:15px;color:#64748B;">
+    Already have an account?
+    <a href="{% url 'ui:login_choice' %}">Login</a>
+  </p>
+</div>
 {% endblock %}

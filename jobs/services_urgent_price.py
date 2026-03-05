@@ -14,10 +14,11 @@ def compute_urgent_price(job: Job) -> tuple[Decimal, Decimal]:
       (urgent_total, urgent_fee_amount)
     Ambos redondeados a 2 decimales con ROUND_HALF_UP.
     """
-    if not job.quoted_base_price:
+    base_cents = job.snapshot_base_price_cents()
+    if base_cents is None:
         return (Decimal("0.00"), Decimal("0.00"))
 
-    base = Decimal(job.quoted_base_price)
+    base = _money(Decimal(base_cents) / Decimal("100"))
     fee_type = job.quoted_emergency_fee_type
     fee_value = Decimal(job.quoted_emergency_fee_value or Decimal("0.00"))
 

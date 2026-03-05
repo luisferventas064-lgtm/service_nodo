@@ -330,62 +330,64 @@ class ProviderFinancialVisibilityTests(TestCase):
         )
         self.url = f"/settlements/provider/{self.provider.provider_id}/financial-dashboard/"
 
-    def _make_user(self, username: str, email: str, *, is_staff=False, is_superuser=False):
-        return User.objects.create_user(
-            username=username,
-            email=email,
-            password="testpass123",
-            is_staff=is_staff,
-            is_superuser=is_superuser,
-        )
-
-    def test_financial_dashboard_allows_superuser(self):
-        user = self._make_user(
-            "admin",
-            "admin@test.local",
-            is_staff=True,
-            is_superuser=True,
-        )
-        self.client.force_login(user)
+    def test_financial_dashboard_allows_matching_provider_session(self):
+        session = self.client.session
+        session["provider_id"] = self.provider.provider_id
+        session.save()
 
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 200)
 
-    def test_financial_dashboard_allows_staff(self):
-        user = self._make_user("staff", "staff@test.local", is_staff=True)
-        self.client.force_login(user)
-
+    def test_financial_dashboard_rejects_without_provider_session(self):
         response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
 
-    def test_financial_dashboard_allows_provider_owner_email(self):
-        user = self._make_user(
-            "provider_owner",
-            "owner.provider@test.local",
+    def test_financial_dashboard_rejects_other_provider_session(self):
+        other_provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Other",
+            contact_last_name="Provider",
+            phone_number="555-600-0002",
+            email="other.provider@test.local",
+            province="QC",
+            city="Montreal",
+            postal_code="H1H1H1",
+            address_line1="2 Provider St",
         )
-        self.client.force_login(user)
-
-        response = self.client.get(self.url)
-
-        self.assertEqual(response.status_code, 200)
-
-    def test_financial_dashboard_rejects_non_admin_non_owner(self):
-        user = self._make_user("worker", "worker@test.local")
-        self.client.force_login(user)
+        session = self.client.session
+        session["provider_id"] = other_provider.provider_id
+        session.save()
 
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 403)
 
-    def test_financial_dashboard_rejects_provider_user_relation_without_owner_email(self):
-        user = self._make_user("provider_finance", "finance.user@test.local")
+    def test_financial_dashboard_rejects_provider_user_relation_without_matching_session(self):
+        user = User.objects.create_user(
+            username="provider_finance",
+            email="finance.user@test.local",
+            password="testpass123",
+        )
         ProviderUser.objects.create(
             provider=self.provider,
             user=user,
             role="finance",
             is_active=True,
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_financial_dashboard_rejects_non_matching_session_even_if_logged_in(self):
+        user = User.objects.create_user(
+            username="admin",
+            email="admin@test.local",
+            password="testpass123",
+            is_staff=True,
+            is_superuser=True,
         )
         self.client.force_login(user)
 

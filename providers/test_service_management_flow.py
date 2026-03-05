@@ -1,7 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from providers.models import Provider, ProviderService, ServiceCategory
+from providers.models import Provider, ProviderService
+from service_type.models import ServiceType
 
 
 class ProviderServiceManagementFlowTests(TestCase):
@@ -24,9 +25,9 @@ class ProviderServiceManagementFlowTests(TestCase):
             postal_code="H1A1A1",
             address_line1="123 Provider St",
         )
-        self.category = ServiceCategory.objects.create(
+        self.service_type = ServiceType.objects.create(
             name="Painting",
-            slug="painting",
+            description="Painting",
         )
         session = self.client.session
         session["provider_id"] = self.provider.pk
@@ -36,7 +37,7 @@ class ProviderServiceManagementFlowTests(TestCase):
         response = self.client.post(
             reverse("provider_service_add"),
             data={
-                "category": self.category.pk,
+                "service_type": self.service_type.pk,
                 "custom_name": "Interior Painting",
                 "billing_unit": "fixed",
                 "price_cents": 25000,
@@ -58,7 +59,7 @@ class ProviderServiceManagementFlowTests(TestCase):
     def test_provider_service_edit_updates_service(self):
         service = ProviderService.objects.create(
             provider=self.provider,
-            category=self.category,
+            service_type=self.service_type,
             custom_name="Interior Painting",
             description="",
             billing_unit="fixed",
@@ -69,7 +70,7 @@ class ProviderServiceManagementFlowTests(TestCase):
         response = self.client.post(
             reverse("provider_service_edit", args=[service.pk]),
             data={
-                "category": self.category.pk,
+                "service_type": self.service_type.pk,
                 "custom_name": "Exterior Painting",
                 "billing_unit": "hour",
                 "price_cents": 30000,
@@ -86,7 +87,7 @@ class ProviderServiceManagementFlowTests(TestCase):
     def test_provider_service_toggle_flips_active_state(self):
         service = ProviderService.objects.create(
             provider=self.provider,
-            category=self.category,
+            service_type=self.service_type,
             custom_name="Interior Painting",
             description="",
             billing_unit="fixed",
@@ -105,7 +106,7 @@ class ProviderServiceManagementFlowTests(TestCase):
     def test_provider_services_list_shows_existing_services(self):
         ProviderService.objects.create(
             provider=self.provider,
-            category=self.category,
+            service_type=self.service_type,
             custom_name="Interior Painting",
             description="",
             billing_unit="fixed",

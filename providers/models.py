@@ -15,21 +15,36 @@ class Provider(models.Model):
         (TYPE_SELF_EMPLOYED, "Self-employed"),
         (TYPE_COMPANY, "Company"),
     ]
+    EMPLOYEE_CHOICES = [
+        ("1", "1"),
+        ("2_5", "2-5"),
+        ("6_10", "6-10"),
+        ("11_20", "11-20"),
+        ("20_plus", "20+"),
+    ]
 
     provider_type = models.CharField(max_length=20, choices=PROVIDER_TYPE_CHOICES)
 
     company_name = models.CharField(max_length=255, blank=True, null=True)
     legal_name = models.CharField(max_length=255, blank=True, default="")
     business_registration_number = models.CharField(max_length=100, blank=True, default="")
+    employee_count = models.CharField(
+        max_length=10,
+        choices=EMPLOYEE_CHOICES,
+        blank=True,
+        default="",
+    )
     contact_first_name = models.CharField(max_length=100)
     contact_last_name = models.CharField(max_length=100)
+    languages_spoken = models.CharField(max_length=200, blank=True, default="")
 
-    phone_number = models.CharField(max_length=20)
+    phone_number = models.CharField(max_length=20, unique=True)
     email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128, blank=True, default="")
     is_phone_verified = models.BooleanField(default=False)
     phone_verified_at = models.DateTimeField(null=True, blank=True)
     phone_verification_attempts = models.IntegerField(default=0)
-    profile_completed = models.BooleanField(default=True)
+    profile_completed = models.BooleanField(default=False)
     service_area = models.CharField(max_length=255, blank=True, default="")
     accepts_terms = models.BooleanField(default=True)
     billing_profile_completed = models.BooleanField(default=True)
@@ -111,8 +126,62 @@ class Provider(models.Model):
     def contact_person_name(self) -> str:
         return f"{self.contact_first_name} {self.contact_last_name}".strip()
 
+    def evaluate_profile_completion(self) -> bool:
+        from providers.models import ProviderServiceArea
+
+        has_area = ProviderServiceArea.objects.filter(
+            provider=self,
+            is_active=True,
+        ).exists()
+        is_complete = False
+
+        if self.normalized_provider_type == "individual":
+            is_complete = bool(
+                self.legal_name
+                and has_area
+                and self.accepts_terms
+            )
+        elif self.normalized_provider_type == "company":
+            is_complete = bool(
+                self.company_name
+                and self.business_registration_number
+                and self.contact_first_name
+                and self.contact_last_name
+                and has_area
+                and self.accepts_terms
+            )
+
+        if self.profile_completed != is_complete:
+            self.profile_completed = is_complete
+            self.save(update_fields=["profile_completed", "updated_at"])
+        else:
+            self.profile_completed = is_complete
+
+        return self.profile_completed
+
     def has_active_service(self) -> bool:
         return self.services.filter(is_active=True).exists()
+
+    @property
+    def has_required_certifications(self):
+        from service_type.models import RequiredCertification
+
+        required = RequiredCertification.objects.filter(
+            service_type__provider_services__provider=self,
+            province=self.province,
+            requires_certificate=True,
+        ).exclude(
+            certificate_type="",
+        ).distinct()
+
+        for req in required:
+            if not self.certificates.filter(
+                cert_type=req.certificate_type,
+                status="verified",
+            ).exists():
+                return False
+
+        return True
 
     @property
     def is_fully_active(self) -> bool:
@@ -138,7 +207,10 @@ class Provider(models.Model):
 
     @property
     def is_operational(self) -> bool:
-        return self.is_fully_active
+        return (
+            self.is_fully_active
+            and self.has_required_certifications
+        )
 
 
 class ServiceZone(models.Model):
@@ -197,15 +269,6 @@ class ProviderServiceArea(models.Model):
         return f"{self.provider} - {self.city}, {self.province}"
 
 
-class ServiceCategory(models.Model):
-    name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.name
-
-
 class ProviderService(models.Model):
     BILLING_UNIT_CHOICES = [
         ("hour", "Per Hour"),
@@ -221,9 +284,10 @@ class ProviderService(models.Model):
         related_name="services",
     )
 
-    category = models.ForeignKey(
-        "providers.ServiceCategory",
+    service_type = models.ForeignKey(
+        "service_type.ServiceType",
         on_delete=models.PROTECT,
+        related_name="provider_services",
     )
 
     custom_name = models.CharField(max_length=150)
@@ -231,48 +295,61 @@ class ProviderService(models.Model):
     billing_unit = models.CharField(max_length=20, choices=BILLING_UNIT_CHOICES)
     price_cents = models.PositiveIntegerField()
     is_active = models.BooleanField(default=True)
+    compliance_deadline = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         indexes = [
-            models.Index(fields=["category", "is_active"], name="ix_psvc_cat_active"),
+            models.Index(fields=["service_type", "is_active"], name="ix_psvc_type_active"),
             models.Index(fields=["price_cents"], name="ix_psvc_price"),
         ]
+
+    @property
+    def is_compliant(self):
+        from service_type.models import RequiredCertification
+
+        req = RequiredCertification.objects.filter(
+            service_type=self.service_type,
+            province=self.provider.province,
+        ).first()
+
+        if not req:
+            return True
+
+        today = timezone.now().date()
+        deadline = self.compliance_deadline
+
+        if req.requires_certificate:
+            has_cert = self.provider.certificates.filter(
+                cert_type=req.certificate_type,
+                status="verified",
+            ).exists()
+            if not has_cert:
+                if deadline and deadline >= today:
+                    return True
+                return False
+
+        if req.requires_insurance:
+            if not hasattr(self.provider, "insurance"):
+                if deadline and deadline >= today:
+                    return True
+                return False
+
+            ins = self.provider.insurance
+            if not ins.has_insurance or not ins.is_verified:
+                if deadline and deadline >= today:
+                    return True
+                return False
+
+            if ins.expiry_date and ins.expiry_date < today:
+                return False
+
+        return True
 
     def __str__(self):
         return f"{self.provider_id} - {self.custom_name}"
 
 
-class ProviderServiceType(models.Model):
-    provider_service_type_id = models.AutoField(primary_key=True)
-
-    provider = models.ForeignKey(
-        "providers.Provider",
-        on_delete=models.CASCADE,
-        db_column="provider_id",
-        related_name="provider_service_types",
-    )
-
-    service_type = models.ForeignKey(
-        "service_type.ServiceType",
-        on_delete=models.CASCADE,
-        db_column="service_type_id",
-        related_name="provider_service_types",
-    )
-
-    price_type = models.CharField(max_length=20)
-    base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-
-    is_active = models.BooleanField(default=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "provider_service_type"
-
-    def __str__(self) -> str:
-        return f"{self.provider} - {self.service_type} ({self.price_type})"
 class PricingUnit(models.TextChoices):
     FIXED = "fixed", "Fixed"
     HOURLY = "hourly", "Hourly"
@@ -373,6 +450,29 @@ class ProviderCertificate(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider_id} {self.cert_type} ({self.status})"
+
+
+class ProviderInsurance(models.Model):
+    provider = models.OneToOneField(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        related_name="insurance",
+    )
+    has_insurance = models.BooleanField(default=False)
+    insurance_company = models.CharField(max_length=150, blank=True)
+    policy_number = models.CharField(max_length=100, blank=True)
+    coverage_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    expiry_date = models.DateField(null=True, blank=True)
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.provider_id} Insurance"
 
 
 class ProviderBillingProfile(models.Model):

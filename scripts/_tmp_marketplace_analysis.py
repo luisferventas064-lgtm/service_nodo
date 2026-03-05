@@ -4,7 +4,7 @@ from providers.services_marketplace import search_provider_services
 
 rows = list(
     search_provider_services(
-        service_category_id=1,
+        service_type_id=1,
         province="QC",
         city="Laval",
         limit=100,
@@ -34,7 +34,6 @@ def log_line(row):
         f"cancellation_rate= {row.get('cancellation_rate')} "
         f"safe_completed= {row.get('safe_completed')} "
         f"safe_cancelled= {row.get('safe_cancelled')} "
-        f"volume_score= {row.get('volume_score')} "
         f"verified_bonus= {row.get('verified_bonus')}"
     )
 
@@ -82,13 +81,13 @@ list1 = [r.get("provider_id") for r in rows]
 list2 = [
     r.get("provider_id")
     for r in search_provider_services(
-        service_category_id=1, province="QC", city="Laval", limit=100, offset=0
+        service_type_id=1, province="QC", city="Laval", limit=100, offset=0
     )
 ]
 list3 = [
     r.get("provider_id")
     for r in search_provider_services(
-        service_category_id=1, province="QC", city="Laval", limit=100, offset=0
+        service_type_id=1, province="QC", city="Laval", limit=100, offset=0
     )
 ]
 deterministic = list1 == list2 == list3
@@ -96,12 +95,12 @@ deterministic = list1 == list2 == list3
 # Pagination consistency check (first 2 pages)
 page1 = list(
     search_provider_services(
-        service_category_id=1, province="QC", city="Laval", limit=20, offset=0
+        service_type_id=1, province="QC", city="Laval", limit=20, offset=0
     )
 )
 page2 = list(
     search_provider_services(
-        service_category_id=1, province="QC", city="Laval", limit=20, offset=20
+        service_type_id=1, province="QC", city="Laval", limit=20, offset=20
     )
 )
 combined = page1 + page2

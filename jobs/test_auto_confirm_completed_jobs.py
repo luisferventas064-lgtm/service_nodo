@@ -56,6 +56,12 @@ class AutoConfirmCompletedJobsCommandTests(TestCase):
             city="Montreal",
             postal_code="H1H1H1",
             address_line1="3 Job St",
+            quoted_base_price="100.00",
+            quoted_base_price_cents=10_000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="LegacyJobSnapshot",
+            quoted_total_price_cents=10_000,
         )
 
         ok, *_ = confirm_normal_job_by_client(

@@ -42,6 +42,11 @@ from jobs.models import (
     JobStatus,
 )
 from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
+from jobs.services_pricing_snapshot import (
+    job_snapshot_currency,
+    job_snapshot_subtotal_cents,
+    job_snapshot_total_cents,
+)
 from notifications.services import (
     send_dispute_resolution_email,
     send_quality_warning_email,
@@ -114,6 +119,7 @@ def _build_tax_region_code(job: Job) -> str:
 
 def _client_ticket_snapshot_for_finalization(
     *,
+    job: Job,
     client_id: int,
     job_id: int,
     fallback_currency: str,
@@ -129,7 +135,16 @@ def _client_ticket_snapshot_for_finalization(
         .first()
     )
     if not ticket:
-        return (0, 0, 0, fallback_currency, fallback_tax_region_code)
+        subtotal_cents = job_snapshot_subtotal_cents(job)
+        total_cents = job_snapshot_total_cents(job)
+        currency = job_snapshot_currency(job)
+        return (
+            subtotal_cents,
+            0,
+            total_cents,
+            currency or fallback_currency,
+            fallback_tax_region_code,
+        )
 
     if ticket.status != ClientTicket.Status.FINALIZED:
         recalc_client_ticket_totals(ticket.pk)
@@ -142,6 +157,72 @@ def _client_ticket_snapshot_for_finalization(
         ticket.currency or fallback_currency,
         ticket.tax_region_code or fallback_tax_region_code,
     )
+
+
+def _ensure_job_estimate_tickets_from_snapshot(
+    *,
+    job: Job,
+    provider_id: int,
+    tax_region_code: str,
+):
+    subtotal_cents = job_snapshot_subtotal_cents(job)
+    currency = job_snapshot_currency(job)
+
+    pt = ensure_provider_ticket(
+        provider_id=provider_id,
+        ref_type="job",
+        ref_id=job.job_id,
+        stage="estimate",
+        status="open",
+        subtotal_cents=subtotal_cents,
+        tax_cents=0,
+        total_cents=subtotal_cents,
+        currency=currency,
+        tax_region_code=tax_region_code,
+    )
+    if pt.stage == "estimate" and pt.status == "open":
+        ensure_provider_base_line(
+            pt.pk,
+            description="Service (estimate)",
+            unit_price_cents=subtotal_cents,
+            tax_cents=pt.tax_cents or 0,
+            tax_region_code=pt.tax_region_code or "",
+            tax_code="",
+        )
+
+    ct = None
+    if job.client_id:
+        ct = ensure_client_ticket(
+            client_id=job.client_id,
+            ref_type="job",
+            ref_id=job.job_id,
+            stage="estimate",
+            status="open",
+            subtotal_cents=subtotal_cents,
+            tax_cents=0,
+            total_cents=subtotal_cents,
+            currency=currency,
+            tax_region_code=tax_region_code,
+        )
+        if ct.stage == "estimate" and ct.status == "open":
+            ensure_client_base_line(
+                ct.pk,
+                description="Service (estimate)",
+                unit_price_cents=subtotal_cents,
+                tax_cents=ct.tax_cents or 0,
+                tax_region_code=ct.tax_region_code or "",
+                tax_code="",
+            )
+        if (
+            job.job_mode == Job.JobMode.ON_DEMAND
+            and pt.status == "open"
+            and ct.status == "open"
+        ):
+            ensure_provider_fee_line(pt.pk, amount_cents=0)
+            ensure_client_fee_line(ct.pk, amount_cents=0)
+            recompute_on_demand_fee_for_open_tickets(pt.pk, ct.pk)
+
+    return pt, ct
 
 
 def _resolve_active_provider_id_for_job(job: Job) -> int | None:
@@ -295,14 +376,14 @@ def get_broadcast_candidates_for_job(job, limit=10):
 
     Criterios:
       - Provider activo (si existe: is_active / status)
-      - Provider ofrece job.service_type_id (ProviderServiceType)
+      - Provider ofrece job.service_type_id (ProviderService)
       - Provider cubre zona (ProviderServiceArea) por:
           ciudad (city/cities/locality)
           postal (postal_code/postal_prefix/postal_codes)
           region o fallback a province
       - Orden deterministico + limit
     """
-    from providers.models import Provider, ProviderServiceArea, ProviderServiceType
+    from providers.models import Provider, ProviderService, ProviderServiceArea
 
     qs = Provider.objects.all()
 
@@ -311,12 +392,11 @@ def get_broadcast_candidates_for_job(job, limit=10):
     if hasattr(Provider, "status"):
         qs = qs.filter(status__in=["active", "approved"])
 
-    pst = ProviderServiceType.objects.filter(
+    pst = ProviderService.objects.filter(
         provider_id=OuterRef("provider_id"),
         service_type_id=job.service_type_id,
+        is_active=True,
     )
-    if hasattr(ProviderServiceType, "is_active"):
-        pst = pst.filter(is_active=True)
 
     qs = qs.annotate(_has_service=Exists(pst)).filter(_has_service=True)
 
@@ -719,6 +799,7 @@ def apply_client_marketplace_decision(
                 job_mode=Job.JobMode.ON_DEMAND,
                 scheduled_date=None,
                 job_status=Job.JobStatus.POSTED,
+                next_alert_at=now,
                 is_asap=True,
                 next_marketplace_alert_at=None,
                 marketplace_search_started_at=None,
@@ -813,6 +894,8 @@ def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
         if attempt.created_at < job.marketplace_search_started_at:
             raise MarketplaceAcceptConflict("STALE_BROADCAST_ATTEMPT")
 
+        job.require_pricing_snapshot()
+
         Job.objects.filter(pk=job.job_id).update(
             selected_provider_id=provider_id,
             job_status=Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
@@ -896,52 +979,11 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
             if not active_provider_id:
                 raise MarketplaceDecisionConflict("ASSIGNED_WITHOUT_ACTIVE_ASSIGNMENT")
             tax_region_code = _build_tax_region_code(job)
-
-            pt = ensure_provider_ticket(
+            _ensure_job_estimate_tickets_from_snapshot(
+                job=job,
                 provider_id=active_provider_id,
-                ref_type="job",
-                ref_id=job.job_id,
-                stage="estimate",
-                status="open",
-                subtotal_cents=0,
-                tax_cents=0,
-                total_cents=0,
-                currency="CAD",
                 tax_region_code=tax_region_code,
             )
-            ensure_provider_base_line(
-                pt.pk,
-                description="Service (estimate)",
-                unit_price_cents=pt.subtotal_cents or 0,
-                tax_cents=pt.tax_cents or 0,
-                tax_region_code=pt.tax_region_code or "",
-                tax_code="",
-            )
-            if job.client_id:
-                ct = ensure_client_ticket(
-                    client_id=job.client_id,
-                    ref_type="job",
-                    ref_id=job.job_id,
-                    stage="estimate",
-                    status="open",
-                    subtotal_cents=0,
-                    tax_cents=0,
-                    total_cents=0,
-                    currency="CAD",
-                    tax_region_code=tax_region_code,
-                )
-                ensure_client_base_line(
-                    ct.pk,
-                    description="Service (estimate)",
-                    unit_price_cents=ct.subtotal_cents or 0,
-                    tax_cents=ct.tax_cents or 0,
-                    tax_region_code=ct.tax_region_code or "",
-                    tax_code="",
-                )
-                if job.job_mode == Job.JobMode.ON_DEMAND:
-                    ensure_provider_fee_line(pt.pk, amount_cents=0)
-                    ensure_client_fee_line(ct.pk, amount_cents=0)
-                    recompute_on_demand_fee_for_open_tickets(pt.pk, ct.pk)
             return "already_assigned"
 
         if job.job_status != Job.JobStatus.PENDING_CLIENT_CONFIRMATION:
@@ -974,51 +1016,11 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
             client_confirmation_started_at=None,
             selected_provider_id=None,
         )
-        pt = ensure_provider_ticket(
+        _ensure_job_estimate_tickets_from_snapshot(
+            job=job,
             provider_id=selected_provider_id,
-            ref_type="job",
-            ref_id=job.job_id,
-            stage="estimate",
-            status="open",
-            subtotal_cents=0,
-            tax_cents=0,
-            total_cents=0,
-            currency="CAD",
             tax_region_code=tax_region_code,
         )
-        ensure_provider_base_line(
-            pt.pk,
-            description="Service (estimate)",
-            unit_price_cents=pt.subtotal_cents or 0,
-            tax_cents=pt.tax_cents or 0,
-            tax_region_code=pt.tax_region_code or "",
-            tax_code="",
-        )
-        if job.client_id:
-            ct = ensure_client_ticket(
-                client_id=job.client_id,
-                ref_type="job",
-                ref_id=job.job_id,
-                stage="estimate",
-                status="open",
-                subtotal_cents=0,
-                tax_cents=0,
-                total_cents=0,
-                currency="CAD",
-                tax_region_code=tax_region_code,
-            )
-            ensure_client_base_line(
-                ct.pk,
-                description="Service (estimate)",
-                unit_price_cents=ct.subtotal_cents or 0,
-                tax_cents=ct.tax_cents or 0,
-                tax_region_code=ct.tax_region_code or "",
-                tax_code="",
-            )
-            if job.job_mode == Job.JobMode.ON_DEMAND:
-                ensure_provider_fee_line(pt.pk, amount_cents=0)
-                ensure_client_fee_line(ct.pk, amount_cents=0)
-                recompute_on_demand_fee_for_open_tickets(pt.pk, ct.pk)
         log_job_event(
             job_id=job.job_id,
             event_type=JobEvent.EventType.CLIENT_CONFIRMED,
@@ -1040,32 +1042,29 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
 def start_service_by_provider(*, job_id: int, provider_id: int) -> str:
     with transaction.atomic():
         job = Job.objects.select_for_update().get(pk=job_id)
-        resolved_provider_id = _resolve_active_provider_id_for_job(job)
-        if not resolved_provider_id:
-            raise PermissionError("provider_not_allowed")
-        if resolved_provider_id != provider_id:
-            raise PermissionError("provider_not_allowed")
+        assignment = JobAssignment.objects.filter(
+            job=job,
+            is_active=True,
+        ).first()
+        if not assignment:
+            raise ValueError("No active assignment for this job.")
+        if assignment.provider_id != provider_id:
+            raise ValueError("Provider not authorized to start this job.")
 
         if job.job_status == Job.JobStatus.IN_PROGRESS:
             return "already_in_progress"
         if job.job_status != Job.JobStatus.ASSIGNED:
             raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_SERVICE_START")
 
-        assignment = (
-            JobAssignment.objects.select_for_update()
-            .filter(job_id=job_id, is_active=True)
-            .first()
+        assignment.assignment_status = "in_progress"
+        if assignment.accepted_at is None:
+            assignment.accepted_at = timezone.now()
+        assignment.save(
+            update_fields=["assignment_status", "accepted_at", "updated_at"]
         )
-        if assignment:
-            assignment.assignment_status = "in_progress"
-            if assignment.accepted_at is None:
-                assignment.accepted_at = timezone.now()
-            assignment.save(
-                update_fields=["assignment_status", "accepted_at", "updated_at"]
-            )
 
         job.job_status = Job.JobStatus.IN_PROGRESS
-        job.save(update_fields=["job_status", "updated_at"])
+        job.save(update_fields=["job_status"])
 
     return "started"
 
@@ -1081,9 +1080,15 @@ def complete_service_by_provider(*, job_id: int, provider_id: int) -> str:
         ):
             raise MarketplaceDecisionConflict("DISPUTE_OPEN")
 
-        resolved_provider_id = _resolve_active_provider_id_for_job(job)
-        if not resolved_provider_id or resolved_provider_id != provider_id:
-            raise PermissionDenied("provider_not_allowed")
+        assignment = JobAssignment.objects.filter(
+            job=job,
+            is_active=True,
+        ).first()
+        if not assignment:
+            raise ValueError("No active assignment for this job.")
+
+        if assignment.provider_id != provider_id:
+            raise ValueError("Provider not authorized to complete this job.")
 
         if job.job_status == JobStatus.COMPLETED:
             return "already_completed"
@@ -1091,22 +1096,14 @@ def complete_service_by_provider(*, job_id: int, provider_id: int) -> str:
         if job.job_status != JobStatus.IN_PROGRESS:
             raise MarketplaceDecisionConflict("INVALID_STATUS_FOR_COMPLETION")
 
-        assignment = (
-            JobAssignment.objects.select_for_update()
-            .filter(job_id=job_id, is_active=True)
-            .first()
-        )
-        if not assignment:
-            raise MarketplaceDecisionConflict("NO_ACTIVE_ASSIGNMENT")
-
         assignment.assignment_status = "completed"
         assignment.completed_at = timezone.now()
         assignment.save(
-            update_fields=["assignment_status", "completed_at", "updated_at"]
+            update_fields=["assignment_status", "completed_at"]
         )
 
-        job.job_status = JobStatus.COMPLETED
-        job.save(update_fields=["job_status", "updated_at"])
+        job.job_status = Job.JobStatus.COMPLETED
+        job.save(update_fields=["job_status"])
 
         JobEvent.objects.create(
             job=job,
@@ -1140,17 +1137,24 @@ def confirm_service_closed_by_client(
             raise MarketplaceDecisionConflict("DISPUTE_OPEN")
 
         run_id = f"AUTO_CLOSE_{timezone.now().strftime('%Y%m%d_%H%M%S')}_job_{job.job_id}"
+        tax_region_code = _build_tax_region_code(job)
+        provider_subtotal_cents = job_snapshot_subtotal_cents(job)
+        currency = job_snapshot_currency(job)
 
         if job.job_status == Job.JobStatus.CONFIRMED:
-            tax_region_code = _build_tax_region_code(job)
+            _ensure_job_estimate_tickets_from_snapshot(
+                job=job,
+                provider_id=provider_id,
+                tax_region_code=tax_region_code,
+            )
             pt = finalize_provider_ticket(
                 provider_id=provider_id,
                 ref_type="job",
                 ref_id=job.job_id,
-                subtotal_cents=0,
+                subtotal_cents=provider_subtotal_cents,
                 tax_cents=0,
-                total_cents=0,
-                currency="CAD",
+                total_cents=provider_subtotal_cents,
+                currency=currency,
                 tax_region_code=tax_region_code,
             )
             recalc_provider_ticket_totals(pt.pk)
@@ -1162,9 +1166,10 @@ def confirm_service_closed_by_client(
                     client_currency,
                     client_tax_region_code,
                 ) = _client_ticket_snapshot_for_finalization(
+                    job=job,
                     client_id=job.client_id,
                     job_id=job.job_id,
-                    fallback_currency="CAD",
+                    fallback_currency=currency,
                     fallback_tax_region_code=tax_region_code,
                 )
                 ct = finalize_client_ticket(
@@ -1197,16 +1202,20 @@ def confirm_service_closed_by_client(
         provider_id = _resolve_active_provider_id_for_job(job)
         if provider_id:
             increment_completed(provider_id)
-        tax_region_code = _build_tax_region_code(job)
+        _ensure_job_estimate_tickets_from_snapshot(
+            job=job,
+            provider_id=provider_id,
+            tax_region_code=tax_region_code,
+        )
 
         pt = finalize_provider_ticket(
             provider_id=provider_id,
             ref_type="job",
             ref_id=job.job_id,
-            subtotal_cents=0,
+            subtotal_cents=provider_subtotal_cents,
             tax_cents=0,
-            total_cents=0,
-            currency="CAD",
+            total_cents=provider_subtotal_cents,
+            currency=currency,
             tax_region_code=tax_region_code,
         )
         recalc_provider_ticket_totals(pt.pk)
@@ -1218,9 +1227,10 @@ def confirm_service_closed_by_client(
                 client_currency,
                 client_tax_region_code,
             ) = _client_ticket_snapshot_for_finalization(
+                job=job,
                 client_id=job.client_id,
                 job_id=job.job_id,
-                fallback_currency="CAD",
+                fallback_currency=currency,
                 fallback_tax_region_code=tax_region_code,
             )
             ct = finalize_client_ticket(

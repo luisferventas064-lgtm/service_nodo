@@ -36,8 +36,13 @@ class Worker(models.Model):
 
     phone_number = models.CharField(max_length=20, null=True, blank=True)
     email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128, blank=True, default="")
+    is_phone_verified = models.BooleanField(default=False)
+    accepts_terms = models.BooleanField(default=False)
+    profile_completed = models.BooleanField(default=False)
 
     preferred_language = models.CharField(max_length=50, blank=True, null=True)
+    languages_spoken = models.CharField(max_length=200, blank=True, default="")
 
     country = models.CharField(max_length=100, default="Canada")
 
@@ -73,3 +78,20 @@ class Worker(models.Model):
 
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+    def evaluate_profile_completion(self) -> bool:
+        is_complete = all(
+            [
+                self.first_name,
+                self.last_name,
+                self.accepts_terms,
+            ]
+        )
+
+        if self.profile_completed != is_complete:
+            self.profile_completed = is_complete
+            self.save(update_fields=["profile_completed", "updated_at"])
+        else:
+            self.profile_completed = is_complete
+
+        return self.profile_completed

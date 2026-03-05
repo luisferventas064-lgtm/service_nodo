@@ -25,17 +25,16 @@ def zone_list(request):
 @require_GET
 def marketplace_search(request):
     try:
-        service_category_id_raw = request.GET.get("service_category_id")
-        if not service_category_id_raw:
+        service_type_id_raw = request.GET.get("service_type_id")
+        if not service_type_id_raw:
             return JsonResponse(
-                {"detail": "service_category_id is required"},
+                {"detail": "service_type_id is required"},
                 status=400,
             )
 
-        service_category_id = int(service_category_id_raw)
+        service_type_id = int(service_type_id_raw)
         province = request.GET.get("province")
         city = request.GET.get("city")
-        zone_id_raw = request.GET.get("zone_id")
         limit = int(request.GET.get("limit", 20))
         offset = int(request.GET.get("offset", 0))
         debug = request.GET.get("debug") == "1"
@@ -46,14 +45,11 @@ def marketplace_search(request):
                 status=400,
             )
 
-        zone_id = int(zone_id_raw) if zone_id_raw else None
-
         rows = list(
             search_provider_services(
-                service_category_id=service_category_id,
+                service_type_id=service_type_id,
                 province=province,
                 city=city,
-                zone_id=zone_id,
                 limit=limit,
                 offset=offset,
             )
@@ -85,6 +81,7 @@ def marketplace_search(request):
                 "price_cents": row.get("price_cents"),
                 "safe_rating": row.get("safe_rating"),
                 "hybrid_score": row.get("hybrid_score"),
+                "service_type_id": row.get("service_type_id"),
             }
             for row in rows
         ]

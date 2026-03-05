@@ -1,4 +1,3 @@
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
@@ -20,8 +19,6 @@ def can_view_provider_financials(user, provider) -> bool:
 
     return False
 
-
-@login_required
 @require_GET
 def provider_financial_dashboard(request, provider_id):
     """
@@ -35,7 +32,8 @@ def provider_financial_dashboard(request, provider_id):
     except Provider.DoesNotExist:
         return JsonResponse({"detail": "Provider not found"}, status=404)
 
-    if not can_view_provider_financials(request.user, provider):
+    session_provider_id = request.session.get("provider_id")
+    if session_provider_id != provider.provider_id:
         return JsonResponse({"detail": "Forbidden"}, status=403)
 
     monthly = get_provider_monthly_dashboard(provider_id)

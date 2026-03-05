@@ -9,7 +9,7 @@
 
 <table>
   <tr>
-    <th>Category</th>
+    <th>Service Type</th>
     <th>Name</th>
     <th>Price</th>
     <th>Status</th>
@@ -18,7 +18,7 @@
 
   {% for s in services %}
   <tr>
-    <td>{{ s.category.name }}</td>
+    <td>{{ s.service_type.name }}</td>
     <td>{{ s.custom_name }}</td>
     <td>${{ s.display_price|floatformat:2 }}</td>
     <td>{% if s.is_active %}Active{% else %}Inactive{% endif %}</td>

@@ -20,6 +20,25 @@ class ServiceType(models.Model):
         return self.name
 
 
+class RequiredCertification(models.Model):
+    service_type = models.ForeignKey(
+        "service_type.ServiceType",
+        on_delete=models.CASCADE,
+        related_name="regulatory_requirements",
+    )
+    province = models.CharField(max_length=100)
+    requires_certificate = models.BooleanField(default=False)
+    certificate_type = models.CharField(max_length=100, blank=True)
+    requires_insurance = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("service_type", "province")
+
+    def __str__(self):
+        return f"{self.service_type.name} ({self.province})"
+
+
 class ServiceSkill(models.Model):
     service_skill_id = models.AutoField(primary_key=True)
 

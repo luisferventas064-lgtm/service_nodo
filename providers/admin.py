@@ -3,10 +3,10 @@ from django.contrib import admin
 from .models import (
     MarketplaceAnalyticsSnapshot,
     ProviderService,
-    ServiceCategory,
     Provider,
     ProviderBillingProfile,
     ProviderCertificate,
+    ProviderInsurance,
     ProviderInvoiceSequence,
     ProviderServiceArea,
     ServiceZone,
@@ -68,20 +68,12 @@ class ProviderServiceAreaAdmin(admin.ModelAdmin):
     list_filter = ("province", "is_active")
     search_fields = ("city", "province", "provider__company_name", "provider__email")
 
-
-@admin.register(ServiceCategory)
-class ServiceCategoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "slug", "is_active")
-    search_fields = ("name", "slug")
-    list_filter = ("is_active",)
-
-
 @admin.register(ProviderService)
 class ProviderServiceAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "provider",
-        "category",
+        "service_type",
         "custom_name",
         "billing_unit",
         "price_cents",
@@ -94,9 +86,9 @@ class ProviderServiceAdmin(admin.ModelAdmin):
         "provider__contact_first_name",
         "provider__contact_last_name",
         "provider__email",
-        "category__name",
+        "service_type__name",
     )
-    list_filter = ("billing_unit", "is_active", "category")
+    list_filter = ("billing_unit", "is_active", "service_type")
 
 
 @admin.register(ProviderTicket)
@@ -117,3 +109,17 @@ class ProviderTicketAdmin(admin.ModelAdmin):
     )
     search_fields = ("ticket_no",)
     list_filter = ("stage", "status", "ref_type", "currency")
+
+
+@admin.register(ProviderInsurance)
+class ProviderInsuranceAdmin(admin.ModelAdmin):
+    list_display = ("provider", "has_insurance", "is_verified", "expiry_date")
+    list_filter = ("has_insurance", "is_verified")
+    search_fields = (
+        "provider__company_name",
+        "provider__contact_first_name",
+        "provider__contact_last_name",
+        "provider__email",
+        "insurance_company",
+        "policy_number",
+    )

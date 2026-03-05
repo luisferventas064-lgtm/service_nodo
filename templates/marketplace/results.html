@@ -1,79 +1,81 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>NODO Marketplace Results</title>
-    <style>
-        body { font-family: Arial; background:#f5f7fa; padding:40px; }
-        .container {
-            max-width:900px;
-            margin:auto;
-            background:white;
-            padding:24px;
-            border-radius:10px;
-            box-shadow:0 3px 10px rgba(0,0,0,0.06);
-        }
-        .result {
-            padding:16px 0;
-            border-bottom:1px solid #e5e7eb;
-        }
-        .result:last-child { border-bottom:none; }
-        .verified {
-            color:#047857;
-            font-weight:bold;
-            font-size:12px;
-        }
-        .error { color:#b91c1c; margin-bottom:16px; }
-        .request-link {
-            display:inline-block;
-            margin-top:10px;
-            color:#111827;
-            font-weight:bold;
-            text-decoration:none;
-        }
-        .meta { color:#4b5563; }
-        .back-link { display:inline-block; margin-top:20px; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
+{% load text_extras %}
 
-<div class="container">
-    <h2>Resultados</h2>
+{% block title %}Marketplace Results{% endblock %}
 
-    {% if error %}
-        <div class="error">{{ error }}</div>
-    {% endif %}
+{% block content %}
+<div class="card">
 
-    {% if results %}
-        {% for provider in results %}
-            <div class="result">
-                <strong>{{ provider.provider_display_name }}</strong><br>
+<h2>Available Providers</h2>
 
-                <div class="meta">
-                    Rating: {{ provider.safe_rating }}<br>
-                    Precio: ${{ provider.display_price|floatformat:2 }}<br>
-                    Categoria: {{ provider.service_category_name }}<br>
-                    {% if provider.zone_name %}
-                        Zona: {{ provider.zone_name }}<br>
-                    {% endif %}
-                    {% if provider.is_verified_badge %}
-                        <span class="verified">VERIFIED</span><br>
-                    {% endif %}
-                </div>
+{% if error %}
+  <div class="provider-meta">{{ error }}</div>
+{% endif %}
 
-                <a
-                    href="{% url 'ui:request_create' provider.provider_id %}?category_id={{ category_id }}"
-                    class="request-link"
-                >
-                    Solicitar
-                </a>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p>No se encontraron proveedores.</p>
-    {% endif %}
+{% if results %}
+<div class="market-grid">
 
-    <a class="back-link" href="{% url 'ui:marketplace_search' %}">Volver</a>
+{% for p in results %}
+
+<div class="provider-card">
+
+<div class="provider-name">
+{{ p.provider_display_name }}
 </div>
 
-</body>
-</html>
+<div class="provider-meta">
+{{ p.service_type_name }}
+</div>
+
+<div class="rating">
+⭐ {{ p.safe_rating }} ({{ p.safe_completed }} jobs)
+</div>
+
+<div class="badges">
+
+{% if p.has_verified_certificate %}
+<span class="badge certified">Certified</span>
+{% endif %}
+
+{% if p.has_verified_insurance %}
+<span class="badge insured">Insured</span>
+{% endif %}
+
+</div>
+
+{% with langs=p.provider.languages_spoken|default_if_none:""|split_csv %}
+  {% if langs %}
+    <div class="lang-badges">
+      {% for lang in langs %}
+        {% if forloop.counter0 < 3 %}
+          <span class="lang-badge">{{ lang }}</span>
+        {% endif %}
+      {% endfor %}
+      {% if langs|length > 3 %}
+        <span class="lang-badge more">+{{ langs|length|add:"-3" }}</span>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+{% if p.is_compliant %}
+<a class="btn primary" href="{% url 'ui:request_create' p.provider_id %}{% if service_type_id %}?service_type_id={{ service_type_id }}{% endif %}">
+Request Service
+</a>
+{% else %}
+<span class="btn" aria-disabled="true" style="opacity:.65; cursor:not-allowed;">
+Compliance required
+</span>
+{% endif %}
+
+</div>
+
+{% endfor %}
+
+</div>
+{% else %}
+<p>No providers available in this area.</p>
+{% endif %}
+
+</div>
+{% endblock %}

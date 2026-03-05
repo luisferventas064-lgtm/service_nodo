@@ -11,7 +11,7 @@ from jobs.services import (
     accept_marketplace_offer,
     apply_client_marketplace_decision,
 )
-from providers.models import Provider, ProviderService, ServiceCategory
+from providers.models import Provider, ProviderService
 from service_type.models import ServiceType
 
 
@@ -28,18 +28,15 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
             phone_number="555-777-0001",
             email="provider.race.accept@test.local",
             is_phone_verified=True,
+            profile_completed=True,
             province="QC",
             city="Laval",
             postal_code="H7N1A1",
             address_line1="99 Provider St",
         )
-        self.category = ServiceCategory.objects.create(
-            name="Marketplace Accept Category",
-            slug="marketplace-accept-category",
-        )
         self.provider_service = ProviderService.objects.create(
             provider=self.provider,
-            category=self.category,
+            service_type=self.service_type,
             custom_name="Marketplace Ready Service",
             description="",
             billing_unit="fixed",
@@ -56,6 +53,14 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
             scheduled_date=timezone.localdate() + timedelta(days=3),
             scheduled_start_time=time(hour=12, minute=0),
             service_type=self.service_type,
+            provider_service=self.provider_service,
+            quoted_base_price="100.00",
+            quoted_base_price_cents=10_000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="ProviderService",
+            quoted_provider_service_id=self.provider_service.pk,
+            quoted_total_price_cents=10_000,
             province="QC",
             city="Laval",
             postal_code="H7N1A1",

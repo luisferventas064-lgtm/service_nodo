@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.login-container {
+    max-width: 500px;
+    margin: 80px auto;
+    text-align: center;
+}
+
+.login-container h1 {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.login-container p {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.login-options a {
+    display: block;
+    margin: 12px 0;
+    padding: 14px;
+    background-color: #111;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.login-options a:hover {
+    background-color: #333;
+}
+</style>
+
+<div class="login-container">
+    <h1>Welcome back - choose your account</h1>
+    <p>Select how you would like to continue.</p>
+
+    <div class="login-options">
+        <a href="/login/client/">Continue as Client</a>
+        <a href="/login/provider/">Continue as Provider</a>
+        <a href="/login/worker/">Continue as Worker</a>
+    </div>
+</div>
+{% endblock %}

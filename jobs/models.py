@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import zoneinfo
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -68,6 +69,23 @@ def normalize_job_kind_and_schedule(job) -> None:
 
 
 class Job(models.Model):
+    SNAPSHOT_REQUIRED_ON_STATUS_TRANSITIONS = frozenset(
+        {
+            "assigned",
+            "in_progress",
+            "completed",
+            "confirmed",
+        }
+    )
+    SNAPSHOT_LOCKED_FIELDS = (
+        "quoted_base_price_cents",
+        "quoted_currency",
+        "quoted_pricing_source",
+        "quoted_provider_service_id",
+        "quoted_tax_rate_bps",
+        "quoted_total_price_cents",
+    )
+
     class JobStatus(models.TextChoices):
         DRAFT = "draft", "Draft"
         POSTED = "posted", "Posted"
@@ -204,6 +222,16 @@ class Job(models.Model):
     quoted_emergency_fee_value = models.DecimalField(
         max_digits=10, decimal_places=2, default="0.00"
     )
+    quoted_base_price_cents = models.BigIntegerField(null=True, blank=True)
+    quoted_currency = models.CharField(max_length=3, blank=True, default="")
+    quoted_pricing_source = models.CharField(max_length=32, blank=True, default="")
+    quoted_provider_service_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+    quoted_tax_rate_bps = models.PositiveIntegerField(null=True, blank=True)
+    quoted_total_price_cents = models.BigIntegerField(null=True, blank=True)
 
     expires_at = models.DateTimeField(blank=True, null=True)
     next_alert_at = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -221,9 +249,76 @@ class Job(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @staticmethod
+    def _decimal_to_cents(value) -> int | None:
+        if value is None:
+            return None
+        amount = Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return int(amount * 100)
+
+    def snapshot_base_price_cents(self) -> int | None:
+        if self.quoted_base_price_cents is not None:
+            return int(self.quoted_base_price_cents)
+        return self._decimal_to_cents(self.quoted_base_price)
+
+    def snapshot_total_price_cents(self) -> int | None:
+        if self.quoted_total_price_cents is not None:
+            return int(self.quoted_total_price_cents)
+        return self.snapshot_base_price_cents()
+
+    def snapshot_currency_code(self) -> str:
+        value = (self.quoted_currency or self.quoted_currency_code or "").strip().upper()
+        return value
+
+    def has_pricing_snapshot(self) -> bool:
+        return bool(
+            self.snapshot_base_price_cents() is not None
+            and self.snapshot_currency_code()
+            and (self.quoted_pricing_source or "").strip()
+        )
+
+    def require_pricing_snapshot(self) -> None:
+        if self.has_pricing_snapshot():
+            return
+        raise ValidationError(
+            {
+                "quoted_base_price_cents": (
+                    "Job must have a pricing snapshot before entering the active lifecycle."
+                )
+            }
+        )
+
+    def _validate_pricing_snapshot_contract(self) -> None:
+        if self._state.adding or not self.pk:
+            return
+
+        previous = type(self).objects.filter(pk=self.pk).first()
+        if previous is None:
+            return
+
+        if previous.has_pricing_snapshot():
+            changed_snapshot_fields = [
+                field
+                for field in self.SNAPSHOT_LOCKED_FIELDS
+                if getattr(previous, field) != getattr(self, field)
+            ]
+            if changed_snapshot_fields:
+                raise ValidationError(
+                    "Pricing snapshot is immutable once captured."
+                )
+
+        status_is_advancing = previous.job_status != self.job_status
+        if (
+            status_is_advancing
+            and self.job_status in self.SNAPSHOT_REQUIRED_ON_STATUS_TRANSITIONS
+            and (previous.has_pricing_snapshot() or self.has_pricing_snapshot())
+        ):
+            self.require_pricing_snapshot()
+
     def clean(self):
         super().clean()
         normalize_job_kind_and_schedule(self)
+        self._validate_pricing_snapshot_contract()
 
     def save(self, *args, **kwargs):
         self.full_clean()

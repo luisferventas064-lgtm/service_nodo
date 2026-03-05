@@ -80,6 +80,8 @@ def api_job_start(request, job_id: int):
     try:
         result = start_service_by_provider(job_id=job_id, provider_id=int(provider_id))
         return JsonResponse({"ok": True, "result": result}, safe=False)
+    except ValueError as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=400)
     except PermissionError:
         return JsonResponse({"ok": False, "error": "provider_not_allowed"}, status=403)
     except Exception as e:

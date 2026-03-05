@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="card">
+
+<h2 style="text-align:center;">Welcome back</h2>
+
+<p style="text-align:center;color:#64748B;">
+Choose how you want to continue
+</p>
+
+<div class="role-grid">
+
+<a class="role-card client" href="/login/client/">
+
+<div class="role-title">Client</div>
+
+<div class="role-desc">
+Find and request trusted services near you
+</div>
+
+<div class="role-action">
+Continue as Client →
+</div>
+
+</a>
+
+
+<a class="role-card provider" href="/login/provider/">
+
+<div class="role-title">Provider</div>
+
+<div class="role-desc">
+Offer services and manage your requests
+</div>
+
+<div class="role-action">
+Continue as Provider →
+</div>
+
+</a>
+
+
+<a class="role-card worker" href="/login/worker/">
+
+<div class="role-title">Worker</div>
+
+<div class="role-desc">
+Join providers and complete service jobs
+</div>
+
+<div class="role-action">
+Continue as Worker →
+</div>
+
+</a>
+
+</div>
+
+</div>
+{% endblock %}

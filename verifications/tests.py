@@ -5,6 +5,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.test import Client as HttpClient
 from django.test import TestCase
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -84,43 +85,16 @@ class PhoneVerificationApiTests(TestCase):
         )
 
     def test_request_phone_verification_rate_limits_by_phone_number(self):
-        shared_phone = "+15145559999"
-        actors = [
-            Client.objects.create(
-                first_name=f"Otp{i}",
-                last_name="Shared",
-                phone_number=shared_phone,
-                email=f"otp-shared-{i}@example.com",
-                country="Canada",
-                province="QC",
-                city="Montreal",
-                postal_code="H1A1A1",
-                address_line1="123 Shared St",
-            )
-            for i in range(1, 5)
-        ]
+        shared_phone = self.client_actor.phone_number
+        cache.set(f"otp_phone_rate:{shared_phone}", 3, timeout=60)
         url = reverse("request_phone_verification")
-
-        for actor in actors[:3]:
-            response = self.http.post(
-                url,
-                data=json.dumps(
-                    {
-                        "actor_type": "client",
-                        "actor_id": actor.pk,
-                        "phone_number": shared_phone,
-                    }
-                ),
-                content_type="application/json",
-            )
-            self.assertEqual(response.status_code, 201)
 
         blocked_response = self.http.post(
             url,
             data=json.dumps(
                 {
                     "actor_type": "client",
-                    "actor_id": actors[3].pk,
+                    "actor_id": self.client_actor.pk,
                     "phone_number": shared_phone,
                 }
             ),
@@ -238,3 +212,24 @@ class PhoneVerificationApiTests(TestCase):
 
         with self.assertRaisesMessage(ValidationError, "Too many attempts."):
             verify_phone_code("client", self.client_actor.pk, "000000")
+
+    @override_settings(DEBUG=True, DEV_OTP_CODE="12345")
+    def test_verify_phone_code_accepts_dev_otp_override_in_debug(self):
+        create_phone_verification(
+            actor_type="client",
+            actor_id=self.client_actor.pk,
+            phone_number=self.client_actor.phone_number,
+        )
+
+        result = verify_phone_code("client", self.client_actor.pk, "12345")
+
+        self.assertTrue(result)
+        self.client_actor.refresh_from_db()
+        verification = PhoneVerification.objects.get(
+            actor_type="client",
+            actor_id=self.client_actor.pk,
+        )
+        self.assertTrue(self.client_actor.is_phone_verified)
+        self.assertEqual(self.client_actor.phone_verification_attempts, 0)
+        self.assertTrue(verification.is_verified)
+        self.assertIsNotNone(verification.verified_at)

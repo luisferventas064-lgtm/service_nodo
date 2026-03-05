@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from dataclasses import dataclass
 from typing import Optional
 
@@ -8,9 +7,12 @@ from django.db import transaction
 
 from clients.models import Client
 from jobs.models import Job
-from providers.models import Provider, ProviderService
+from providers.models import ProviderService
 
-from jobs.services_pricing_snapshot import apply_price_snapshot_to_job
+from jobs.services_pricing_snapshot import (
+    apply_price_snapshot_to_job,
+    apply_provider_service_snapshot_to_job,
+)
 
 
 @dataclass(frozen=True)
@@ -65,31 +67,10 @@ def create_normal_job(data: CreateNormalJobInput) -> Job:
         if data.selected_provider_id and provider_service.provider_id != data.selected_provider_id:
             raise ValueError("provider_service_provider_mismatch")
 
-        pricing_unit = (
-            "hourly"
-            if provider_service.billing_unit == "hour"
-            else provider_service.billing_unit
+        apply_provider_service_snapshot_to_job(
+            job=job,
+            provider_service=provider_service,
         )
-        updates = [
-            "provider_service",
-            "quoted_base_price",
-            "quoted_currency_code",
-            "quoted_pricing_unit",
-            "quoted_emergency_fee_type",
-            "quoted_emergency_fee_value",
-        ]
-
-        if not job.selected_provider_id:
-            job.selected_provider_id = provider_service.provider_id
-            updates.append("selected_provider_id")
-
-        job.provider_service = provider_service
-        job.quoted_base_price = Decimal(provider_service.price_cents) / Decimal("100")
-        job.quoted_currency_code = "CAD"
-        job.quoted_pricing_unit = pricing_unit
-        job.quoted_emergency_fee_type = "none"
-        job.quoted_emergency_fee_value = Decimal("0.00")
-        job.save(update_fields=updates)
 
     # Snapshot legado por ProviderSkillPrice.
     elif data.selected_provider_id and data.selected_service_skill_id:
@@ -98,5 +79,7 @@ def create_normal_job(data: CreateNormalJobInput) -> Job:
             provider_id=data.selected_provider_id,
             service_skill_id=data.selected_service_skill_id,
         )
+    else:
+        raise ValueError("pricing_snapshot_source_required")
 
     return job
