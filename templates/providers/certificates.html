@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Certificates{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h1 class="h3 mb-1">Manage Certificates</h1>
+                            <p class="text-muted mb-0">
+                                Providers can register certificates here even when they are not required globally.
+                            </p>
+                        </div>
+                        <a href="{% url 'provider_profile' %}" class="btn btn-outline-secondary">
+                            Back to Profile
+                        </a>
+                    </div>
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags|default:'info' }} mb-3">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="alert alert-info mb-4">
+                        This section is open and available. Certificate requirements will later depend on service type and jurisdiction.
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="small text-muted">Total certificates</div>
+                        <div class="h4 mb-0">{{ total_certificates }}</div>
+                    </div>
+
+                    {% if certificates %}
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                        <th>Issued by</th>
+                                        <th>Expires</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cert in certificates %}
+                                        <tr>
+                                            <td>{{ cert.cert_type|default:"-" }}</td>
+                                            <td>{{ cert.cert_name|default:"-" }}</td>
+                                            <td>{{ cert.status|default:"-" }}</td>
+                                            <td>{{ cert.issued_by|default:"-" }}</td>
+                                            <td>
+                                                {% if cert.expires_date %}
+                                                    {{ cert.expires_date }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                <a href="{% url 'provider_certificates' %}?edit={{ cert.pk }}" class="btn btn-sm btn-outline-primary">
+                                                    Edit
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% if cert.notes %}
+                                            <tr>
+                                                <td colspan="6" class="text-muted small">
+                                                    <strong>Notes:</strong> {{ cert.notes }}
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="border rounded p-4 bg-light">
+                            <p class="mb-0">No certificates added yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    {% if edit_certificate %}
+                        <h2 class="h5 mb-3">Edit Certificate</h2>
+                        <div class="small text-muted mb-3">
+                            Current status: {{ edit_certificate.status|default:"-" }}
+                        </div>
+                    {% else %}
+                        <h2 class="h5 mb-3">Add Certificate</h2>
+                    {% endif %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {% if edit_certificate %}
+                            <input type="hidden" name="certificate_id" value="{{ edit_certificate.pk }}">
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.cert_type.id_for_label }}">Certificate type</label>
+                            {{ form.cert_type }}
+                            {% if form.cert_type.errors %}
+                                <div class="text-danger small mt-1">{{ form.cert_type.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.cert_name.id_for_label }}">Certificate name</label>
+                            {{ form.cert_name }}
+                            {% if form.cert_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.cert_name.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.taken_at.id_for_label }}">Taken at</label>
+                            {{ form.taken_at }}
+                            {% if form.taken_at.errors %}
+                                <div class="text-danger small mt-1">{{ form.taken_at.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.issued_by.id_for_label }}">Issued by</label>
+                            {{ form.issued_by }}
+                            {% if form.issued_by.errors %}
+                                <div class="text-danger small mt-1">{{ form.issued_by.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="{{ form.issued_country.id_for_label }}">Issued country</label>
+                                {{ form.issued_country }}
+                                {% if form.issued_country.errors %}
+                                    <div class="text-danger small mt-1">{{ form.issued_country.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="{{ form.issued_city.id_for_label }}">Issued city</label>
+                                {{ form.issued_city }}
+                                {% if form.issued_city.errors %}
+                                    <div class="text-danger small mt-1">{{ form.issued_city.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-6">
+                                <label class="form-label" for="{{ form.issued_date.id_for_label }}">Issued date</label>
+                                {{ form.issued_date }}
+                                {% if form.issued_date.errors %}
+                                    <div class="text-danger small mt-1">{{ form.issued_date.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="{{ form.expires_date.id_for_label }}">Expires date</label>
+                                {{ form.expires_date }}
+                                {% if form.expires_date.errors %}
+                                    <div class="text-danger small mt-1">{{ form.expires_date.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mt-3 mb-3">
+                            <label class="form-label" for="{{ form.notes.id_for_label }}">Notes</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                {% if edit_certificate %}Save Changes{% else %}Add Certificate{% endif %}
+                            </button>
+
+                            {% if edit_certificate %}
+                                <a href="{% url 'provider_certificates' %}" class="btn btn-outline-secondary">
+                                    Cancel
+                                </a>
+                            {% endif %}
+                        </div>
+                    </form>
+
+                    <div class="small text-muted mt-4">
+                        This page does not handle uploads yet. It stores certificate details and status only.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

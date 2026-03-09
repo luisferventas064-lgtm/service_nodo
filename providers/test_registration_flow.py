@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.urls import reverse
 
-from providers.models import Provider, ProviderCertificate, ProviderService
+from providers.models import Provider, ProviderCertificate, ProviderService, ProviderServiceArea
 from service_type.models import RequiredCertification, ServiceType
 from ui.models import PasswordResetCode
 
@@ -176,8 +176,9 @@ class ProviderRegistrationFlowTests(TestCase):
         provider = Provider.objects.create(
             provider_type=Provider.TYPE_COMPANY,
             company_name="Acme Services",
-            contact_first_name="Pending",
-            contact_last_name="Contact",
+            contact_first_name="Jane",
+            contact_last_name="Manager",
+            business_registration_number="REG-123",
             phone_number="+15145550202",
             email="complete.provider@example.com",
             is_phone_verified=True,
@@ -189,6 +190,12 @@ class ProviderRegistrationFlowTests(TestCase):
             postal_code="PENDING",
             address_line1="Pending profile completion",
         )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Montreal",
+            province="QC",
+            is_active=True,
+        )
 
         session = self.client.session
         session["provider_id"] = provider.pk
@@ -197,11 +204,7 @@ class ProviderRegistrationFlowTests(TestCase):
         response = self.client.post(
             reverse("provider_complete_profile"),
             data={
-                "company_name": "Acme Services",
-                "business_registration_number": "REG-123",
-                "contact_person_name": "Jane Manager",
-                "service_area": "Montreal North Shore",
-                "accepts_terms": "on",
+                "action": "accept_terms",
             },
         )
 
@@ -241,14 +244,11 @@ class ProviderRegistrationFlowTests(TestCase):
         response = self.client.post(
             reverse("provider_complete_profile"),
             data={
-                "legal_name": "",
-                "service_area": "",
-                "accepts_terms": "on",
+                "action": "accept_terms",
             },
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Complete all required profile fields.")
+        self.assertRedirects(response, reverse("provider_complete_profile"))
         provider.refresh_from_db()
         self.assertFalse(provider.profile_completed)
         self.assertTrue(provider.accepts_terms)

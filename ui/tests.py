@@ -1,3 +1,4 @@
+from decimal import Decimal
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -8,9 +9,16 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from assignments.models import JobAssignment
 from clients.models import Client
-from jobs.models import Job
-from providers.models import Provider, ProviderService, ProviderServiceArea
+from jobs.models import Job, JobRequestedExtra
+from providers.models import (
+    Provider,
+    ProviderService,
+    ProviderServiceArea,
+    ProviderServiceExtra,
+    ProviderServiceSubservice,
+)
 from service_type.models import RequiredCertification, ServiceType
 from workers.models import Worker
 
@@ -735,6 +743,53 @@ class ProfileViewsTests(TestCase):
 
 
 class RequestCreateViewTests(TestCase):
+    def test_request_create_get_shows_main_offers_for_selected_service_type(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Offers",
+            phone_number="5550000100",
+            email="provider.offers@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="30 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Offers Test",
+            description="Offers Test",
+        )
+        cheaper_offer = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Standard cleaning",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+        premium_offer = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Move-out cleaning",
+            billing_unit="hour",
+            price_cents=18000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            f"/request/{provider.provider_id}/?service_type_id={service_type.pk}"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Service option")
+        self.assertContains(response, "Standard cleaning")
+        self.assertContains(response, "Move-out cleaning")
+        self.assertContains(response, "$120.00 / Fixed Price")
+        self.assertContains(response, "$180.00 / Per Hour")
+        self.assertContains(response, "Main Offer:")
+        self.assertContains(response, cheaper_offer.custom_name)
+        self.assertNotContains(response, f'data-provider-service-id="{premium_offer.pk}"')
+
     def test_authenticated_client_get_hides_manual_client_fields(self):
         provider = Provider.objects.create(
             provider_type="self_employed",
@@ -833,7 +888,17 @@ class RequestCreateViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(client.jobs.count(), 1)
-        self.assertEqual(client.jobs.first().selected_provider_id, provider.pk)
+        job = client.jobs.first()
+        self.assertEqual(job.selected_provider_id, provider.pk)
+        self.assertEqual(job.provider_service_name_snapshot, "Session Create Service")
+        self.assertEqual(job.requested_subservice_name, "")
+        self.assertEqual(job.requested_quantity_snapshot, Decimal("1.00"))
+        self.assertEqual(job.requested_unit_price_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_billing_unit_snapshot, "fixed")
+        self.assertEqual(job.requested_base_line_total_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_subservice_base_price_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_subtotal_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("100.00"))
 
     def test_unverified_client_cannot_create_job(self):
         provider = Provider.objects.create(
@@ -955,6 +1020,550 @@ class RequestCreateViewTests(TestCase):
         )
         self.assertEqual(self.client.session["client_id"], client.pk)
 
+    def test_request_create_saves_requested_subservice_and_extras_snapshots(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Catalog",
+            phone_number="5550000013",
+            email="provider.catalog@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="22 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Catalog Service",
+            description="Catalog Service",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Catalog Offer",
+            billing_unit="fixed",
+            price_cents=12500,
+            is_active=True,
+        )
+        deep = ProviderServiceSubservice.objects.create(
+            provider_service=provider_service,
+            name="Deep Cleaning",
+            base_price=Decimal("150.00"),
+            is_active=True,
+            sort_order=1,
+        )
+        extra_bathroom = ProviderServiceExtra.objects.create(
+            provider_service=provider_service,
+            name="Extra bathroom",
+            unit_price=Decimal("25.00"),
+            is_active=True,
+            min_qty=1,
+            max_qty=5,
+            sort_order=1,
+        )
+        inside_fridge = ProviderServiceExtra.objects.create(
+            provider_service=provider_service,
+            name="Inside fridge",
+            unit_price=Decimal("15.00"),
+            is_active=True,
+            min_qty=1,
+            max_qty=3,
+            sort_order=2,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Catalog",
+            phone_number="5550000014",
+            email="client.catalog@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="23 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "requested_quantity": "2",
+                "requested_subservice_id": str(deep.pk),
+                "selected_extras": [str(extra_bathroom.pk), str(inside_fridge.pk)],
+                f"extra_qty_{extra_bathroom.pk}": "2",
+                f"extra_qty_{inside_fridge.pk}": "",
+                "job_mode": "on_demand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Job.objects.count(), 1)
+
+        job = Job.objects.get()
+        requested_extras = list(job.requested_extras.order_by("extra_name_snapshot"))
+
+        self.assertRedirects(
+            response,
+            reverse("ui:request_status", args=[job.job_id]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(job.selected_provider_id, provider.pk)
+        self.assertEqual(job.provider_service_id, provider_service.pk)
+        self.assertEqual(job.provider_service_name_snapshot, "Catalog Offer")
+        self.assertEqual(job.requested_subservice_name, "Deep Cleaning")
+        self.assertEqual(job.requested_subservice_id_snapshot, deep.pk)
+        self.assertEqual(job.requested_quantity_snapshot, Decimal("2.00"))
+        self.assertEqual(job.requested_unit_price_snapshot, Decimal("150.00"))
+        self.assertEqual(job.requested_billing_unit_snapshot, "fixed")
+        self.assertEqual(job.requested_base_line_total_snapshot, Decimal("300.00"))
+        self.assertEqual(job.requested_subservice_base_price_snapshot, Decimal("150.00"))
+        self.assertEqual(job.requested_subtotal_snapshot, Decimal("365.00"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("365.00"))
+        self.assertEqual(len(requested_extras), 2)
+        self.assertEqual(requested_extras[0].extra_name_snapshot, "Extra bathroom")
+        self.assertEqual(requested_extras[0].quantity, 2)
+        self.assertEqual(requested_extras[0].unit_price_snapshot, Decimal("25.00"))
+        self.assertEqual(requested_extras[0].line_total_snapshot, Decimal("50.00"))
+        self.assertEqual(requested_extras[1].extra_name_snapshot, "Inside fridge")
+        self.assertEqual(requested_extras[1].quantity, 1)
+        self.assertEqual(requested_extras[1].unit_price_snapshot, Decimal("15.00"))
+        self.assertEqual(requested_extras[1].line_total_snapshot, Decimal("15.00"))
+
+    def test_request_create_rejects_zero_quantity(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Zero Quantity",
+            phone_number="5550000120",
+            email="provider.zero.quantity@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="31 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Zero Quantity Service",
+            description="Zero Quantity Service",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Standard cleaning",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Zero Quantity",
+            phone_number="5550000121",
+            email="client.zero.quantity@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="32 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "requested_quantity": "0",
+                "job_mode": "on_demand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Quantity must be greater than zero.")
+        self.assertEqual(Job.objects.count(), 0)
+
+    def test_request_create_rejects_blank_quantity(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Blank Quantity",
+            phone_number="5550000122",
+            email="provider.blank.quantity@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="33 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Blank Quantity Service",
+            description="Blank Quantity Service",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Standard cleaning",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Blank Quantity",
+            phone_number="5550000123",
+            email="client.blank.quantity@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="34 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "requested_quantity": "",
+                "job_mode": "on_demand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Quantity is required.")
+        self.assertEqual(Job.objects.count(), 0)
+
+    def test_request_create_rejects_subservice_from_another_provider_service(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Subservice Validation",
+            phone_number="5550000015",
+            email="provider.subservice.validation@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="24 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Subservice Validation",
+            description="Subservice Validation",
+        )
+        main_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Main Service",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        other_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Other Service",
+            billing_unit="fixed",
+            price_cents=11000,
+            is_active=True,
+        )
+        invalid_subservice = ProviderServiceSubservice.objects.create(
+            provider_service=other_service,
+            name="Wrong Subservice",
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Subservice Validation",
+            phone_number="5550000016",
+            email="client.subservice.validation@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="25 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(main_service.pk),
+                "requested_subservice_id": str(invalid_subservice.pk),
+                "job_mode": "on_demand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid subservice.")
+        self.assertEqual(Job.objects.count(), 0)
+
+    def test_request_create_rejects_extra_from_another_provider_service(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Extra Validation",
+            phone_number="5550000017",
+            email="provider.extra.validation@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="26 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Extra Validation",
+            description="Extra Validation",
+        )
+        main_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Main Extra Service",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        other_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Other Extra Service",
+            billing_unit="fixed",
+            price_cents=11000,
+            is_active=True,
+        )
+        invalid_extra = ProviderServiceExtra.objects.create(
+            provider_service=other_service,
+            name="Wrong Extra",
+            is_active=True,
+            min_qty=1,
+            max_qty=3,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Extra Validation",
+            phone_number="5550000018",
+            email="client.extra.validation@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="27 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(main_service.pk),
+                "selected_extras": [str(invalid_extra.pk)],
+                f"extra_qty_{invalid_extra.pk}": "2",
+                "job_mode": "on_demand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid extra selection.")
+        self.assertEqual(Job.objects.count(), 0)
+
+
+class RequestStatusViewTests(TestCase):
+    def _make_job(self, *, status):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Demo",
+            contact_last_name="Provider Status",
+            phone_number=f"5551000{status.count('a')}201",
+            email=f"provider.status.{status}@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="100 Provider St",
+        )
+        client = Client.objects.create(
+            first_name="Luis",
+            last_name="Garcia",
+            phone_number=f"5551000{status.count('a')}202",
+            email=f"client.status.{status}@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="921 100 e avenue",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        service_type = ServiceType.objects.create(
+            name=f"Status {status}",
+            description=f"Status {status}",
+        )
+        return Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=status,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="921 100 e avenue",
+        )
+
+    def test_request_status_allows_client_cancel_while_waiting_provider_response(self):
+        job = self._make_job(status=Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+
+        response = self.client.post(
+            reverse("ui:request_status", args=[job.job_id]),
+            data={"action": "cancel_request"},
+            follow=True,
+        )
+
+        job.refresh_from_db()
+
+        self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
+        self.assertEqual(job.cancelled_by, Job.CancellationActor.CLIENT)
+        self.assertEqual(job.cancel_reason, Job.CancelReason.CLIENT_CANCELLED)
+        self.assertContains(response, "Request cancelled successfully.")
+        self.assertContains(response, "Cancelled - Client cancelled the request.")
+
+    def test_request_status_allows_client_cancel_while_assigned(self):
+        job = self._make_job(status=Job.JobStatus.ASSIGNED)
+        assignment = JobAssignment.objects.create(
+            job=job,
+            provider=job.selected_provider,
+            assignment_status="assigned",
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("ui:request_status", args=[job.job_id]),
+            data={"action": "cancel_request"},
+            follow=True,
+        )
+
+        job.refresh_from_db()
+        assignment.refresh_from_db()
+
+        self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
+        self.assertEqual(job.cancelled_by, Job.CancellationActor.CLIENT)
+        self.assertEqual(job.cancel_reason, Job.CancelReason.CLIENT_CANCELLED)
+        self.assertEqual(assignment.assignment_status, "cancelled")
+        self.assertFalse(assignment.is_active)
+        self.assertContains(response, "Request cancelled successfully.")
+
+    def test_request_status_disallows_client_cancel_after_in_progress(self):
+        job = self._make_job(status=Job.JobStatus.IN_PROGRESS)
+
+        response = self.client.post(
+            reverse("ui:request_status", args=[job.job_id]),
+            data={"action": "cancel_request"},
+            follow=True,
+        )
+
+        job.refresh_from_db()
+
+        self.assertEqual(job.job_status, Job.JobStatus.IN_PROGRESS)
+        self.assertContains(response, "This request can no longer be cancelled.")
+
+    def test_request_status_allows_client_cancel_while_posted_after_provider_rejection(self):
+        job = self._make_job(status=Job.JobStatus.POSTED)
+        job.cancelled_by = Job.CancellationActor.PROVIDER
+        job.cancel_reason = Job.CancelReason.PROVIDER_REJECTED
+        job.save(update_fields=["cancelled_by", "cancel_reason", "updated_at"])
+
+        response = self.client.post(
+            reverse("ui:request_status", args=[job.job_id]),
+            data={"action": "cancel_request"},
+            follow=True,
+        )
+
+        job.refresh_from_db()
+
+        self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
+        self.assertEqual(job.cancelled_by, Job.CancellationActor.CLIENT)
+        self.assertEqual(job.cancel_reason, Job.CancelReason.CLIENT_CANCELLED)
+        self.assertContains(response, "Request cancelled successfully.")
+
+    def test_request_status_shows_requested_subservice_and_extras_snapshot(self):
+        job = self._make_job(status=Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+        job.provider_service_name_snapshot = "Standard cleaning"
+        job.requested_subservice_name = "Deep Cleaning"
+        job.requested_subservice_id_snapshot = 10
+        job.requested_quantity_snapshot = Decimal("2.00")
+        job.requested_unit_price_snapshot = Decimal("75.00")
+        job.requested_billing_unit_snapshot = "hour"
+        job.requested_base_line_total_snapshot = Decimal("150.00")
+        job.requested_subservice_base_price_snapshot = Decimal("150.00")
+        job.requested_subtotal_snapshot = Decimal("220.00")
+        job.requested_total_snapshot = Decimal("220.00")
+        job.save(
+            update_fields=[
+                "provider_service_name_snapshot",
+                "requested_subservice_name",
+                "requested_subservice_id_snapshot",
+                "requested_quantity_snapshot",
+                "requested_unit_price_snapshot",
+                "requested_billing_unit_snapshot",
+                "requested_base_line_total_snapshot",
+                "requested_subservice_base_price_snapshot",
+                "requested_subtotal_snapshot",
+                "requested_total_snapshot",
+                "updated_at",
+            ]
+        )
+        JobRequestedExtra.objects.create(
+            job=job,
+            extra_name_snapshot="Extra bathroom",
+            quantity=2,
+            unit_price_snapshot=Decimal("25.00"),
+            line_total_snapshot=Decimal("50.00"),
+        )
+        JobRequestedExtra.objects.create(
+            job=job,
+            extra_name_snapshot="Inside fridge",
+            quantity=1,
+            unit_price_snapshot=Decimal("20.00"),
+            line_total_snapshot=Decimal("20.00"),
+        )
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pricing Summary")
+        self.assertContains(response, "Main Offer")
+        self.assertContains(response, "Standard cleaning")
+        self.assertContains(response, "Per Hour")
+        self.assertContains(response, "$75.00")
+        self.assertContains(response, "2.00")
+        self.assertContains(response, "Base Line Total")
+        self.assertContains(response, "$150.00")
+        self.assertContains(response, "Requested details")
+        self.assertContains(response, "Subservice: Deep Cleaning")
+        self.assertContains(response, "Extra bathroom x 2")
+        self.assertContains(response, "Inside fridge x 1")
+        self.assertContains(response, "Subtotal")
+        self.assertContains(response, "Estimated Total")
+        self.assertContains(response, "$220.00")
+        self.assertContains(response, "Return to Marketplace")
+
 
 class ProviderJobsViewTests(TestCase):
     def test_provider_jobs_redirects_to_register_without_provider_session(self):
@@ -1014,16 +1623,105 @@ class ProviderJobsViewTests(TestCase):
         response = self.client.get(reverse("ui:provider_jobs"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Client:")
+        self.assertContains(response, "Provider Jobs")
         self.assertContains(response, "Luis Garcia")
-        self.assertContains(response, "Service Type:")
         self.assertContains(response, "Cleaning Service")
-        self.assertContains(response, "Mode:")
+        self.assertContains(response, "Requested time")
+        self.assertContains(response, "Service mode")
         self.assertContains(response, "Scheduled")
-        self.assertContains(response, "Date:")
-        self.assertContains(response, "Time:")
-        self.assertContains(response, "Address:")
-        self.assertContains(response, "921 100 e avenue, Laval, QC, H7W4A2")
+        self.assertContains(response, "Postal Code")
+        self.assertContains(response, "H7W4A2")
+        self.assertContains(response, "Accept")
+        self.assertContains(response, "Decline")
+
+    def test_provider_jobs_shows_requested_subservice_and_extras_snapshot(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Demo",
+            contact_last_name="Provider Snapshot",
+            phone_number="5550000208",
+            email="provider.snapshot@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="203 Provider St",
+        )
+        client = Client.objects.create(
+            first_name="Luis",
+            last_name="Garcia",
+            phone_number="5550000209",
+            email="client.snapshot@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="924 100 e avenue",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="Snapshot Service",
+            description="Snapshot Service",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="924 100 e avenue",
+            provider_service_name_snapshot="Standard cleaning",
+            requested_subservice_name="Deep Cleaning",
+            requested_subservice_id_snapshot=99,
+            requested_quantity_snapshot=Decimal("3.00"),
+            requested_unit_price_snapshot=Decimal("46.67"),
+            requested_billing_unit_snapshot="sqm",
+            requested_base_line_total_snapshot=Decimal("140.00"),
+            requested_subservice_base_price_snapshot=Decimal("140.00"),
+            requested_subtotal_snapshot=Decimal("180.00"),
+            requested_total_snapshot=Decimal("180.00"),
+        )
+        JobRequestedExtra.objects.create(
+            job=job,
+            extra_name_snapshot="Extra bathroom",
+            quantity=2,
+            unit_price_snapshot=Decimal("15.00"),
+            line_total_snapshot=Decimal("30.00"),
+        )
+        JobRequestedExtra.objects.create(
+            job=job,
+            extra_name_snapshot="Inside fridge",
+            quantity=1,
+            unit_price_snapshot=Decimal("10.00"),
+            line_total_snapshot=Decimal("10.00"),
+        )
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        response = self.client.get(reverse("ui:provider_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pricing")
+        self.assertContains(response, "Main Offer")
+        self.assertContains(response, "Standard cleaning")
+        self.assertContains(response, "Per Square Meter")
+        self.assertContains(response, "$46.67")
+        self.assertContains(response, "3.00")
+        self.assertContains(response, "Base Line Total")
+        self.assertContains(response, "$140.00")
+        self.assertContains(response, "Requested details")
+        self.assertContains(response, "Subservice: Deep Cleaning")
+        self.assertContains(response, "Extra bathroom x 2")
+        self.assertContains(response, "Inside fridge x 1")
+        self.assertContains(response, "Estimated Total")
+        self.assertContains(response, "$180.00")
 
     def test_provider_job_action_redirects_to_register_without_provider_session(self):
         provider = Provider.objects.create(
@@ -1140,6 +1838,75 @@ class ProviderJobsViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_provider_reject_recycles_request_and_closes_assignment(self):
+        service_type = ServiceType.objects.create(
+            name="Provider Reject Recycle Test",
+            description="Provider Reject Recycle Test",
+        )
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Demo",
+            contact_last_name="Provider Reject",
+            phone_number="5550000206",
+            email="provider.reject.recycle@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="202 Provider St",
+        )
+        client = Client.objects.create(
+            first_name="Luis",
+            last_name="Garcia",
+            phone_number="5550000207",
+            email="client.reject.recycle@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="923 100 e avenue",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="923 100 e avenue",
+        )
+        assignment = JobAssignment.objects.create(
+            job=job,
+            provider=provider,
+            assignment_status="assigned",
+            is_active=True,
+        )
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        response = self.client.post(
+            reverse("ui:provider_job_action", args=[job.job_id]),
+            data={"action": "reject"},
+            follow=True,
+        )
+
+        job.refresh_from_db()
+        assignment.refresh_from_db()
+
+        self.assertEqual(job.job_status, Job.JobStatus.POSTED)
+        self.assertEqual(job.cancelled_by, Job.CancellationActor.PROVIDER)
+        self.assertEqual(job.cancel_reason, Job.CancelReason.PROVIDER_REJECTED)
+        self.assertEqual(assignment.assignment_status, "cancelled")
+        self.assertFalse(assignment.is_active)
+        self.assertContains(response, "Request declined.")
 
 
 class MarketplaceSearchViewTests(TestCase):

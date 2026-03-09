@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Job
+
+from .models import Job, JobRequestedExtra
+
+
+class JobRequestedExtraInline(admin.TabularInline):
+    model = JobRequestedExtra
+    extra = 0
+    readonly_fields = ("extra_name_snapshot", "quantity", "provider_service_extra", "created_at")
 
 
 @admin.register(Job)
@@ -34,6 +41,8 @@ class JobAdmin(admin.ModelAdmin):
     )
 
     ordering = ("-created_at",)
+    inlines = [JobRequestedExtraInline]
+
     @admin.display(description="Schedule")
     def schedule_display(self, obj: Job) -> str:
         if obj.is_asap:

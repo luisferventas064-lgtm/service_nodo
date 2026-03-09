@@ -1,8 +1,7 @@
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 
-from .forms import ProviderServiceForm
 from .models import Provider, ProviderService
 
 
@@ -32,22 +31,8 @@ def provider_services_list(request):
     if guard_response is not None:
         return guard_response
 
-    services = list(
-        ProviderService.objects.filter(provider=provider)
-        .select_related("service_type")
-        .order_by("service_type__name", "custom_name", "id")
-    )
-    for service in services:
-        service.display_price = service.price_cents / 100
-
-    return render(
-        request,
-        "providers/services_list.html",
-        {
-            "services": services,
-            "provider": provider,
-        },
-    )
+    messages.info(request, "Services are now managed from the portal.")
+    return redirect("portal:provider_services")
 
 
 def provider_service_add(request):
@@ -58,26 +43,8 @@ def provider_service_add(request):
     if guard_response is not None:
         return guard_response
 
-    if request.method == "POST":
-        form = ProviderServiceForm(request.POST)
-        if form.is_valid():
-            service = form.save(commit=False)
-            service.provider = provider
-            service.save()
-            messages.success(request, "Service added successfully.")
-            return redirect("provider_services_list")
-    else:
-        form = ProviderServiceForm()
-
-    return render(
-        request,
-        "providers/service_form.html",
-        {
-            "form": form,
-            "mode": "add",
-            "provider": provider,
-        },
-    )
+    messages.info(request, "Use the portal service categories page to add a new service.")
+    return redirect("portal:provider_service_categories")
 
 
 def provider_service_edit(request, service_id):
@@ -94,25 +61,8 @@ def provider_service_edit(request, service_id):
         provider=provider,
     )
 
-    if request.method == "POST":
-        form = ProviderServiceForm(request.POST, instance=service)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Service updated.")
-            return redirect("provider_services_list")
-    else:
-        form = ProviderServiceForm(instance=service)
-
-    return render(
-        request,
-        "providers/service_form.html",
-        {
-            "form": form,
-            "mode": "edit",
-            "provider": provider,
-            "service": service,
-        },
-    )
+    messages.info(request, "This legacy edit page has moved to the portal.")
+    return redirect("portal:provider_service_edit", service_id=service.id)
 
 
 @require_POST
@@ -133,4 +83,5 @@ def provider_service_toggle(request, service_id):
     service.is_active = not service.is_active
     service.save(update_fields=["is_active"])
 
-    return redirect("provider_services_list")
+    messages.info(request, "Service status updated. Manage services in the portal.")
+    return redirect("portal:provider_services")

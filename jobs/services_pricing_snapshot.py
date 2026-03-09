@@ -59,6 +59,7 @@ def apply_provider_service_snapshot_to_job(
 
     update_fields = [
         "provider_service",
+        "provider_service_name_snapshot",
         "quoted_service_skill_id",
         "quoted_base_price",
         "quoted_base_price_cents",
@@ -77,6 +78,7 @@ def apply_provider_service_snapshot_to_job(
         update_fields.append("selected_provider_id")
 
     job.provider_service = provider_service
+    job.provider_service_name_snapshot = (provider_service.custom_name or "").strip()
     job.quoted_service_skill_id = None
     job.quoted_base_price = _cents_to_money(base_cents)
     job.quoted_base_price_cents = base_cents

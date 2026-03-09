@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import (
     MarketplaceAnalyticsSnapshot,
     ProviderService,
+    ProviderServiceExtra,
+    ProviderServiceSubservice,
     Provider,
     ProviderBillingProfile,
     ProviderCertificate,
@@ -29,6 +31,16 @@ class ProviderInvoiceSequenceInline(admin.StackedInline):
     model = ProviderInvoiceSequence
     extra = 0
     max_num = 1
+
+
+class ProviderServiceSubserviceInline(admin.TabularInline):
+    model = ProviderServiceSubservice
+    extra = 0
+
+
+class ProviderServiceExtraInline(admin.TabularInline):
+    model = ProviderServiceExtra
+    extra = 0
 
 
 @admin.register(Provider)
@@ -89,6 +101,7 @@ class ProviderServiceAdmin(admin.ModelAdmin):
         "service_type__name",
     )
     list_filter = ("billing_unit", "is_active", "service_type")
+    inlines = [ProviderServiceSubserviceInline, ProviderServiceExtraInline]
 
 
 @admin.register(ProviderTicket)

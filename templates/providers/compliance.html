@@ -1,8 +1,242 @@
 {% extends "base.html" %}
 
-{% block title %}Provider Compliance{% endblock %}
+{% block title %}Compliance{% endblock %}
 
 {% block content %}
-<h2>Compliance</h2>
-<p>Coming soon.</p>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Compliance</h1>
+            <p class="text-muted mb-0">
+                Review your provider readiness and compliance-related status.
+            </p>
+        </div>
+        <a href="{% url 'provider_profile' %}" class="btn btn-outline-secondary">
+            Back to Profile
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Base Profile</h2>
+
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Phone verified</span>
+                        <strong>{% if phone_verified %}Yes{% else %}No{% endif %}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Terms acceptance status</span>
+                        <strong>{% if accepts_terms %}Accepted{% else %}Pending{% endif %}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Profile completed</span>
+                        <strong>{% if profile_completed %}Yes{% else %}No{% endif %}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-2">
+                        <span>Active service areas</span>
+                        <strong>{{ active_service_areas_count }}</strong>
+                    </div>
+
+                    {% if active_service_areas %}
+                        <div class="mt-3">
+                            <div class="small text-muted mb-2">Current active areas</div>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for area in active_service_areas %}
+                                    <span class="badge text-bg-light border">
+                                        {{ area.city }}, {{ area.province }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 mt-4">
+                        <a href="{% url 'provider_edit' %}" class="btn btn-primary btn-sm">Edit Profile</a>
+                        <a href="{% url 'provider_service_areas' %}" class="btn btn-outline-primary btn-sm">Manage Service Areas</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Payment Setup</h2>
+
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Billing completed</span>
+                        <strong>{% if billing_completed %}Yes{% else %}No{% endif %}</strong>
+                    </div>
+
+                    <div class="mt-3 text-muted">
+                        Payment and payout setup will be handled through an external provider.
+                        Sensitive payment details are not stored directly in this provider profile flow.
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="{% url 'provider_billing' %}" class="btn btn-outline-primary btn-sm">
+                            View Billing
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Insurance</h2>
+
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Has insurance</span>
+                        <strong>{% if insurance and insurance.has_insurance %}Yes{% else %}No{% endif %}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Company</span>
+                        <strong>{{ insurance.insurance_company|default:"-" }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Policy number</span>
+                        <strong>{{ insurance.policy_number|default:"-" }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Coverage amount</span>
+                        <strong>{{ insurance.coverage_amount|default:"-" }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Expiry date</span>
+                        <strong>{{ insurance.expiry_date|default:"-" }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between py-2">
+                        <span>Verification</span>
+                        <strong>
+                            {% if insurance and insurance.is_verified %}
+                                Verified
+                            {% else %}
+                                Not verified
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="{% url 'provider_insurance' %}" class="btn btn-outline-primary btn-sm">
+                            Manage Insurance
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Certificates</h2>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted">Total</div>
+                                <div class="h5 mb-0">{{ total_certificates }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted">Verified</div>
+                                <div class="h5 mb-0">{{ verified_certificates }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted">Pending / other</div>
+                                <div class="h5 mb-0">{{ pending_certificates }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted">Expired</div>
+                                <div class="h5 mb-0">{{ expired_certificates }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if certificates %}
+                        <div class="small text-muted mb-2">Recent certificates</div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Expires</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cert in certificates %}
+                                        <tr>
+                                            <td>{{ cert.cert_type|default:"-" }}</td>
+                                            <td>{{ cert.status|default:"-" }}</td>
+                                            <td>{{ cert.expires_date|default:"-" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-muted">
+                            No certificates registered yet.
+                        </div>
+                    {% endif %}
+
+                    <div class="mt-3 text-muted">
+                        Certificate requirements may vary by service type and jurisdiction.
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="{% url 'provider_certificates' %}" class="btn btn-outline-primary btn-sm">
+                            Manage Certificates
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h2 class="h5 mb-3">Operational Status</h2>
+
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>Operational</span>
+                        <strong>{% if operational %}Yes{% else %}No{% endif %}</strong>
+                    </div>
+
+                    {% if operational %}
+                        <div class="alert alert-success mt-3 mb-0">
+                            Your current provider status is operational based on the rules currently applied by the system.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning mt-3">
+                            Your provider account is not fully operational yet.
+                        </div>
+
+                        {% if operational_reasons %}
+                            <div class="small text-muted mb-2">Current known reasons</div>
+                            <ul class="mb-0">
+                                {% for reason in operational_reasons %}
+                                    <li>{{ reason }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="text-muted">
+                                Operational status may also depend on other internal rules that will be reviewed next.
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

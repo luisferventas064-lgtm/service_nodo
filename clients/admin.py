@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Client, ClientInvoiceSequence, ClientTicket
+from .models import Client, ClientInvoiceSequence, ClientServiceAddress, ClientTicket
 
 
 @admin.register(Client)
@@ -14,6 +14,31 @@ class ClientAdmin(admin.ModelAdmin):
 class ClientInvoiceSequenceAdmin(admin.ModelAdmin):
     list_display = ("client", "prefix", "next_number", "created_at")
     search_fields = ("client__email", "client__first_name", "client__last_name", "prefix")
+
+
+@admin.register(ClientServiceAddress)
+class ClientServiceAddressAdmin(admin.ModelAdmin):
+    list_display = (
+        "client",
+        "label",
+        "city",
+        "province",
+        "postal_code",
+        "is_default",
+        "is_active",
+        "updated_at",
+    )
+    search_fields = (
+        "client__email",
+        "client__first_name",
+        "client__last_name",
+        "label",
+        "city",
+        "province",
+        "postal_code",
+        "address_line1",
+    )
+    list_filter = ("is_default", "is_active", "province", "city")
 
 
 @admin.register(ClientTicket)

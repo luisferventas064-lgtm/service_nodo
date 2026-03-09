@@ -1,199 +1,462 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Provider Jobs</title>
-    <style>
-        body { font-family: Arial; background:#f5f7fa; padding:40px; }
-        .container {
-            max-width:820px;
-            margin:auto;
-            background:white;
-            padding:24px;
-            border-radius:10px;
-            box-shadow:0 3px 10px rgba(0,0,0,0.06);
-        }
-        .job {
-            padding:16px 0;
-            border-bottom:1px solid #e5e7eb;
-        }
-        .job:last-child { border-bottom:none; }
-        .lifecycle {
-            display:flex;
-            flex-wrap:wrap;
-            gap:8px;
-            margin-top:12px;
-        }
-        .lifecycle span {
-            padding: 4px 8px;
-            border-radius: 6px;
-            background: #eee;
-            font-size: 13px;
-        }
-        .lifecycle span.active {
-            background: #4CAF50;
-            color: white;
-        }
-        form {
-            margin-top:12px;
-            display:flex;
-            gap:10px;
-        }
-        button {
-            border:none;
-            border-radius:6px;
-            padding:10px 14px;
-            cursor:pointer;
-        }
-        .meta {
-            margin-top: 8px;
-            color: #4b5563;
-            font-size: 14px;
-        }
-        .timestamps {
-            margin-top: 12px;
-            font-size: 14px;
-            color: #374151;
-        }
-        .timestamps p {
-            margin: 6px 0;
-        }
-        .status-copy {
-            margin-top: 12px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-        .status-closed {
-            background-color: #f3f4f6;
-            border: 1px solid #d1d5db;
-            padding: 12px;
-            border-radius: 6px;
-            color: #111827;
-            margin-top: 12px;
-        }
-        .status-closed hr {
-            margin: 12px 0;
-            border: 0;
-            border-top: 1px solid #d1d5db;
-        }
-        .status-closed p {
-            margin: 8px 0 0;
-        }
-        .settled {
-            margin-top: 8px;
-            color: #374151;
-        }
-        .accept { background:#047857; color:white; }
-        .reject { background:#b91c1c; color:white; }
-        .start { background:#f59e0b; color:white; }
-        .complete { background:#1d4ed8; color:white; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
-<div class="container">
-    <h2>Provider Jobs</h2>
+{% block content %}
+<style>
+  .provider-jobs-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
 
-    {% if jobs %}
-        {% for job in jobs %}
-            <div class="job">
-                <p><strong>Client:</strong> {% if job.client %}{{ job.client.first_name }} {{ job.client.last_name }}{% else %}&mdash;{% endif %}</p>
-                <p><strong>Service Type:</strong> {% if job.service_type %}{{ job.service_type.name }}{% else %}&mdash;{% endif %}</p>
-                <p><strong>Mode:</strong>
-                    {% if job.is_asap %}
-                        ASAP
-                    {% else %}
-                        Scheduled
-                    {% endif %}
-                </p>
-                <p><strong>Date:</strong>
-                    {% if job.scheduled_date %}
-                        {{ job.scheduled_date }}
-                    {% else %}
-                        &mdash;
-                    {% endif %}
-                </p>
-                <p><strong>Time:</strong>
-                    {% if job.scheduled_start_time %}
-                        {{ job.scheduled_start_time }}
-                    {% else %}
-                        &mdash;
-                    {% endif %}
-                </p>
-                <p><strong>Address:</strong>
-                    {{ job.address_line1 }}, {{ job.city }}, {{ job.province }}, {{ job.postal_code }}
-                </p>
-                <div class="meta">Status: {{ job.get_job_status_display }}</div>
-                <div class="lifecycle">
-                    <span class="{% if job.job_status == 'assigned' or job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Assigned</span>
-                    <span class="{% if job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">In Progress</span>
-                    <span class="{% if job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Completed</span>
-                    <span class="{% if job.job_status == 'confirmed' %}active{% endif %}">Confirmed</span>
-                </div>
-                <div class="timestamps">
-                    <p><strong>Started at:</strong> {% if job.local_started_at %}{{ job.local_started_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
-                    <p><strong>Completed at:</strong> {% if job.local_completed_at %}{{ job.local_completed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
-                    <p><strong>Confirmed at:</strong> {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
-                </div>
+  .provider-jobs-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #16313a;
+  }
 
-                {% if job.job_status == "waiting_provider_response" %}
-                    <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
-                        {% csrf_token %}
-                        <button class="accept" name="action" value="accept">Accept</button>
-                        <button class="reject" name="action" value="reject">Reject</button>
-                    </form>
-                {% elif job.job_status == "assigned" %}
-                    <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
-                        {% csrf_token %}
-                        <button class="start" name="action" value="start">Start</button>
-                    </form>
-                {% elif job.job_status == "in_progress" %}
-                    <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
-                        {% csrf_token %}
-                        <button class="complete" name="action" value="complete">Mark as Completed</button>
-                    </form>
-                {% elif job.job_status == "completed" %}
-                    <p class="status-copy">Waiting client confirmation</p>
-                {% elif job.job_status == "confirmed" %}
-                    <div class="status-closed">
-                        <strong>Service closed.</strong><br>
-                        This service has been permanently closed.
-                        No further actions are available.
-                        <hr>
-                        <div><strong>Job Reference:</strong> {{ job.public_reference }}</div>
-                        {% if job.confirmed_event %}
-                            <div>
-                                <strong>Confirmed at:</strong>
-                                {{ job.local_confirmed_at|date:"Y-m-d H:i" }}
-                            </div>
-                            <p>
-                                {% if job.confirmed_event.note == "auto_timeout_72h" %}
-                                    Closed automatically (72h timeout)
-                                {% else %}
-                                    Closed by client
-                                {% endif %}
-                            </p>
-                        {% endif %}
-                    </div>
-                {% elif job.job_status == "cancelled" %}
-                    <div class="status-closed">
-                        <strong>Service cancelled.</strong><br>
-                        {% if job.cancel_reason == "dispute_approved" %}
-                            Cancelled - Dispute approved.
-                        {% elif job.cancel_reason == "provider_rejected" %}
-                            Cancelled - Provider rejected.
-                        {% elif job.cancel_reason == "auto_timeout" %}
-                            Cancelled - Automatic timeout.
-                        {% else %}
-                            Cancelled.
-                        {% endif %}
-                    </div>
+  .provider-jobs-subtitle {
+    color: #5f7280;
+    margin-bottom: 24px;
+  }
+
+  .jobs-grid {
+    display: grid;
+    gap: 18px;
+  }
+
+  .job-card {
+    background: #ffffff;
+    border: 1px solid #e7eef1;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(18, 46, 58, 0.06);
+  }
+
+  .job-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .job-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #16313a;
+    margin: 0 0 4px 0;
+  }
+
+  .job-reference {
+    color: #6a7f89;
+  }
+
+  .job-status {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    background: #eef8f7;
+    color: #0f8f8a;
+    white-space: nowrap;
+  }
+
+  .job-status-assigned,
+  .job-status-in-progress {
+    background: #e8f1ff;
+    color: #285ea8;
+  }
+
+  .job-status-completed,
+  .job-status-confirmed {
+    background: #eaf7ee;
+    color: #28724c;
+  }
+
+  .job-status-cancelled {
+    background: #f9ebee;
+    color: #9f4c5b;
+  }
+
+  .job-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .job-meta-box {
+    background: #f8fbfc;
+    border: 1px solid #edf3f5;
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .job-meta-label {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #79909b;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+
+  .job-meta-value {
+    color: #18343d;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .job-notes {
+    background: #fbfcfd;
+    border: 1px solid #edf3f5;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  .job-timestamps {
+    display: grid;
+    gap: 6px;
+  }
+
+  .job-requested-list {
+    display: grid;
+    gap: 6px;
+  }
+
+  .job-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .job-actions form {
+    margin: 0;
+  }
+
+  .btn-job {
+    border: none;
+    border-radius: 12px;
+    padding: 11px 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .btn-job:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-job-primary {
+    background: #0fb9b1;
+    color: #ffffff;
+  }
+
+  .btn-job-primary:hover {
+    background: #0da7a0;
+  }
+
+  .btn-job-soft {
+    background: #dff6f4;
+    color: #0a6d68;
+  }
+
+  .btn-job-soft:hover {
+    background: #cfeeee;
+  }
+
+  .btn-job-danger {
+    background: #f9d9de;
+    color: #a14b5b;
+  }
+
+  .btn-job-danger:hover {
+    background: #f4c9d1;
+  }
+
+  .empty-jobs {
+    background: #ffffff;
+    border: 1px dashed #cfe1e6;
+    border-radius: 18px;
+    padding: 28px;
+    text-align: center;
+    color: #5f7280;
+  }
+
+  @media (max-width: 720px) {
+    .job-card-top {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="provider-jobs-wrap">
+  <h1 class="provider-jobs-title">Provider Jobs</h1>
+  <p class="provider-jobs-subtitle">Review requests, confirm details, and take action.</p>
+
+  {% if jobs %}
+    <div class="jobs-grid">
+      {% for job in jobs %}
+        <div class="job-card">
+          <div class="job-card-top">
+            <div>
+              <h2 class="job-title">
+                {{ job.service_type.name|default:"Service Request" }}
+              </h2>
+              <div class="job-reference">
+                Request #{{ job.job_id }}
+                {% if job.public_reference %}
+                  &middot; {{ job.public_reference }}
                 {% endif %}
+              </div>
             </div>
-        {% endfor %}
-    {% else %}
-        <p>No jobs available.</p>
-    {% endif %}
-</div>
 
-</body>
-</html>
+            <span
+              class="job-status{% if job.job_status == 'assigned' or job.job_status == 'in_progress' %} job-status-assigned{% elif job.job_status == 'completed' or job.job_status == 'confirmed' %} job-status-completed{% elif job.job_status == 'cancelled' %} job-status-cancelled{% endif %}"
+            >
+              {{ job.get_job_status_display }}
+            </span>
+          </div>
+
+          <div class="job-meta-grid">
+            <div class="job-meta-box">
+              <span class="job-meta-label">Client</span>
+              <div class="job-meta-value">
+                {{ job.client|default:"-" }}
+              </div>
+            </div>
+
+            <div class="job-meta-box">
+              <span class="job-meta-label">Requested time</span>
+              <div class="job-meta-value">
+                {% if job.scheduled_date %}
+                  {{ job.scheduled_date|date:"M j, Y" }}
+                  {% if job.scheduled_start_time %}
+                    at {{ job.scheduled_start_time|time:"g:i A" }}
+                  {% endif %}
+                {% else %}
+                  ASAP
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="job-meta-box">
+              <span class="job-meta-label">Service mode</span>
+              <div class="job-meta-value">
+                {{ job.get_job_mode_display }}
+              </div>
+            </div>
+
+            <div class="job-meta-box">
+              <span class="job-meta-label">ASAP</span>
+              <div class="job-meta-value">
+                {% if job.is_asap %}Yes{% else %}No{% endif %}
+              </div>
+            </div>
+
+            <div class="job-meta-box">
+              <span class="job-meta-label">Estimated duration</span>
+              <div class="job-meta-value">
+                {{ job.estimated_duration_min }} min
+              </div>
+            </div>
+
+            <div class="job-meta-box">
+              <span class="job-meta-label">Postal Code</span>
+              <div class="job-meta-value">
+                {{ job.postal_code|default:"-" }}
+              </div>
+            </div>
+
+            <div class="job-meta-box">
+              <span class="job-meta-label">Main Offer</span>
+              <div class="job-meta-value">
+                {{ job.provider_service_name_display|default:"-" }}
+              </div>
+            </div>
+          </div>
+
+          <div class="job-notes">
+            <span class="job-meta-label">Pricing</span>
+            <div class="job-meta-grid">
+              <div class="job-meta-box">
+                <span class="job-meta-label">Billing Unit</span>
+                <div class="job-meta-value">
+                  {{ job.requested_billing_unit_display|default:"-" }}
+                </div>
+              </div>
+
+              <div class="job-meta-box">
+                <span class="job-meta-label">Unit Price</span>
+                <div class="job-meta-value">
+                  {% if job.requested_unit_price_snapshot != None %}
+                    ${{ job.requested_unit_price_snapshot|floatformat:2 }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="job-meta-box">
+                <span class="job-meta-label">Quantity</span>
+                <div class="job-meta-value">
+                  {% if job.requested_quantity_snapshot != None %}
+                    {{ job.requested_quantity_snapshot }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="job-meta-box">
+                <span class="job-meta-label">Base Line Total</span>
+                <div class="job-meta-value">
+                  {% if job.requested_base_line_total_snapshot != None %}
+                    ${{ job.requested_base_line_total_snapshot|floatformat:2 }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="job-meta-box">
+                <span class="job-meta-label">Estimated Total</span>
+                <div class="job-meta-value">
+                  {% if job.requested_total_snapshot != None %}
+                    ${{ job.requested_total_snapshot|floatformat:2 }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {% if job.requested_subservice_name or job.requested_extras_list or job.has_requested_pricing_snapshot %}
+            <div class="job-notes">
+              <span class="job-meta-label">Requested details</span>
+              <div class="job-requested-list">
+                <div class="job-meta-value">Main Offer: {{ job.provider_service_name_display|default:"-" }}</div>
+                {% if job.requested_subservice_name %}
+                  <div class="job-meta-value">Subservice: {{ job.requested_subservice_name }}</div>
+                {% endif %}
+                {% if job.requested_extras_list %}
+                  <div class="job-meta-value">Extras:</div>
+                  {% for requested_extra in job.requested_extras_list %}
+                    <div class="job-meta-value">
+                      {{ requested_extra.extra_name_snapshot }} x {{ requested_extra.quantity }}
+                      {% if requested_extra.unit_price_snapshot != None %}
+                        - ${{ requested_extra.unit_price_snapshot|floatformat:2 }}
+                      {% endif %}
+                      {% if requested_extra.line_total_snapshot != None %}
+                        = ${{ requested_extra.line_total_snapshot|floatformat:2 }}
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if job.local_started_at or job.local_completed_at or job.local_confirmed_at %}
+            <div class="job-notes">
+              <span class="job-meta-label">Lifecycle</span>
+              <div class="job-timestamps">
+                <div class="job-meta-value">
+                  Started at:
+                  {% if job.local_started_at %}{{ job.local_started_at|date:"M j, Y g:i A" }}{% else %}-{% endif %}
+                </div>
+                <div class="job-meta-value">
+                  Completed at:
+                  {% if job.local_completed_at %}{{ job.local_completed_at|date:"M j, Y g:i A" }}{% else %}-{% endif %}
+                </div>
+                <div class="job-meta-value">
+                  Confirmed at:
+                  {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"M j, Y g:i A" }}{% else %}-{% endif %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+          {% if job.job_status == "completed" %}
+            <div class="job-notes">
+              <span class="job-meta-label">Next step</span>
+              <div class="job-meta-value">Waiting client confirmation.</div>
+            </div>
+          {% elif job.job_status == "confirmed" %}
+            <div class="job-notes">
+              <span class="job-meta-label">Closure</span>
+              <div class="job-meta-value">
+                Service closed.
+                {% if job.confirmed_event and job.confirmed_event.note == "auto_timeout_72h" %}
+                  Closed automatically after the 72-hour timeout.
+                {% else %}
+                  Closed by client confirmation.
+                {% endif %}
+              </div>
+            </div>
+          {% elif job.job_status == "cancelled" %}
+            <div class="job-notes">
+              <span class="job-meta-label">Cancellation</span>
+              <div class="job-meta-value">
+                {% if job.cancel_reason == "dispute_approved" %}
+                  Cancelled after dispute approval.
+                {% elif job.cancel_reason == "provider_rejected" %}
+                  Cancelled because the provider declined the request.
+                {% elif job.cancel_reason == "client_cancelled" %}
+                  Cancelled by the client.
+                {% elif job.cancel_reason == "auto_timeout" %}
+                  Cancelled by automatic timeout.
+                {% else %}
+                  Cancelled.
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="job-actions">
+            {% if job.job_status == "waiting_provider_response" %}
+              <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="accept">
+                <button type="submit" class="btn-job btn-job-primary">Accept</button>
+              </form>
+
+              <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject">
+                <button type="submit" class="btn-job btn-job-danger">Decline</button>
+              </form>
+            {% endif %}
+
+            {% if job.job_status == "assigned" %}
+              <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="start">
+                <button type="submit" class="btn-job btn-job-primary">Start</button>
+              </form>
+            {% endif %}
+
+            {% if job.job_status == "in_progress" %}
+              <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="complete">
+                <button type="submit" class="btn-job btn-job-soft">Mark as Complete</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-jobs">
+      No jobs available yet.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -109,6 +109,7 @@ class Job(models.Model):
     class CancelReason(models.TextChoices):
         DISPUTE_APPROVED = "dispute_approved", "Dispute approved"
         PROVIDER_REJECTED = "provider_rejected", "Provider rejected"
+        CLIENT_CANCELLED = "client_cancelled", "Client cancelled"
         AUTO_TIMEOUT = "auto_timeout", "Auto timeout"
         SYSTEM = "system", "System action"
 
@@ -190,6 +191,8 @@ class Job(models.Model):
     city = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=20)
     address_line1 = models.CharField(max_length=255)
+    address_line2 = models.CharField(max_length=255, blank=True, default="")
+    access_notes = models.TextField(blank=True, default="")
 
     is_asap = models.BooleanField(default=True)
     scheduled_date = models.DateField(blank=True, null=True)
@@ -210,6 +213,50 @@ class Job(models.Model):
         null=True,
         blank=True,
         related_name="jobs",
+    )
+    provider_service_name_snapshot = models.CharField(max_length=255, blank=True, default="")
+    requested_subservice_name = models.CharField(max_length=150, blank=True, default="")
+    requested_subservice_id_snapshot = models.IntegerField(null=True, blank=True)
+    requested_subservice_base_price_snapshot = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    requested_subtotal_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    requested_total_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    requested_quantity_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    requested_unit_price_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    requested_billing_unit_snapshot = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+    )
+    requested_base_line_total_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
 
     quoted_service_skill_id = models.IntegerField(null=True, blank=True)
@@ -421,6 +468,43 @@ class Job(models.Model):
 
     def __str__(self):
         return f"Job {self.job_id} - {self.job_status} - {self.city}"
+
+
+class JobRequestedExtra(models.Model):
+    job = models.ForeignKey(
+        "jobs.Job",
+        on_delete=models.CASCADE,
+        related_name="requested_extras",
+    )
+    provider_service_extra = models.ForeignKey(
+        "providers.ProviderServiceExtra",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="requested_job_extras",
+    )
+    extra_name_snapshot = models.CharField(max_length=150)
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price_snapshot = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    line_total_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "job_requested_extra"
+        ordering = ("created_at", "id")
+
+    def __str__(self):
+        return f"{self.job_id} - {self.extra_name_snapshot} x {self.quantity}"
 
 
 class JobDispute(models.Model):

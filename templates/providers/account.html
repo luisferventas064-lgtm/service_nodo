@@ -1,8 +1,344 @@
 {% extends "base.html" %}
 
-{% block title %}Provider Account Settings{% endblock %}
+{% block title %}Edit Provider Profile{% endblock %}
 
 {% block content %}
-<h2>Account Settings</h2>
-<p>Coming soon.</p>
+<style>
+  .page {
+    max-width: 1100px;
+    margin: 32px auto;
+    padding: 0 20px 110px 20px;
+  }
+
+  .page-header {
+    margin-bottom: 20px;
+  }
+
+  .page-header h1 {
+    margin: 0 0 8px 0;
+    font-size: 30px;
+    color: #1F2937;
+  }
+
+  .page-header p {
+    margin: 0;
+    color: #475569;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    margin-bottom: 20px;
+  }
+
+  .card h2 {
+    margin: 0 0 14px 0;
+    font-size: 20px;
+    color: #1F2937;
+  }
+
+  .muted {
+    color: #475569;
+    margin-bottom: 16px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 28px;
+    row-gap: 16px;
+    align-items: start;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .field.full {
+    grid-column: 1 / -1;
+  }
+
+  label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1F2937;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 14px;
+    color: #1F2937;
+    background: #fff;
+    box-sizing: border-box;
+  }
+
+  input,
+  select {
+    min-height: 40px;
+  }
+
+  select {
+    appearance: auto;
+    line-height: 1.2;
+  }
+
+  textarea {
+    min-height: 96px;
+    resize: vertical;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: #0FB9B1;
+    box-shadow: 0 0 0 3px rgba(15, 185, 177, 0.14);
+  }
+
+  .check-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .check-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #475569;
+    font-size: 14px;
+  }
+
+  .check-item input {
+    width: auto;
+    margin: 0;
+    accent-color: #0FB9B1;
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background: #0FB9B1;
+    color: #fff;
+    border-color: #0FB9B1;
+  }
+
+  .btn-primary:hover {
+    background: #0F766E;
+    border-color: #0F766E;
+    color: #fff;
+  }
+
+  .btn-secondary {
+    background: #fff;
+    color: #1F2937;
+    border-color: #E5E7EB;
+  }
+
+  .btn-secondary:hover {
+    background: #F8FAFC;
+  }
+
+  .note {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748B;
+  }
+
+  @media (max-width: 1100px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Edit Provider Profile</h1>
+    <p>Update your provider account information.</p>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="card">
+      <h2>Provider Type</h2>
+      <p class="muted">Choose how your business is registered in the platform.</p>
+
+      <div class="form-grid">
+        <div class="field full">
+          <label for="provider_type">Provider Type</label>
+          <select id="provider_type" name="provider_type">
+            {% for value, label in provider_type_choices %}
+              <option value="{{ value }}" {% if provider.provider_type == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Company Information</h2>
+      <p class="muted">Business details stored directly in your provider profile.</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="company_name">Company Name</label>
+          <input type="text" id="company_name" name="company_name" value="{{ provider.company_name|default:'' }}">
+        </div>
+
+        <div class="field">
+          <label for="legal_name">Legal Name</label>
+          <input type="text" id="legal_name" name="legal_name" value="{{ provider.legal_name|default:'' }}">
+        </div>
+
+        <div class="field">
+          <label for="business_registration_number">Business Registration Number</label>
+          <input type="text" id="business_registration_number" name="business_registration_number" value="{{ provider.business_registration_number|default:'' }}">
+        </div>
+
+        <div class="field">
+          <label for="employee_count">Employee Count</label>
+          <select id="employee_count" name="employee_count">
+            <option value="">Select</option>
+            {% for value, label in employee_choices %}
+              <option value="{{ value }}" {% if provider.employee_count == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Contact Information</h2>
+      <p class="muted">Primary contact details for your account.</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="contact_first_name">Contact First Name</label>
+          <input type="text" id="contact_first_name" name="contact_first_name" value="{{ provider.contact_first_name|default:'' }}">
+        </div>
+
+        <div class="field">
+          <label for="contact_last_name">Contact Last Name</label>
+          <input type="text" id="contact_last_name" name="contact_last_name" value="{{ provider.contact_last_name|default:'' }}">
+        </div>
+
+        <div class="field">
+          <label for="phone_number">Phone Number</label>
+          <input type="text" id="phone_number" name="phone_number" value="{{ provider.phone_number|default:'' }}">
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ provider.email|default:'' }}">
+        </div>
+
+        <div class="field full">
+          <label for="languages_spoken">Languages Spoken</label>
+          <input type="text" id="languages_spoken" name="languages_spoken" value="{{ provider.languages_spoken|default:'' }}">
+          <div class="note">Example: English, French, Spanish</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Business Address</h2>
+      <p class="muted">Your main business location and service radius.</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="country">Country</label>
+          <input type="text" id="country" name="country" value="{{ provider.country|default:'Canada' }}" placeholder="Country">
+        </div>
+
+        <div class="field">
+          <label for="province">Province</label>
+          <input type="text" id="province" name="province" value="{{ provider.province|default:'' }}" placeholder="Province">
+        </div>
+
+        <div class="field">
+          <label for="city">City</label>
+          <input type="text" id="city" name="city" value="{{ provider.city|default:'' }}" placeholder="City">
+        </div>
+
+        <div class="field">
+          <label for="postal_code">Postal Code</label>
+          <input type="text" id="postal_code" name="postal_code" value="{{ provider.postal_code|default:'' }}" placeholder="Postal Code">
+        </div>
+
+        <div class="field full">
+          <label for="address_line1">Address Line 1</label>
+          <input type="text" id="address_line1" name="address_line1" value="{{ provider.address_line1|default:'' }}" placeholder="Address Line 1">
+        </div>
+
+        <div class="field">
+          <label for="service_radius_km">Service Radius (km)</label>
+          <input type="number" id="service_radius_km" name="service_radius_km" min="0" value="{{ provider.service_radius_km|default:10 }}" placeholder="Service Radius in km">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Availability</h2>
+      <p class="muted">Operational status stored directly in your provider profile.</p>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="availability_mode">Availability Mode</label>
+          <select id="availability_mode" name="availability_mode">
+            <option value="manual" {% if provider.availability_mode == "manual" %}selected{% endif %}>Manual</option>
+            <option value="auto" {% if provider.availability_mode == "auto" %}selected{% endif %}>Auto</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>&nbsp;</label>
+          <label class="check-item">
+            <input type="checkbox" name="is_available_now" value="1" {% if provider.is_available_now %}checked{% endif %}>
+            Available Now
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+      <a href="{% url 'provider_profile' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
 {% endblock %}

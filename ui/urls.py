@@ -8,6 +8,7 @@ app_name = "ui"
 urlpatterns = [
     path("", views.home, name="root_home"),
     path("home/", views.home, name="home"),
+    path("terms/", views.terms_and_conditions, name="terms_and_conditions"),
     path("signup/", views.signup, name="signup"),
     path("login/", views.login_choice, name="login"),
     path("login/", views.login_choice, name="login_choice"),

@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import random
+from types import SimpleNamespace
 
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.hashers import check_password
@@ -31,11 +33,10 @@ from clients.models import Client
 from core.auth_session import clear_session, require_role, set_session
 from core.utils.phone import best_effort_normalize_phone, phone_lookup_candidates
 from jobs import services as job_services
-from jobs.models import Job, JobDispute, JobEvent, PlatformLedgerEntry
+from jobs.models import Job, JobDispute, JobEvent, JobRequestedExtra, PlatformLedgerEntry
 from jobs.services_pricing_snapshot import apply_provider_service_snapshot_to_job
 from jobs.services_lifecycle import accept_job_by_provider
-from providers.models import Provider
-from providers.models import ProviderService
+from providers.models import Provider, ProviderService, ProviderServiceExtra
 from providers.models import ProviderTicket
 from providers.services_analytics import (
     marketplace_analytics_snapshot,
@@ -73,6 +74,22 @@ MARKETPLACE_LANGUAGE_CHOICES = (
     "Punjabi",
     "Vietnamese",
 )
+REQUEST_MONEY_Q = Decimal("0.01")
+FRIENDLY_JOB_STATUS_LABELS = {
+    Job.JobStatus.DRAFT: "Draft",
+    Job.JobStatus.POSTED: "Looking for a provider",
+    Job.JobStatus.WAITING_PROVIDER_RESPONSE: "Waiting for provider reply",
+    Job.JobStatus.PENDING_CLIENT_DECISION: "Waiting for your decision",
+    Job.JobStatus.HOLD: "Temporarily on hold",
+    Job.JobStatus.PENDING_PROVIDER_CONFIRMATION: "Waiting for provider confirmation",
+    Job.JobStatus.PENDING_CLIENT_CONFIRMATION: "Waiting for your confirmation",
+    Job.JobStatus.ASSIGNED: "Provider assigned",
+    Job.JobStatus.IN_PROGRESS: "Service in progress",
+    Job.JobStatus.COMPLETED: "Completed by provider",
+    Job.JobStatus.CONFIRMED: "Service closed",
+    Job.JobStatus.CANCELLED: "Cancelled",
+    Job.JobStatus.EXPIRED: "Expired",
+}
 
 
 def _marketplace_service_types(*, limit=20):
@@ -108,6 +125,10 @@ def home(request):
             ),
         },
     )
+
+
+def terms_and_conditions(request):
+    return render(request, "ui/terms_and_conditions.html")
 
 
 def portal_view(request):
@@ -855,13 +876,190 @@ def marketplace_results_view(request):
     )
 
 
+def _resolve_request_offer(*, provider, service_type_id="", provider_service_id=""):
+    offers_qs = (
+        ProviderService.objects.select_related("service_type")
+        .filter(provider=provider, is_active=True, service_type__is_active=True)
+    )
+    if provider_service_id:
+        return offers_qs.filter(pk=provider_service_id).first()
+    if service_type_id:
+        return offers_qs.filter(service_type_id=service_type_id).order_by("price_cents", "id").first()
+    return offers_qs.order_by("price_cents", "id").first()
+
+
+def _get_request_catalog(*, selected_offer):
+    if selected_offer is None:
+        return [], []
+
+    subservices = list(
+        selected_offer.subservices.filter(is_active=True).order_by("sort_order", "id")
+    )
+
+    real_extras = list(
+        selected_offer.extras.filter(is_active=True).order_by("sort_order", "id")
+    )
+
+    if real_extras:
+        return subservices, real_extras
+
+    addon_offers = list(
+        ProviderService.objects.filter(
+            provider=selected_offer.provider,
+            service_type=selected_offer.service_type,
+            is_active=True,
+            custom_name__istartswith="ADDON:",
+        )
+        .exclude(pk=selected_offer.pk)
+        .order_by("price_cents", "id")
+    )
+
+    fallback_extras = []
+    for addon in addon_offers:
+        fallback_extras.append(
+            SimpleNamespace(
+                id=addon.pk,
+                pk=addon.pk,
+                name=addon.custom_name.replace("ADDON:", "", 1).strip(),
+                unit_price=(Decimal(addon.price_cents) / Decimal("100")),
+                is_active=True,
+                allows_quantity=True,
+                min_qty=1,
+                max_qty=10,
+                sort_order=0,
+                is_provider_service_fallback=True,
+                provider_service=addon,
+            )
+        )
+
+    return subservices, fallback_extras
+
+
+def _build_request_extra_options(*, extras, selected_ids=None, selected_quantities=None):
+    selected_ids = set(selected_ids or [])
+    selected_quantities = selected_quantities or {}
+    options = []
+    for extra in extras:
+        extra_id = str(extra.pk)
+        options.append(
+            {
+                "extra": extra,
+                "selected": extra_id in selected_ids,
+                "quantity": selected_quantities.get(extra_id, "1"),
+            }
+        )
+    return options
+
+
+def _request_money(value) -> Decimal:
+    return Decimal(value).quantize(REQUEST_MONEY_Q, rounding=ROUND_HALF_UP)
+
+
+def _provider_service_money(provider_service) -> Decimal:
+    return _request_money(Decimal(provider_service.price_cents) / Decimal("100"))
+
+
+def _resolve_requested_base_price(*, selected_offer, selected_subservice) -> Decimal:
+    if selected_subservice is not None:
+        subservice_base_price = _request_money(selected_subservice.base_price or Decimal("0.00"))
+        if subservice_base_price > Decimal("0.00"):
+            return subservice_base_price
+    if selected_offer is None:
+        return _request_money(Decimal("0.00"))
+    return _provider_service_money(selected_offer)
+
+
+def _build_request_pricing_snapshot(
+    *,
+    selected_offer,
+    selected_subservice,
+    requested_quantity,
+    selected_requested_extras,
+):
+    base_unit_price = _resolve_requested_base_price(
+        selected_offer=selected_offer,
+        selected_subservice=selected_subservice,
+    )
+    base_line_total = _request_money(base_unit_price * requested_quantity)
+    priced_extras = []
+    extras_total = Decimal("0.00")
+
+    for extra, quantity in selected_requested_extras:
+        unit_price = _request_money(extra.unit_price or Decimal("0.00"))
+        line_total = _request_money(unit_price * quantity)
+        extras_total += line_total
+        priced_extras.append(
+            {
+                "extra": extra,
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "line_total": line_total,
+            }
+        )
+
+    subtotal = _request_money(base_line_total + extras_total)
+    total = subtotal
+    return {
+        "base_unit_price": base_unit_price,
+        "requested_quantity": requested_quantity,
+        "base_line_total": base_line_total,
+        "subtotal": subtotal,
+        "total": total,
+        "priced_extras": priced_extras,
+    }
+
+
+def _friendly_job_status_label(status: str) -> str:
+    return FRIENDLY_JOB_STATUS_LABELS.get(status, status.replace("_", " ").title())
+
+
+def _billing_unit_display(value: str) -> str:
+    if not value:
+        return ""
+    return dict(ProviderService.BILLING_UNIT_CHOICES).get(value, value)
+
+
 def request_create_view(request, provider_id):
     provider = get_object_or_404(Provider, pk=provider_id, is_active=True)
-    service_types = ServiceType.objects.filter(is_active=True).order_by("name")
+    provider_offers = list(
+        ProviderService.objects.select_related("service_type")
+        .filter(provider=provider, is_active=True, service_type__is_active=True)
+        .order_by("service_type__name", "price_cents", "id")
+    )
+    service_options = []
+    offers_by_service_type = {}
+
+    for offer in provider_offers:
+        service_type_key = str(offer.service_type_id)
+        if service_type_key not in offers_by_service_type:
+            offers_by_service_type[service_type_key] = {
+                "service_type": offer.service_type,
+                "offers": [],
+            }
+
+        offers_by_service_type[service_type_key]["offers"].append(
+            {
+                "id": str(offer.pk),
+                "custom_name": offer.custom_name,
+                "price_display": offer.price_cents / 100,
+                "billing_unit": (
+                    offer.get_billing_unit_display()
+                    if hasattr(offer, "get_billing_unit_display")
+                    else offer.billing_unit
+                ),
+            }
+        )
+
+    service_options = list(offers_by_service_type.values())
     service_type_id = (
         request.POST.get("service_type")
         or request.POST.get("service_type_id")
         or request.GET.get("service_type_id")
+        or ""
+    ).strip()
+    provider_service_id = (
+        request.POST.get("provider_service_id")
+        or request.GET.get("provider_service_id")
         or ""
     ).strip()
     client_id = request.session.get("client_id")
@@ -870,29 +1068,19 @@ def request_create_view(request, provider_id):
         request.session.pop("client_id", None)
     client_authenticated = bool(session_client)
 
-    selected_offer = (
-        ProviderService.objects.select_related("service_type")
-        .filter(
-            provider=provider,
-            is_active=True,
-        )
-        .order_by("price_cents", "id")
-        .first()
+    selected_offer = _resolve_request_offer(
+        provider=provider,
+        service_type_id=service_type_id,
+        provider_service_id=provider_service_id,
     )
-    if service_type_id:
-        selected_offer = (
-            ProviderService.objects.select_related("service_type")
-            .filter(
-                provider=provider,
-                service_type_id=service_type_id,
-                is_active=True,
-            )
-            .order_by("price_cents", "id")
-            .first()
-            or selected_offer
-        )
     if selected_offer is not None:
+        if not service_type_id:
+            service_type_id = str(selected_offer.service_type_id)
+        provider_service_id = str(selected_offer.pk)
         selected_offer.display_price = selected_offer.price_cents / 100
+    request_subservices, request_extras = _get_request_catalog(selected_offer=selected_offer)
+    request_extra_options = _build_request_extra_options(extras=request_extras)
+
     compliance_blocked = bool(selected_offer and not selected_offer.is_compliant)
     compliance_error = (
         "This service cannot be requested until provider compliance is complete."
@@ -907,6 +1095,14 @@ def request_create_view(request, provider_id):
         "postal_code": getattr(session_client, "postal_code", None) or "",
         "address_line1": getattr(session_client, "address_line1", None) or "",
         "job_mode": Job.JobMode.ON_DEMAND,
+        "scheduled_date": "",
+        "scheduled_start_time": "",
+        "service_type": service_type_id,
+        "provider_service_id": provider_service_id,
+        "requested_quantity": "1",
+        "requested_subservice_id": "",
+        "selected_extra_ids": [],
+        "selected_extra_quantities": {},
     }
     if session_client is None:
         default_form_data.update(
@@ -924,7 +1120,7 @@ def request_create_view(request, provider_id):
             "request/create.html",
             {
                 "provider": provider,
-                "service_types": service_types,
+                "service_options": service_options,
                 "selected_offer": selected_offer,
                 "service_type_id": service_type_id,
                 "form_data": default_form_data,
@@ -932,8 +1128,22 @@ def request_create_view(request, provider_id):
                 "client_authenticated": client_authenticated,
                 "compliance_blocked": compliance_blocked,
                 "error": compliance_error,
+                "request_subservices": request_subservices,
+                "request_extra_options": request_extra_options,
             },
         )
+
+    selected_extra_quantities = {
+        key.replace("extra_qty_", "", 1): (value or "").strip()
+        for key, value in request.POST.items()
+        if key.startswith("extra_qty_")
+    }
+    selected_extra_ids = [
+        value.strip()
+        for value in request.POST.getlist("selected_extras")
+        if (value or "").strip()
+    ]
+    raw_requested_quantity = request.POST.get("requested_quantity")
 
     if session_client is not None:
         form_data = {
@@ -947,6 +1157,13 @@ def request_create_view(request, provider_id):
             "postal_code": session_client.postal_code,
             "address_line1": session_client.address_line1,
             "service_type": (request.POST.get("service_type") or "").strip(),
+            "provider_service_id": (request.POST.get("provider_service_id") or "").strip(),
+            "requested_quantity": (
+                raw_requested_quantity if raw_requested_quantity is not None else "1"
+            ).strip(),
+            "requested_subservice_id": (request.POST.get("requested_subservice_id") or "").strip(),
+            "selected_extra_ids": selected_extra_ids,
+            "selected_extra_quantities": selected_extra_quantities,
             "job_mode": (request.POST.get("job_mode") or Job.JobMode.ON_DEMAND).strip(),
             "scheduled_date": (request.POST.get("scheduled_date") or "").strip(),
             "scheduled_start_time": (request.POST.get("scheduled_time") or "").strip(),
@@ -963,6 +1180,13 @@ def request_create_view(request, provider_id):
             "postal_code": (request.POST.get("postal_code") or "").strip(),
             "address_line1": (request.POST.get("address_line1") or "").strip(),
             "service_type": (request.POST.get("service_type") or "").strip(),
+            "provider_service_id": (request.POST.get("provider_service_id") or "").strip(),
+            "requested_quantity": (
+                raw_requested_quantity if raw_requested_quantity is not None else "1"
+            ).strip(),
+            "requested_subservice_id": (request.POST.get("requested_subservice_id") or "").strip(),
+            "selected_extra_ids": selected_extra_ids,
+            "selected_extra_quantities": selected_extra_quantities,
             "job_mode": (request.POST.get("job_mode") or Job.JobMode.ON_DEMAND).strip(),
             "scheduled_date": (request.POST.get("scheduled_date") or "").strip(),
             "scheduled_start_time": (request.POST.get("scheduled_time") or "").strip(),
@@ -993,6 +1217,22 @@ def request_create_view(request, provider_id):
     ):
         error = "Scheduled mode requires date and time."
 
+    requested_quantity_decimal = None
+    if error is None:
+        if not form_data["requested_quantity"]:
+            error = "Quantity is required."
+        else:
+            try:
+                requested_quantity_decimal = Decimal(form_data["requested_quantity"])
+            except (TypeError, ValueError, InvalidOperation):
+                error = "Invalid quantity."
+
+    if error is None and requested_quantity_decimal <= Decimal("0"):
+        error = "Quantity must be greater than zero."
+
+    if error is None:
+        requested_quantity_decimal = _request_money(requested_quantity_decimal)
+
     service_type = None
     if error is None:
         service_type = ServiceType.objects.filter(
@@ -1003,22 +1243,89 @@ def request_create_view(request, provider_id):
             error = "Invalid service type."
 
     if error is None:
-        selected_offer = (
-            ProviderService.objects.select_related("service_type")
-            .filter(
+        if form_data["provider_service_id"]:
+            selected_offer = _resolve_request_offer(
                 provider=provider,
-                service_type=service_type,
-                is_active=True,
+                provider_service_id=form_data["provider_service_id"],
             )
-            .order_by("price_cents", "id")
-            .first()
-        )
-        if selected_offer is None:
-            error = "Provider must have an active priced service for this service type."
-        elif not selected_offer.is_compliant:
-            error = "This service cannot be requested until provider compliance is complete."
+            if selected_offer is None:
+                error = "Invalid provider service."
+            elif str(selected_offer.service_type_id) != form_data["service_type"]:
+                error = "Invalid provider service for this service type."
         else:
-            selected_offer.display_price = selected_offer.price_cents / 100
+            selected_offer = _resolve_request_offer(
+                provider=provider,
+                service_type_id=form_data["service_type"],
+            )
+
+        if error is None:
+            if selected_offer is None:
+                error = "Provider must have an active priced service for this service type."
+            elif not selected_offer.is_compliant:
+                error = "This service cannot be requested until provider compliance is complete."
+            else:
+                selected_offer.display_price = selected_offer.price_cents / 100
+                form_data["provider_service_id"] = str(selected_offer.pk)
+
+    request_subservices, request_extras = _get_request_catalog(selected_offer=selected_offer)
+    request_extra_options = _build_request_extra_options(
+        extras=request_extras,
+        selected_ids=form_data["selected_extra_ids"],
+        selected_quantities=form_data["selected_extra_quantities"],
+    )
+
+    selected_subservice = None
+    selected_requested_extras = []
+    request_pricing_snapshot = None
+    if error is None:
+        subservices_by_id = {str(item.pk): item for item in request_subservices}
+        extras_by_id = {str(item.pk): item for item in request_extras}
+
+        if request_subservices and not form_data["requested_subservice_id"]:
+            error = "Select a subservice."
+        elif form_data["requested_subservice_id"]:
+            selected_subservice = subservices_by_id.get(form_data["requested_subservice_id"])
+            if selected_subservice is None:
+                error = "Invalid subservice."
+
+        if error is None:
+            seen_extra_ids = set()
+            for extra_id in form_data["selected_extra_ids"]:
+                if extra_id in seen_extra_ids:
+                    continue
+                seen_extra_ids.add(extra_id)
+
+                extra = extras_by_id.get(extra_id)
+                if extra is None:
+                    error = "Invalid extra selection."
+                    break
+
+                quantity_raw = form_data["selected_extra_quantities"].get(extra_id, "")
+                if extra.allows_quantity:
+                    if quantity_raw == "":
+                        quantity = 1
+                    else:
+                        try:
+                            quantity = int(quantity_raw)
+                        except (TypeError, ValueError):
+                            error = f"Invalid quantity for {extra.name}."
+                            break
+
+                    if quantity < extra.min_qty or quantity > extra.max_qty:
+                        error = f"Invalid quantity for {extra.name}."
+                        break
+                else:
+                    quantity = 1
+
+                selected_requested_extras.append((extra, quantity))
+
+        if error is None:
+            request_pricing_snapshot = _build_request_pricing_snapshot(
+                selected_offer=selected_offer,
+                selected_subservice=selected_subservice,
+                requested_quantity=requested_quantity_decimal,
+                selected_requested_extras=selected_requested_extras,
+            )
 
     compliance_blocked = bool(selected_offer and not selected_offer.is_compliant)
 
@@ -1073,11 +1380,59 @@ def request_create_view(request, provider_id):
                     postal_code=form_data["postal_code"],
                     address_line1=form_data["address_line1"],
                     job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                    provider_service_name_snapshot=(
+                        selected_offer.custom_name if selected_offer else ""
+                    ),
+                    requested_subservice_name=(
+                        selected_subservice.name if selected_subservice else ""
+                    ),
+                    requested_subservice_id_snapshot=(
+                        int(selected_subservice.pk) if selected_subservice else None
+                    ),
+                    requested_subservice_base_price_snapshot=(
+                        request_pricing_snapshot["base_unit_price"] if request_pricing_snapshot else None
+                    ),
+                    requested_quantity_snapshot=(
+                        request_pricing_snapshot["requested_quantity"] if request_pricing_snapshot else None
+                    ),
+                    requested_unit_price_snapshot=(
+                        request_pricing_snapshot["base_unit_price"] if request_pricing_snapshot else None
+                    ),
+                    requested_billing_unit_snapshot=(
+                        selected_offer.billing_unit if selected_offer else ""
+                    ),
+                    requested_base_line_total_snapshot=(
+                        request_pricing_snapshot["base_line_total"] if request_pricing_snapshot else None
+                    ),
+                    requested_subtotal_snapshot=(
+                        request_pricing_snapshot["subtotal"] if request_pricing_snapshot else None
+                    ),
+                    requested_total_snapshot=(
+                        request_pricing_snapshot["total"] if request_pricing_snapshot else None
+                    ),
                 )
                 apply_provider_service_snapshot_to_job(
                     job=created_job,
                     provider_service=selected_offer,
                 )
+                if request_pricing_snapshot and request_pricing_snapshot["priced_extras"]:
+                    JobRequestedExtra.objects.bulk_create(
+                        [
+                            JobRequestedExtra(
+                                job=created_job,
+                                provider_service_extra=(
+                                    item["extra"]
+                                    if isinstance(item["extra"], ProviderServiceExtra)
+                                    else None
+                                ),
+                                extra_name_snapshot=item["extra"].name,
+                                quantity=item["quantity"],
+                                unit_price_snapshot=item["unit_price"],
+                                line_total_snapshot=item["line_total"],
+                            )
+                            for item in request_pricing_snapshot["priced_extras"]
+                        ]
+                    )
         except PermissionError as exc:
             return HttpResponseForbidden(str(exc))
         except ValidationError as exc:
@@ -1089,7 +1444,7 @@ def request_create_view(request, provider_id):
             "request/create.html",
             {
                 "provider": provider,
-                "service_types": service_types,
+                "service_options": service_options,
                 "selected_offer": selected_offer,
                 "service_type_id": service_type_id,
                 "form_data": form_data,
@@ -1097,6 +1452,8 @@ def request_create_view(request, provider_id):
                 "client": session_client,
                 "client_authenticated": client_authenticated,
                 "compliance_blocked": compliance_blocked,
+                "request_subservices": request_subservices,
+                "request_extra_options": request_extra_options,
             },
         )
 
@@ -1130,6 +1487,37 @@ def _attach_job_lifecycle_details(job):
     job.active_assignment = active_assignment
     job.confirmed_event = confirmed_event
     job.display_provider = job.selected_provider or getattr(active_assignment, "provider", None)
+    prefetched_requested_extras = getattr(job, "_prefetched_objects_cache", {}).get(
+        "requested_extras"
+    )
+    if prefetched_requested_extras is None:
+        job.requested_extras_list = list(job.requested_extras.all())
+    else:
+        job.requested_extras_list = list(prefetched_requested_extras)
+    for requested_extra in job.requested_extras_list:
+        requested_extra.has_price_snapshot = (
+            requested_extra.unit_price_snapshot is not None
+            or requested_extra.line_total_snapshot is not None
+        )
+    job.friendly_status_label = _friendly_job_status_label(job.job_status)
+    job.provider_service_name_display = (
+        (job.provider_service_name_snapshot or "").strip()
+        or getattr(getattr(job, "provider_service", None), "custom_name", "")
+    )
+    job.requested_billing_unit_display = _billing_unit_display(
+        job.requested_billing_unit_snapshot
+    )
+    job.has_requested_pricing_snapshot = any(
+        value is not None
+        for value in (
+            job.requested_subservice_base_price_snapshot,
+            job.requested_quantity_snapshot,
+            job.requested_unit_price_snapshot,
+            job.requested_base_line_total_snapshot,
+            job.requested_subtotal_snapshot,
+            job.requested_total_snapshot,
+        )
+    )
     return job
 
 
@@ -1137,6 +1525,40 @@ def request_status_view(request, job_id):
     if request.method == "POST":
         job = get_object_or_404(Job, pk=job_id)
         action = request.POST.get("action")
+
+        if action == "cancel_request":
+            if job.job_status not in {
+                Job.JobStatus.POSTED,
+                Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                Job.JobStatus.ASSIGNED,
+            }:
+                messages.error(request, "This request can no longer be cancelled.")
+                return redirect("ui:request_status", job_id=job.job_id)
+
+            with transaction.atomic():
+                active_assignment = (
+                    job.assignments
+                    .filter(is_active=True)
+                    .order_by("-created_at")
+                    .first()
+                )
+
+                if active_assignment:
+                    active_assignment.assignment_status = "cancelled"
+                    active_assignment.is_active = False
+                    active_assignment.save(
+                        update_fields=["assignment_status", "is_active", "updated_at"]
+                    )
+
+                job.job_status = Job.JobStatus.CANCELLED
+                job.cancelled_by = Job.CancellationActor.CLIENT
+                job.cancel_reason = Job.CancelReason.CLIENT_CANCELLED
+                job.save(
+                    update_fields=["job_status", "cancelled_by", "cancel_reason", "updated_at"]
+                )
+
+            messages.success(request, "Request cancelled successfully.")
+            return redirect("ui:request_status", job_id=job.job_id)
 
         if action != "confirm_close":
             return HttpResponseBadRequest("Accion invalida.")
@@ -1160,7 +1582,12 @@ def request_status_view(request, job_id):
         return redirect("ui:request_status", job_id=job.job_id)
 
     job = get_object_or_404(
-        Job.objects.select_related("selected_provider", "client", "service_type"),
+        Job.objects.select_related(
+            "selected_provider",
+            "client",
+            "service_type",
+            "provider_service",
+        ).prefetch_related("requested_extras"),
         pk=job_id,
     )
     _attach_job_lifecycle_details(job)
@@ -1194,7 +1621,8 @@ def provider_jobs_view(request):
                 Job.JobStatus.CANCELLED,
             ]
         )
-        .select_related("client", "service_type")
+        .select_related("client", "service_type", "provider_service")
+        .prefetch_related("requested_extras")
         .distinct()
         .order_by("created_at")
     )
@@ -1262,9 +1690,31 @@ def provider_job_action_view(request, job_id):
     elif action == "reject":
         if job.job_status != Job.JobStatus.WAITING_PROVIDER_RESPONSE:
             return HttpResponseForbidden("Invalid status.")
-        job.job_status = Job.JobStatus.POSTED
-        job.selected_provider = None
-        job.save(update_fields=["job_status", "selected_provider", "updated_at"])
+        provider = Provider.objects.get(pk=provider_id)
+        with transaction.atomic():
+            active_assignment = (
+                job.assignments
+                .filter(provider=provider, is_active=True)
+                .order_by("-created_at")
+                .first()
+            )
+
+            if active_assignment:
+                active_assignment.assignment_status = "cancelled"
+                active_assignment.is_active = False
+                active_assignment.save(
+                    update_fields=["assignment_status", "is_active", "updated_at"]
+                )
+
+            job.job_status = Job.JobStatus.POSTED
+            job.cancelled_by = Job.CancellationActor.PROVIDER
+            job.cancel_reason = Job.CancelReason.PROVIDER_REJECTED
+            job.save(
+                update_fields=["job_status", "cancelled_by", "cancel_reason", "updated_at"]
+            )
+
+        messages.success(request, "Request declined.")
+        return redirect("ui:provider_jobs")
     else:
         return HttpResponseBadRequest("Accion invalida.")
 

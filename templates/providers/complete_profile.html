@@ -4,247 +4,511 @@
 
 {% block content %}
 <style>
-  .nodo-section { margin: 24px 0; }
-  .table { border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; }
-  .table-head, .table-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; padding: 10px 12px; align-items: center; }
-  .table-head { background: #F8FAFC; font-size: 12px; color: #64748B; font-weight: 600; }
-  .table-row { border-top: 1px solid #E2E8F0; }
-  .right { text-align: right; }
-  .btn-secondary { background: #F8FAFC; }
-</style>
-<div class="container page">
-  <div class="card" style="max-width:760px;margin:auto;">
-    <h1 class="card-title">Complete Your Profile</h1>
-    <p class="muted">Add required details to activate your provider account.</p>
-
-    {% if form.non_field_errors %}
-      {% for error in form.non_field_errors %}
-        <p style="color:#991B1B;">{{ error }}</p>
-      {% endfor %}
-    {% endif %}
-
-    <div class="nodo-section">
-      <h3>Service areas</h3>
-      <p class="muted">Add the cities where you offer services. You can add multiple.</p>
-
-      <form method="post" style="margin-bottom: 14px;">
-        {% csrf_token %}
-        <input type="hidden" name="area_action" value="add" />
-
-        <label for="area_province">Province</label>
-        <select name="area_province" id="area_province">
-          <option value="">Select province</option>
-          <option value="QC">Quebec (QC)</option>
-          <option value="ON">Ontario (ON)</option>
-          <option value="BC">British Columbia (BC)</option>
-          <option value="AB">Alberta (AB)</option>
-          <option value="MB">Manitoba (MB)</option>
-          <option value="SK">Saskatchewan (SK)</option>
-          <option value="NS">Nova Scotia (NS)</option>
-          <option value="NB">New Brunswick (NB)</option>
-          <option value="NL">Newfoundland and Labrador (NL)</option>
-          <option value="PE">Prince Edward Island (PE)</option>
-          <option value="NT">Northwest Territories (NT)</option>
-          <option value="NU">Nunavut (NU)</option>
-          <option value="YT">Yukon (YT)</option>
-        </select>
-
-        <label for="area_city" style="margin-top:10px;">City</label>
-        <select name="area_city" id="area_city">
-          <option value="">Select city</option>
-          <option value="OTHER">Other (type)</option>
-        </select>
-
-        <div id="area_city_other_wrap" style="display:none; margin-top:10px;">
-          <label for="area_city_other">If other, type city</label>
-          <input type="text" name="area_city_other" id="area_city_other" maxlength="100" />
-        </div>
-
-        <div style="margin-top:12px;">
-          <button class="btn" type="submit">Add area</button>
-        </div>
-      </form>
-
-      {% if areas %}
-        <div class="nodo-section">
-          <h4>Added areas</h4>
-          <div class="table">
-            <div class="table-head">
-              <div>City</div>
-              <div>Province</div>
-              <div></div>
-            </div>
-
-            {% for a in areas %}
-              <div class="table-row">
-                <div>{{ a.city }}</div>
-                <div>{{ a.province }}</div>
-                <div class="right">
-                  <form method="post" style="display:inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="area_action" value="remove" />
-                    <input type="hidden" name="area_id" value="{{ a.provider_service_area_id }}" />
-                    <button class="btn btn-secondary" type="submit">Remove</button>
-                  </form>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      {% else %}
-        <p class="muted">No areas added yet.</p>
-      {% endif %}
-    </div>
-
-    <form method="post" novalidate>
-      {% csrf_token %}
-      {% if form.service_area %}{{ form.service_area.as_hidden }}{% endif %}
-
-      {% if form.legal_name %}
-        <label for="{{ form.legal_name.id_for_label }}">Legal name</label>
-        {{ form.legal_name }}
-        {% if form.legal_name.errors %}
-          <p style="color:#991B1B;">{{ form.legal_name.errors }}</p>
-        {% endif %}
-      {% endif %}
-
-      {% if form.contact_person_name %}
-        <label for="{{ form.contact_person_name.id_for_label }}">Contact person name</label>
-        {{ form.contact_person_name }}
-        {% if form.contact_person_name.errors %}
-          <p style="color:#991B1B;">{{ form.contact_person_name.errors }}</p>
-        {% endif %}
-      {% endif %}
-
-      {% if form.company_name %}
-        <label for="{{ form.company_name.id_for_label }}">Company name</label>
-        {{ form.company_name }}
-        {% if form.company_name.errors %}
-          <p style="color:#991B1B;">{{ form.company_name.errors }}</p>
-        {% endif %}
-      {% endif %}
-
-      {% if form.business_registration_number %}
-        <label for="{{ form.business_registration_number.id_for_label }}">Business registration number</label>
-        {{ form.business_registration_number }}
-        {% if form.business_registration_number.errors %}
-          <p style="color:#991B1B;">{{ form.business_registration_number.errors }}</p>
-        {% endif %}
-      {% endif %}
-
-      {% if form.employee_count %}
-        <label for="{{ form.employee_count.id_for_label }}">Team size</label>
-        {{ form.employee_count }}
-        {% if form.employee_count.errors %}
-          <p style="color:#991B1B;">{{ form.employee_count.errors }}</p>
-        {% endif %}
-      {% endif %}
-
-      <div style="margin-bottom:25px;text-align:left;">
-        <label>Languages spoken</label>
-        {% with selected_languages=form.languages_spoken.value %}
-          <div class="language-grid">
-            {% for value, label in form.fields.languages_spoken.choices %}
-              <label>
-                <input
-                  type="checkbox"
-                  name="languages_spoken"
-                  value="{{ value }}"
-                  {% if selected_languages and value in selected_languages %}checked{% endif %}
-                >
-                {{ label }}
-              </label>
-            {% endfor %}
-          </div>
-        {% endwith %}
-        {% if form.languages_spoken.errors %}
-          <p style="color:#991B1B;">{{ form.languages_spoken.errors }}</p>
-        {% endif %}
-      </div>
-
-      <div style="margin-bottom:20px;">
-        <label>
-          <input type="checkbox" name="accepts_terms" {% if form.accepts_terms.value %}checked{% endif %}>
-          I accept the terms.
-        </label>
-        {% if form.accepts_terms.errors %}
-          <p style="color:#991B1B;">{{ form.accepts_terms.errors }}</p>
-        {% endif %}
-      </div>
-
-      <button class="btn primary" type="submit">Continue</button>
-    </form>
-  </div>
-</div>
-<script id="1zlmj2">
-(function(){
-  const provinceEl = document.getElementById("area_province");
-  const cityEl = document.getElementById("area_city");
-  const otherWrap = document.getElementById("area_city_other_wrap");
-  const otherInput = document.getElementById("area_city_other");
-
-  const citiesByProvince = {
-    "QC": [
-      "Laval",
-      "Montreal",
-      "Longueuil",
-      "Quebec City",
-      "Gatineau",
-      "Sherbrooke",
-      "Terrebonne",
-      "Saint-Jerome",
-      "Brossard",
-      "Repentigny"
-    ],
-    "ON": [
-      "Toronto",
-      "Ottawa",
-      "Mississauga",
-      "Brampton",
-      "Hamilton"
-    ]
-  };
-
-  function resetCityOptions(items){
-    cityEl.innerHTML = "";
-    const opt0 = document.createElement("option");
-    opt0.value = "";
-    opt0.textContent = "Select city";
-    cityEl.appendChild(opt0);
-
-    (items || []).forEach(function(name) {
-      const option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
-      cityEl.appendChild(option);
-    });
-
-    const otherOpt = document.createElement("option");
-    otherOpt.value = "OTHER";
-    otherOpt.textContent = "Other (type)";
-    cityEl.appendChild(otherOpt);
+  .page {
+    max-width: 980px;
+    margin: 32px auto;
+    padding: 0 16px 100px 16px;
   }
 
-  function syncOther(){
-    if (cityEl.value === "OTHER") {
-      otherWrap.style.display = "block";
-      otherInput.focus();
-    } else {
-      otherWrap.style.display = "none";
-      otherInput.value = "";
+  .page-header {
+    margin-bottom: 20px;
+  }
+
+  .page-header h1 {
+    margin: 0 0 8px 0;
+    font-size: 30px;
+    color: #1F2937;
+  }
+
+  .page-header p {
+    margin: 0;
+    color: #475569;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    margin-bottom: 20px;
+  }
+
+  .card h2 {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    color: #1F2937;
+  }
+
+  .muted {
+    color: #475569;
+    margin-bottom: 14px;
+  }
+
+  .flash {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+    font-size: 14px;
+  }
+
+  .flash-success {
+    background: rgba(16, 185, 129, 0.10);
+    border-color: rgba(16, 185, 129, 0.22);
+    color: #047857;
+  }
+
+  .flash-info {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+    color: #334155;
+  }
+
+  .flash-error {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.18);
+    color: #B91C1C;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .status-item {
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+    padding: 14px;
+    background: #F8FAFC;
+  }
+
+  .status-label {
+    color: #64748B;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .status-value {
+    color: #1F2937;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .notice {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid #E5E7EB;
+  }
+
+  .notice-warning {
+    background: #FFF7ED;
+    border-color: #FED7AA;
+    color: #9A3412;
+  }
+
+  .notice-success {
+    background: rgba(16, 185, 129, 0.10);
+    border-color: rgba(16, 185, 129, 0.22);
+    color: #047857;
+  }
+
+  .missing-list {
+    margin: 8px 0 0 18px;
+    padding: 0;
+  }
+
+  .checklist {
+    display: grid;
+    gap: 14px;
+  }
+
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+    background: #fff;
+  }
+
+  .check-copy {
+    min-width: 0;
+  }
+
+  .check-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1F2937;
+    margin-bottom: 4px;
+  }
+
+  .check-description {
+    color: #475569;
+    font-size: 14px;
+  }
+
+  .check-detail {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .terms-panel {
+    margin-top: 14px;
+    padding: 16px;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    background: #F8FAFC;
+  }
+
+  .terms-form {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+  }
+
+  .terms-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: #1F2937;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .terms-label input {
+    margin-top: 3px;
+  }
+
+  .terms-link {
+    color: #0F766E;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .terms-link:hover {
+    text-decoration: underline;
+  }
+
+  .terms-note {
+    color: #475569;
+    font-size: 13px;
+  }
+
+  .terms-note-success {
+    color: #047857;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .check-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid #E5E7EB;
+  }
+
+  .badge-complete {
+    background: rgba(16, 185, 129, 0.10);
+    border-color: rgba(16, 185, 129, 0.22);
+    color: #047857;
+  }
+
+  .badge-missing {
+    background: #FEF2F2;
+    border-color: #FECACA;
+    color: #B91C1C;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background: #0FB9B1;
+    color: #fff;
+    border-color: #0FB9B1;
+  }
+
+  .btn-primary:hover {
+    background: #0F766E;
+    border-color: #0F766E;
+    color: #fff;
+  }
+
+  .btn-secondary {
+    background: #fff;
+    color: #1F2937;
+    border-color: #E5E7EB;
+  }
+
+  .btn-secondary:hover {
+    background: #F8FAFC;
+  }
+
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .action-card {
+    display: block;
+    padding: 16px;
+    border-radius: 14px;
+    border: 1px solid #E5E7EB;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .action-card:hover {
+    border-color: #CBD5E1;
+    background: #F8FAFC;
+  }
+
+  .action-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1F2937;
+    margin-bottom: 4px;
+  }
+
+  .action-copy {
+    color: #475569;
+    font-size: 14px;
+  }
+
+  .inline-form {
+    margin: 0;
+  }
+
+  @media (max-width: 900px) {
+    .status-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .action-grid {
+      grid-template-columns: 1fr;
     }
   }
 
-  provinceEl.addEventListener("change", function(){
-    const prov = provinceEl.value;
-    resetCityOptions(citiesByProvince[prov] || []);
-    syncOther();
-  });
+  @media (max-width: 768px) {
+    .check-item {
+      flex-direction: column;
+    }
 
-  cityEl.addEventListener("change", syncOther);
+    .check-actions {
+      align-items: flex-start;
+      width: 100%;
+    }
 
-  resetCityOptions([]);
-  syncOther();
-})();
-</script>
+    .status-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Complete Your Profile</h1>
+    <p>Finish the remaining requirements to activate your provider account and unlock the provider dashboard.</p>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="flash flash-{{ message.tags|default:'info' }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="card">
+    <h2>Completion Status</h2>
+    <p class="muted">This page is now a checklist only. Profile details, service areas, and insurance are managed in their own pages.</p>
+
+    <div class="status-grid">
+      <div class="status-item">
+        <div class="status-label">Required steps completed</div>
+        <div class="status-value">{{ completed_required_steps }}/{{ required_steps_total }}</div>
+      </div>
+
+      <div class="status-item">
+        <div class="status-label">Phone verification</div>
+        <div class="status-value">{% if provider.is_phone_verified %}Verified{% else %}Pending{% endif %}</div>
+      </div>
+
+      <div class="status-item">
+        <div class="status-label">Insurance</div>
+        <div class="status-value">{{ insurance_status }}</div>
+      </div>
+
+      <div class="status-item">
+        <div class="status-label">Certificates</div>
+        <div class="status-value">{{ certificates_status }}</div>
+      </div>
+    </div>
+
+    {% if missing_required_steps %}
+      <div class="notice notice-warning">
+        <strong>Still missing:</strong>
+        <ul class="missing-list">
+          {% for item in missing_required_steps %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Required Steps</h2>
+    <p class="muted">These are the actual requirements currently used to mark your provider profile as complete.</p>
+
+    <div class="checklist">
+      <div class="check-item">
+        <div class="check-copy">
+          <div class="check-title">{{ profile_step_title }}</div>
+          <div class="check-description">{{ profile_step_description }}</div>
+        </div>
+
+        <div class="check-actions">
+          <span class="badge {% if profile_details_complete %}badge-complete{% else %}badge-missing{% endif %}">
+            {% if profile_details_complete %}Complete{% else %}Missing{% endif %}
+          </span>
+          <a href="{% url 'provider_edit' %}" class="btn btn-secondary">Edit Profile</a>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-copy">
+          <div class="check-title">Active service areas</div>
+          <div class="check-description">At least one active service area is required for profile completion.</div>
+          {% if active_areas %}
+            <div class="check-detail">
+              {% for area in active_areas %}
+                <span class="pill">{{ area.city }}, {{ area.province }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="check-actions">
+          <span class="badge {% if has_active_area %}badge-complete{% else %}badge-missing{% endif %}">
+            {% if has_active_area %}Complete{% else %}Missing{% endif %}
+          </span>
+          <a href="{% url 'provider_service_areas' %}" class="btn btn-secondary">Manage Service Areas</a>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-copy">
+          <div class="check-title">Terms and Conditions</div>
+          <div class="check-description">You must review and accept the Terms and Conditions before completing your provider profile.</div>
+
+          <div class="terms-panel">
+            <form method="post" class="terms-form">
+              {% csrf_token %}
+              <label class="terms-label" for="accepts_terms">
+                <input
+                  type="checkbox"
+                  name="accepts_terms"
+                  id="accepts_terms"
+                  value="1"
+                  {% if provider.accepts_terms %}checked disabled{% else %}required{% endif %}
+                >
+                <span>
+                  I have read and accept the
+                  <a href="{% url 'ui:terms_and_conditions' %}" target="_blank" rel="noopener" class="terms-link">
+                    Terms and Conditions
+                  </a>.
+                </span>
+              </label>
+
+              {% if provider.accepts_terms %}
+                <div class="terms-note terms-note-success">
+                  Terms already accepted.
+                </div>
+              {% else %}
+                <div class="terms-note">
+                  Acceptance is required to complete your base provider profile.
+                </div>
+                <div>
+                  <button type="submit" class="btn btn-primary">Save Terms Acceptance</button>
+                </div>
+              {% endif %}
+            </form>
+          </div>
+        </div>
+
+        <div class="check-actions">
+          <span class="badge {% if provider.accepts_terms %}badge-complete{% else %}badge-missing{% endif %}">
+            {% if provider.accepts_terms %}Accepted{% else %}Missing{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Manage Profile Modules</h2>
+    <p class="muted">Use these dedicated pages to update each module directly.</p>
+
+    <div class="action-grid">
+      <a href="{% url 'provider_edit' %}" class="action-card">
+        <div class="action-title">Edit Profile</div>
+        <div class="action-copy">Update business details, address, and availability.</div>
+      </a>
+
+      <a href="{% url 'provider_service_areas' %}" class="action-card">
+        <div class="action-title">Manage Service Areas</div>
+        <div class="action-copy">Add, activate, or deactivate the cities where you work.</div>
+      </a>
+
+      <a href="{% url 'provider_insurance' %}" class="action-card">
+        <div class="action-title">Manage Insurance</div>
+        <div class="action-copy">Create or update your insurance details and review verification status.</div>
+      </a>
+
+      <a href="{% url 'provider_certificates' %}" class="action-card">
+        <div class="action-title">Manage Certificates</div>
+        <div class="action-copy">Manage your certificates from the dedicated certificates page.</div>
+      </a>
+    </div>
+  </div>
+</div>
 {% endblock %}

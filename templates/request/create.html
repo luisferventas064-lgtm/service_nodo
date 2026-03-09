@@ -3,139 +3,494 @@
 {% block title %}Request Service{% endblock %}
 
 {% block content %}
-<div style="max-width:760px; margin:24px auto; background:white; padding:24px; border-radius:10px; box-shadow:0 3px 10px rgba(0,0,0,0.06);">
-  <h2 style="margin-top:0;">Request Service with {{ provider }}</h2>
+<style>
+  .request-create-wrap {
+    max-width: 840px;
+    margin: 24px auto;
+    padding: 0 16px 40px;
+  }
 
-  <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; margin-bottom:20px;">
-    <strong>Provider:</strong> {{ provider }}<br>
-    <strong>Rating:</strong> {{ provider.avg_rating }}<br>
-    {% if selected_offer %}
-      <strong>Price:</strong> ${{ selected_offer.display_price|floatformat:2 }}<br>
-      <strong>Service Type:</strong> {{ selected_offer.service_type.name }}<br>
-    {% endif %}
-    {% if provider.zone %}
-      <strong>Zone:</strong> {{ provider.zone.name }}
-    {% endif %}
-  </div>
+  .request-create-card {
+    background: #ffffff;
+    border: 1px solid #e7eef1;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 8px 24px rgba(18, 46, 58, 0.06);
+  }
 
-  {% if error %}
-    <div style="color:#b91c1c; margin-bottom:16px;">{{ error }}</div>
-  {% endif %}
-  {% if compliance_blocked %}
-    <div style="color:#9a3412; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:10px 12px; margin-bottom:16px;">
-      This provider cannot receive requests for this service until compliance is completed.
+  .request-create-summary {
+    background: #f8fbfc;
+    border: 1px solid #e7eef1;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+    color: #18343d;
+    line-height: 1.6;
+  }
+
+  .request-create-alert {
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+
+  .request-create-alert-error {
+    color: #991b1b;
+    background: #fee2e2;
+  }
+
+  .request-create-alert-warning {
+    color: #92400e;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+  }
+
+  .request-create-section-title {
+    margin: 24px 0 12px;
+    font-size: 1.05rem;
+    color: #16313a;
+  }
+
+  .request-create-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .request-create-field-full {
+    grid-column: 1 / -1;
+  }
+
+  .request-create-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #29444d;
+  }
+
+  .request-create-input,
+  .request-create-select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #d1dbe0;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .request-create-radio-row {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+  }
+
+  .request-create-radio-row label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .request-create-help {
+    margin-top: 6px;
+    color: #5f7280;
+    font-size: 0.92rem;
+  }
+
+  .request-create-options {
+    display: grid;
+    gap: 12px;
+  }
+
+  .request-create-option-card {
+    background: #fbfcfd;
+    border: 1px solid #edf3f5;
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .request-create-extra-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .request-create-extra-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #18343d;
+    font-weight: 600;
+  }
+
+  .request-create-extra-qty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #5f7280;
+    font-size: 0.92rem;
+  }
+
+  .request-create-extra-qty input {
+    width: 84px;
+  }
+
+  .request-create-empty {
+    color: #5f7280;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .request-create-submit {
+    margin-top: 20px;
+    background: #111827;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .request-create-submit[disabled] {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  @media (max-width: 720px) {
+    .request-create-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .request-create-extra-row {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="request-create-wrap">
+  <div class="request-create-card">
+    <h2 style="margin-top: 0;">Request Service with {{ provider }}</h2>
+
+    <div class="request-create-summary">
+      <strong>Provider:</strong> {{ provider }}<br>
+      <strong>Rating:</strong> {{ provider.avg_rating }}<br>
+      {% if selected_offer %}
+        <strong>Service Type:</strong> {{ selected_offer.service_type.name }}<br>
+        <strong>Main Offer:</strong> {{ selected_offer.custom_name }}<br>
+        <strong>Billing Unit:</strong> {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}<br>
+        <strong>Unit Price:</strong> ${{ selected_offer.display_price|floatformat:2 }}<br>
+      {% endif %}
+      {% if provider.zone %}
+        <strong>Zone:</strong> {{ provider.zone.name }}
+      {% endif %}
     </div>
-  {% endif %}
 
-  <form method="post">
-    {% csrf_token %}
-    {% if service_type_id %}
-      <input type="hidden" name="service_type_id" value="{{ service_type_id }}">
+    {% if error %}
+      <div class="request-create-alert request-create-alert-error">{{ error }}</div>
+    {% endif %}
+    {% if compliance_blocked %}
+      <div class="request-create-alert request-create-alert-warning">
+        This provider cannot receive requests for this service until compliance is completed.
+      </div>
     {% endif %}
 
-    {% if not client_authenticated %}
-      <h3 style="margin-top:0;">Client Information</h3>
+    <form method="post">
+      {% csrf_token %}
+      {% if service_type_id %}
+        <input type="hidden" name="service_type_id" value="{{ service_type_id }}">
+      {% endif %}
 
-      <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+      {% if not client_authenticated %}
+        <h3 class="request-create-section-title" style="margin-top: 0;">Client Information</h3>
+
+        <div class="request-create-grid">
+          <div>
+            <label class="request-create-label" for="first_name">First name</label>
+            <input id="first_name" class="request-create-input" type="text" name="first_name" required value="{{ form_data.first_name|default:'' }}">
+          </div>
+          <div>
+            <label class="request-create-label" for="last_name">Last name</label>
+            <input id="last_name" class="request-create-input" type="text" name="last_name" required value="{{ form_data.last_name|default:'' }}">
+          </div>
+          <div>
+            <label class="request-create-label" for="phone_number">Phone</label>
+            <input id="phone_number" class="request-create-input" type="text" name="phone_number" required value="{{ form_data.phone_number|default:'' }}">
+          </div>
+          <div>
+            <label class="request-create-label" for="email">Email</label>
+            <input id="email" class="request-create-input" type="email" name="email" required value="{{ form_data.email|default:'' }}">
+          </div>
+          <div>
+            <label class="request-create-label" for="country">Country</label>
+            <input id="country" class="request-create-input" type="text" name="country" required value="{{ form_data.country|default:'CA' }}">
+          </div>
+          <div>
+            <label class="request-create-label" for="province">Province</label>
+            <input id="province" class="request-create-input" type="text" name="province" required value="{{ form_data.province|default:'' }}">
+          </div>
+          <div>
+            <label class="request-create-label" for="city">City</label>
+            <input id="city" class="request-create-input" type="text" name="city" required value="{{ form_data.city|default:'' }}">
+          </div>
+          <div>
+            <label class="request-create-label" for="postal_code">Postal code</label>
+            <input id="postal_code" class="request-create-input" type="text" name="postal_code" required value="{{ form_data.postal_code|default:'' }}">
+          </div>
+          <div class="request-create-field-full">
+            <label class="request-create-label" for="address_line1">Address</label>
+            <input id="address_line1" class="request-create-input" type="text" name="address_line1" required value="{{ form_data.address_line1|default:'' }}">
+          </div>
+        </div>
+      {% else %}
+        <p style="margin-top: 0; margin-bottom: 24px;">Logged in as {{ client.first_name }} {{ client.last_name }}</p>
+      {% endif %}
+
+      <h3 class="request-create-section-title">Service Details</h3>
+
+      <div class="request-create-grid">
+        <div class="request-create-field-full">
+          <label class="request-create-label" for="service_type">Service type</label>
+          <select id="service_type" class="request-create-select" name="service_type" required>
+            <option value="">Select</option>
+            {% for option in service_options %}
+              <option
+                value="{{ option.service_type.service_type_id }}"
+                {% if form_data.service_type == option.service_type.service_type_id|stringformat:"s" %}selected{% endif %}
+              >
+                {{ option.service_type.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="request-create-field-full">
+          <label class="request-create-label" for="provider_service_id">Service option</label>
+          <select id="provider_service_id" class="request-create-select" name="provider_service_id" required>
+            <option value="">Select</option>
+            {% for option in service_options %}
+              {% if form_data.service_type == option.service_type.service_type_id|stringformat:"s" %}
+                {% for offer in option.offers %}
+                  <option
+                    value="{{ offer.id }}"
+                    {% if form_data.provider_service_id == offer.id %}selected{% endif %}
+                  >
+                    {{ offer.custom_name }} — ${{ offer.price_display|floatformat:2 }}{% if offer.billing_unit %} / {{ offer.billing_unit }}{% endif %}
+                  </option>
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </select>
+          <p class="request-create-help">
+            Choose the specific service you want from this provider.
+          </p>
+        </div>
+
         <div>
-          <label for="first_name" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">First name</label>
-          <input id="first_name" type="text" name="first_name" required value="{{ form_data.first_name|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+          <label class="request-create-label" for="requested_quantity">Quantity</label>
+          <input
+            id="requested_quantity"
+            class="request-create-input"
+            type="number"
+            step="0.01"
+            min="0.01"
+            name="requested_quantity"
+            required
+            value="{{ form_data.requested_quantity|default:'1' }}"
+          >
+          <p class="request-create-help">
+            Enter the quantity for the selected billing unit.
+          </p>
+        </div>
+
+        {% if selected_offer %}
+          <div class="request-create-field-full">
+            <div class="request-create-option-card">
+              <strong>Pricing Preview</strong><br>
+              Unit Price: ${{ selected_offer.display_price|floatformat:2 }}<br>
+              Quantity: {{ form_data.requested_quantity|default:"1" }}<br>
+              Billing Unit: {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="request-create-field-full">
+          <label class="request-create-label">Mode</label>
+          <div class="request-create-radio-row">
+            <label>
+              <input
+                type="radio"
+                name="job_mode"
+                value="on_demand"
+                {% if form_data.job_mode|default:'on_demand' == 'on_demand' %}checked{% endif %}
+              >
+              On Demand (ASAP)
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="job_mode"
+                value="scheduled"
+                {% if form_data.job_mode == 'scheduled' %}checked{% endif %}
+              >
+              Scheduled
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="request-create-label" for="scheduled_date">Scheduled date</label>
+          <input id="scheduled_date" class="request-create-input" type="date" name="scheduled_date" value="{{ form_data.scheduled_date|default:'' }}">
         </div>
         <div>
-          <label for="last_name" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Last name</label>
-          <input id="last_name" type="text" name="last_name" required value="{{ form_data.last_name|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        </div>
-        <div>
-          <label for="phone_number" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Phone</label>
-          <input id="phone_number" type="text" name="phone_number" required value="{{ form_data.phone_number|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        </div>
-        <div>
-          <label for="email" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Email</label>
-          <input id="email" type="email" name="email" required value="{{ form_data.email|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        </div>
-        <div>
-          <label for="country" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Country</label>
-          <input id="country" type="text" name="country" required value="{{ form_data.country|default:'CA' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        </div>
-        <div>
-          <label for="province" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Province</label>
-          <input id="province" type="text" name="province" required value="{{ form_data.province|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        </div>
-        <div>
-          <label for="city" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">City</label>
-          <input id="city" type="text" name="city" required value="{{ form_data.city|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        </div>
-        <div>
-          <label for="postal_code" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Postal code</label>
-          <input id="postal_code" type="text" name="postal_code" required value="{{ form_data.postal_code|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        </div>
-        <div style="grid-column:1 / -1;">
-          <label for="address_line1" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Address</label>
-          <input id="address_line1" type="text" name="address_line1" required value="{{ form_data.address_line1|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+          <label class="request-create-label" for="scheduled_time">Scheduled time</label>
+          <input id="scheduled_time" class="request-create-input" type="time" name="scheduled_time" value="{{ form_data.scheduled_start_time|default:'' }}">
         </div>
       </div>
-    {% else %}
-      <p style="margin-top:0; margin-bottom:24px;">Logged in as {{ client.first_name }} {{ client.last_name }}</p>
-    {% endif %}
 
-    <h3 style="margin-top:24px;">Service Details</h3>
+      <h3 class="request-create-section-title">Additional service detail</h3>
+      {% if request_subservices %}
+        <div class="request-create-options">
+          <div class="request-create-option-card">
+            <label class="request-create-label" for="requested_subservice_id">Choose one subservice</label>
+            <select id="requested_subservice_id" class="request-create-select" name="requested_subservice_id">
+              <option value="">No preference</option>
+              {% for subservice in request_subservices %}
+                <option
+                  value="{{ subservice.id }}"
+                  {% if form_data.requested_subservice_id == subservice.id|stringformat:"s" %}selected{% endif %}
+                >
+                  {{ subservice.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      {% else %}
+        <p class="request-create-empty">No additional service detail configured for this offer.</p>
+      {% endif %}
 
-    <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
-      <div style="grid-column:1 / -1;">
-        <label for="service_type" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Service type</label>
-        <select id="service_type" name="service_type" required style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-          <option value="">Select</option>
-          {% for st in service_types %}
-            <option value="{{ st.service_type_id }}"{% if form_data.service_type == st.service_type_id|stringformat:"s" %} selected{% endif %}>
-              {{ st.name }}
-            </option>
+      <h3 class="request-create-section-title">Extras</h3>
+      {% if request_extra_options %}
+        <div class="request-create-options">
+          {% for option in request_extra_options %}
+            <div class="request-create-option-card">
+              <div class="request-create-extra-row">
+                <label class="request-create-extra-label">
+                  <input
+                    type="checkbox"
+                    name="selected_extras"
+                    value="{{ option.extra.id }}"
+                    data-extra-toggle="{{ option.extra.id }}"
+                    {% if option.selected %}checked{% endif %}
+                  >
+                  {{ option.extra.name }} - ${{ option.extra.unit_price|floatformat:2 }}
+                </label>
+
+                {% if option.extra.allows_quantity %}
+                  <label class="request-create-extra-qty">
+                    Qty
+                    <input
+                      class="request-create-input"
+                      type="number"
+                      min="{{ option.extra.min_qty }}"
+                      max="{{ option.extra.max_qty }}"
+                      name="extra_qty_{{ option.extra.id }}"
+                      value="{{ option.quantity|default:'1' }}"
+                      data-extra-qty="{{ option.extra.id }}"
+                      {% if not option.selected %}disabled{% endif %}
+                    >
+                    <span>{{ option.extra.min_qty }}-{{ option.extra.max_qty }}</span>
+                  </label>
+                {% else %}
+                  <input type="hidden" name="extra_qty_{{ option.extra.id }}" value="1">
+                  <span class="request-create-help" style="margin: 0;">Qty 1</span>
+                {% endif %}
+              </div>
+            </div>
           {% endfor %}
-        </select>
-      </div>
-
-      <div style="grid-column:1 / -1;">
-        <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Mode</label>
-        <div style="display:flex; gap:18px; flex-wrap:wrap; padding-top:8px;">
-          <label style="display:flex; gap:8px; align-items:center; font-weight:normal; margin:0;">
-            <input
-              type="radio"
-              name="job_mode"
-              value="on_demand"
-              {% if form_data.job_mode|default:'on_demand' == 'on_demand' %}checked{% endif %}
-              style="width:auto; margin:0;"
-            >
-            On Demand (ASAP)
-          </label>
-          <label style="display:flex; gap:8px; align-items:center; font-weight:normal; margin:0;">
-            <input
-              type="radio"
-              name="job_mode"
-              value="scheduled"
-              {% if form_data.job_mode == 'scheduled' %}checked{% endif %}
-              style="width:auto; margin:0;"
-            >
-            Scheduled
-          </label>
         </div>
-      </div>
+      {% else %}
+        <p class="request-create-empty">This provider service has no extras configured.</p>
+      {% endif %}
 
-      <div>
-        <label for="scheduled_date" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Scheduled date</label>
-        <input id="scheduled_date" type="date" name="scheduled_date" value="{{ form_data.scheduled_date|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-      </div>
-      <div>
-        <label for="scheduled_time" style="display:block; font-size:13px; font-weight:bold; margin-bottom:6px;">Scheduled time</label>
-        <input id="scheduled_time" type="time" name="scheduled_time" value="{{ form_data.scheduled_start_time|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-      </div>
-    </div>
-
-    <button
-      type="submit"
-      {% if compliance_blocked %}disabled aria-disabled="true"{% endif %}
-      style="margin-top:20px; background:#111827; color:white; border:none; border-radius:6px; padding:12px 18px; cursor:{% if compliance_blocked %}not-allowed{% else %}pointer{% endif %}; opacity:{% if compliance_blocked %}.55{% else %}1{% endif %};"
-    >
-      Submit Request
-    </button>
-  </form>
+      <button
+        type="submit"
+        class="request-create-submit"
+        {% if compliance_blocked or not selected_offer %}disabled aria-disabled="true"{% endif %}
+      >
+        Submit Request
+      </button>
+    </form>
+  </div>
 </div>
+
+<script>
+  (function () {
+    var serviceTypeSelect = document.getElementById("service_type");
+    var providerServiceSelect = document.getElementById("provider_service_id");
+
+    if (serviceTypeSelect) {
+      serviceTypeSelect.addEventListener("change", function () {
+        var selectedServiceType = serviceTypeSelect.value || "";
+        var url = new URL(window.location.href);
+
+        if (selectedServiceType) {
+          url.searchParams.set("service_type_id", selectedServiceType);
+        } else {
+          url.searchParams.delete("service_type_id");
+        }
+
+        url.searchParams.delete("provider_service_id");
+        window.location.href = url.toString();
+      });
+    }
+
+    if (providerServiceSelect) {
+      providerServiceSelect.addEventListener("change", function () {
+        var selectedProviderService = providerServiceSelect.value || "";
+        var selectedServiceType = serviceTypeSelect ? (serviceTypeSelect.value || "") : "";
+        var url = new URL(window.location.href);
+
+        if (selectedServiceType) {
+          url.searchParams.set("service_type_id", selectedServiceType);
+        } else {
+          url.searchParams.delete("service_type_id");
+        }
+
+        if (selectedProviderService) {
+          url.searchParams.set("provider_service_id", selectedProviderService);
+        } else {
+          url.searchParams.delete("provider_service_id");
+        }
+
+        window.location.href = url.toString();
+      });
+    }
+
+    document.querySelectorAll("[data-extra-toggle]").forEach(function (checkbox) {
+      var extraId = checkbox.getAttribute("data-extra-toggle");
+      var quantityInput = document.querySelector('[data-extra-qty="' + extraId + '"]');
+      if (!quantityInput) {
+        return;
+      }
+
+      var syncState = function () {
+        quantityInput.disabled = !checkbox.checked;
+        if (checkbox.checked && !quantityInput.value) {
+          quantityInput.value = "1";
+        }
+      };
+
+      syncState();
+      checkbox.addEventListener("change", syncState);
+    });
+  })();
+</script>
 {% endblock %}

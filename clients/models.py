@@ -62,6 +62,41 @@ class Client(models.Model):
         return self.profile_completed
 
 
+class ClientServiceAddress(models.Model):
+    client = models.ForeignKey(
+        "clients.Client",
+        on_delete=models.CASCADE,
+        related_name="service_addresses",
+    )
+    label = models.CharField(max_length=100)
+    address_line1 = models.CharField(max_length=255)
+    address_line2 = models.CharField(max_length=255, blank=True, default="")
+    city = models.CharField(max_length=100)
+    province = models.CharField(max_length=100)
+    postal_code = models.CharField(max_length=20)
+    access_notes = models.TextField(blank=True, default="")
+    is_default = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "client_service_address"
+        ordering = ("-is_default", "label", "id")
+        indexes = [
+            models.Index(fields=["client", "is_active"], name="ix_csrvaddr_client_active"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.client_id} - {self.label}"
+
+    def soft_delete(self) -> None:
+        if not self.is_active:
+            return
+        self.is_active = False
+        self.save(update_fields=["is_active", "updated_at"])
+
+
 class ClientInvoiceSequence(models.Model):
     client_invoice_sequence_id = models.BigAutoField(primary_key=True)
 

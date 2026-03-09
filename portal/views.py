@@ -1,13 +1,17 @@
+from collections import OrderedDict
+
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from core.auth_session import LEGACY_ROLE_SESSION_KEYS, SESSION_KEY_ROLE, require_role, set_session
 from jobs.models import Job
 from providers.models import Provider, ProviderService
 from service_type.models import ServiceType
 
-from .forms import ProviderServiceCreateForm
+from .forms import ProviderServiceCreateForm, _normalize_name
 
 
 def _get_session_role(request):
@@ -115,13 +119,10 @@ def provider_dashboard_view(request):
 
 @require_role("provider")
 def provider_services_view(request):
-    if request.session.get("nodo_role") and request.session.get("nodo_role") != "provider":
-        return redirect("ui:portal")
-
     provider = _get_provider_from_session(request)
-    if not provider:
-        messages.error(request, "Provider profile not found. Please sign up again.")
-        return redirect("provider_register")
+    if provider is None:
+        messages.error(request, "Provider profile not found. Please complete your profile.")
+        return redirect("ui:root_login")
 
     provider.evaluate_profile_completion()
     provider.refresh_from_db(fields=["profile_completed"])
@@ -130,41 +131,62 @@ def provider_services_view(request):
         messages.info(request, "Please complete your profile to activate your provider account.")
         return redirect("provider_complete_profile")
 
-    my_services = list(
-        ProviderService.objects.filter(provider=provider)
+    service_type_id = request.GET.get("service_type_id")
+
+    services_qs = (
+        ProviderService.objects
+        .filter(provider=provider)
         .select_related("service_type")
-        .order_by("-is_active", "service_type__name", "custom_name")
     )
-    for service in my_services:
+
+    selected_service_type = None
+    if service_type_id:
+        selected_service_type = ServiceType.objects.filter(
+            service_type_id=service_type_id,
+            is_active=True,
+        ).first()
+        if selected_service_type:
+            services_qs = services_qs.filter(service_type=selected_service_type)
+
+    services = services_qs.order_by("service_type__name", "custom_name")
+
+    grouped_services = OrderedDict()
+
+    for service in services:
         service.display_price = service.price_cents / 100
+        service_type_name = service.service_type.name.strip()
+        is_addon = (service.custom_name or "").startswith("ADDON: ")
 
-    used_type_ids = list(
-        ProviderService.objects.filter(provider=provider).values_list("service_type_id", flat=True)
-    )
-    available_types = ServiceType.objects.filter(is_active=True).exclude(
-        service_type_id__in=used_type_ids
-    ).order_by("name")
+        if service_type_name not in grouped_services:
+            grouped_services[service_type_name] = {
+                "service_type": service.service_type,
+                "main_offers": [],
+                "addons": [],
+            }
 
-    return render(
-        request,
-        "portal/provider_services.html",
-        {
-            "provider": provider,
-            "my_services": my_services,
-            "available_types": available_types,
-        },
-    )
+        if is_addon:
+            grouped_services[service_type_name]["addons"].append(service)
+        else:
+            grouped_services[service_type_name]["main_offers"].append(service)
+
+    available_service_types = ServiceType.objects.filter(is_active=True).order_by("name")
+
+    context = {
+        "provider": provider,
+        "grouped_services": grouped_services,
+        "available_service_types": available_service_types,
+        "selected_service_type": selected_service_type,
+        "is_filtered": selected_service_type is not None,
+    }
+    return render(request, "portal/provider_services.html", context)
 
 
 @require_role("provider")
-def provider_service_add_view(request, service_type_id: int):
-    if request.session.get("nodo_role") and request.session.get("nodo_role") != "provider":
-        return redirect("ui:portal")
-
+def provider_service_categories_view(request):
     provider = _get_provider_from_session(request)
-    if not provider:
-        messages.error(request, "Provider profile not found. Please sign up again.")
-        return redirect("provider_register")
+    if provider is None:
+        messages.error(request, "Provider profile not found. Please complete your profile.")
+        return redirect("ui:root_login")
 
     provider.evaluate_profile_completion()
     provider.refresh_from_db(fields=["profile_completed"])
@@ -173,24 +195,85 @@ def provider_service_add_view(request, service_type_id: int):
         messages.info(request, "Please complete your profile to activate your provider account.")
         return redirect("provider_complete_profile")
 
-    service_type = get_object_or_404(ServiceType, service_type_id=service_type_id, is_active=True)
+    service_types = ServiceType.objects.filter(is_active=True).order_by("name")
 
-    if ProviderService.objects.filter(provider=provider, service_type=service_type).exists():
-        messages.info(request, "You already added this service type.")
-        return redirect("portal:provider_services")
+    used_service_type_ids = set(
+        ProviderService.objects.filter(provider=provider)
+        .values_list("service_type_id", flat=True)
+        .distinct()
+    )
+
+    your_categories = []
+    other_categories = []
+
+    for st in service_types:
+        if st.service_type_id in used_service_type_ids:
+            your_categories.append(st)
+        else:
+            other_categories.append(st)
+
+    context = {
+        "provider": provider,
+        "your_categories": your_categories,
+        "other_categories": other_categories,
+    }
+    return render(request, "portal/provider_service_categories.html", context)
+
+
+@require_role("provider")
+def provider_service_add_view(request, service_type_id):
+    provider = _get_provider_from_session(request)
+    if not provider:
+        messages.error(request, "Please sign in again.")
+        return redirect("ui:root_login")
+
+    provider.evaluate_profile_completion()
+    provider.refresh_from_db(fields=["profile_completed"])
+
+    if not provider.profile_completed:
+        messages.info(request, "Complete your provider profile before managing services.")
+        return redirect("provider_complete_profile")
+
+    service_type = get_object_or_404(ServiceType, pk=service_type_id, is_active=True)
 
     if request.method == "POST":
-        form = ProviderServiceCreateForm(request.POST)
+        form = ProviderServiceCreateForm(
+            request.POST,
+            service_type_name=service_type.name,
+        )
         if form.is_valid():
-            obj = form.save(commit=False)
-            obj.provider = provider
-            obj.service_type = service_type
-            obj.is_active = True
-            obj.save()
-            messages.success(request, "Service added successfully.")
-            return redirect("portal:provider_services")
+            custom_name = form.cleaned_data["custom_name"]
+            normalized_name = _normalize_name(custom_name)
+
+            duplicate_exists = ProviderService.objects.filter(
+                provider=provider,
+                service_type=service_type,
+            ).exclude(
+                custom_name__isnull=True,
+            ).exists()
+
+            if duplicate_exists:
+                existing_services = ProviderService.objects.filter(
+                    provider=provider,
+                    service_type=service_type,
+                )
+                for existing in existing_services:
+                    if _normalize_name(existing.custom_name or "") == normalized_name:
+                        form.add_error(
+                            "custom_name",
+                            "You already have a service with this name in this category.",
+                        )
+                        break
+
+            if not form.errors:
+                service = form.save(commit=False)
+                service.provider = provider
+                service.service_type = service_type
+                service.save()
+                messages.success(request, "Service added successfully.")
+                return redirect("portal:provider_services")
     else:
-        form = ProviderServiceCreateForm()
+        form = ProviderServiceCreateForm(service_type_name=service_type.name)
 
     return render(
         request,
@@ -201,6 +284,103 @@ def provider_service_add_view(request, service_type_id: int):
             "form": form,
         },
     )
+
+
+@require_role("provider")
+def provider_service_edit_view(request, service_id):
+    provider = _get_provider_from_session(request)
+    if not provider:
+        messages.error(request, "Please sign in again.")
+        return redirect("ui:root_login")
+
+    provider.evaluate_profile_completion()
+    provider.refresh_from_db(fields=["profile_completed"])
+
+    if not provider.profile_completed:
+        messages.info(request, "Complete your provider profile before managing services.")
+        return redirect("provider_complete_profile")
+
+    service = get_object_or_404(
+        ProviderService.objects.select_related("service_type"),
+        pk=service_id,
+        provider=provider,
+    )
+
+    if request.method == "POST":
+        form = ProviderServiceCreateForm(
+            request.POST,
+            instance=service,
+            service_type_name=service.service_type.name,
+        )
+        if form.is_valid():
+            custom_name = form.cleaned_data["custom_name"]
+            normalized_name = _normalize_name(custom_name)
+
+            sibling_services = ProviderService.objects.filter(
+                provider=provider,
+                service_type=service.service_type,
+            ).exclude(pk=service.pk)
+
+            for existing in sibling_services:
+                if _normalize_name(existing.custom_name or "") == normalized_name:
+                    form.add_error(
+                        "custom_name",
+                        "You already have a service with this name in this category.",
+                    )
+                    break
+
+            if not form.errors:
+                form.save()
+                messages.success(request, "Service updated successfully.")
+                return redirect("portal:provider_services")
+    else:
+        form = ProviderServiceCreateForm(
+            instance=service,
+            service_type_name=service.service_type.name,
+        )
+
+    return render(
+        request,
+        "portal/provider_service_edit.html",
+        {
+            "provider": provider,
+            "service": service,
+            "service_type": service.service_type,
+            "form": form,
+        },
+    )
+
+
+@require_role("provider")
+@require_POST
+def provider_service_toggle_view(request, service_id: int):
+    provider = _get_provider_from_session(request)
+    if not provider:
+        messages.error(request, "Please sign in again.")
+        return redirect("ui:root_login")
+
+    provider.evaluate_profile_completion()
+    provider.refresh_from_db(fields=["profile_completed"])
+
+    if not provider.profile_completed:
+        messages.info(request, "Complete your provider profile before managing services.")
+        return redirect("provider_complete_profile")
+
+    service = get_object_or_404(
+        ProviderService,
+        pk=service_id,
+        provider=provider,
+    )
+
+    if request.method == "POST":
+        service.is_active = not service.is_active
+        service.save(update_fields=["is_active"])
+        messages.success(
+            request,
+            "Service activated successfully." if service.is_active else "Service deactivated successfully.",
+        )
+
+    return redirect("portal:provider_services")
 
 
 def client_dashboard_alias(request):

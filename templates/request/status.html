@@ -52,6 +52,12 @@
         .action-box {
             margin-top: 16px;
         }
+        .top-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
         .warning {
             margin: 0 0 10px;
             padding: 10px 12px;
@@ -60,16 +66,40 @@
             color: #92400e;
         }
         .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             border:none;
             border-radius:6px;
             padding:10px 14px;
             cursor:pointer;
             background:#1d4ed8;
             color:white;
+            text-decoration: none;
+        }
+        .btn-secondary {
+            background: #e5eef8;
+            color: #1e3a5f;
+        }
+        .btn-danger {
+            background: #f9d9de;
+            color: #a14b5b;
         }
         .status-copy {
             font-weight: 600;
             color: #1f2937;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .summary-card {
+            background: #fbfcfd;
+            border: 1px solid #edf3f5;
+            border-radius: 10px;
+            padding: 12px;
         }
         .status-closed {
             background-color: #f3f4f6;
@@ -94,6 +124,39 @@
             border-radius: 6px;
             color: #1e3a8a;
         }
+        .request-box {
+            margin-top: 16px;
+            background: #fbfcfd;
+            border: 1px solid #edf3f5;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .request-meta-label {
+            display: block;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #79909b;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+        .request-meta-value {
+            color: #18343d;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+        .request-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .request-meta-box {
+            background: #ffffff;
+            border: 1px solid #edf3f5;
+            border-radius: 10px;
+            padding: 12px;
+        }
         .settled {
             margin-top: 8px;
             color: #374151;
@@ -103,6 +166,11 @@
 <body>
 
 <div class="container">
+    <div class="top-actions">
+        <button class="btn btn-secondary" type="button" onclick="history.back()">Back</button>
+        <a class="btn btn-secondary" href="{% url 'ui:marketplace_search' %}">Return to Marketplace</a>
+    </div>
+
     <h2>Request Status</h2>
 
     {% if messages %}
@@ -112,11 +180,121 @@
     {% endif %}
 
     <p><strong>Job ID:</strong> {{ job.job_id }}</p>
-    <p><strong>Status:</strong> {{ job.job_status }}</p>
+    <p><strong>Status:</strong> {{ job.friendly_status_label }}</p>
 
-    {% if job.display_provider %}
-        <p><strong>Provider:</strong> {{ job.display_provider }}</p>
-    {% endif %}
+    <p>
+        <strong>Provider:</strong>
+        {% if job.job_status == "posted" and job.cancel_reason == "provider_rejected" %}
+            Pending reassignment
+        {% else %}
+            {{ job.display_provider|default:"Pending assignment" }}
+        {% endif %}
+    </p>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <span class="request-meta-label">Created</span>
+            <div class="request-meta-value">{{ job.created_at|date:"M j, Y g:i A" }}</div>
+        </div>
+        <div class="summary-card">
+            <span class="request-meta-label">Requested time</span>
+            <div class="request-meta-value">
+                {% if job.job_mode == "scheduled" %}
+                    {{ job.scheduled_date|date:"M j, Y" }}
+                    {% if job.scheduled_start_time %}
+                        at {{ job.scheduled_start_time|time:"g:i A" }}
+                    {% endif %}
+                {% else %}
+                    ASAP
+                {% endif %}
+            </div>
+        </div>
+        <div class="summary-card">
+            <span class="request-meta-label">Service Type</span>
+            <div class="request-meta-value">{{ job.service_type.name }}</div>
+        </div>
+        <div class="summary-card">
+            <span class="request-meta-label">Main Offer</span>
+            <div class="request-meta-value">{{ job.provider_service_name_display|default:"-" }}</div>
+        </div>
+        <div class="summary-card">
+            <span class="request-meta-label">Estimated total</span>
+            <div class="request-meta-value">
+                {% if job.requested_total_snapshot != None %}
+                    ${{ job.requested_total_snapshot|floatformat:2 }}
+                {% else %}
+                    -
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="request-box">
+        <span class="request-meta-label">Pricing Summary</span>
+        <div class="request-meta-grid">
+            <div class="request-meta-box">
+                <span class="request-meta-label">Billing Unit</span>
+                <div class="request-meta-value">
+                    {{ job.requested_billing_unit_display|default:"-" }}
+                </div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Unit Price</span>
+                <div class="request-meta-value">
+                    {% if job.requested_unit_price_snapshot != None %}
+                        ${{ job.requested_unit_price_snapshot|floatformat:2 }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Quantity</span>
+                <div class="request-meta-value">
+                    {% if job.requested_quantity_snapshot != None %}
+                        {{ job.requested_quantity_snapshot }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Base Line Total</span>
+                <div class="request-meta-value">
+                    {% if job.requested_base_line_total_snapshot != None %}
+                        ${{ job.requested_base_line_total_snapshot|floatformat:2 }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Subtotal</span>
+                <div class="request-meta-value">
+                    {% if job.requested_subtotal_snapshot != None %}
+                        ${{ job.requested_subtotal_snapshot|floatformat:2 }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Estimated Total</span>
+                <div class="request-meta-value">
+                    {% if job.requested_total_snapshot != None %}
+                        ${{ job.requested_total_snapshot|floatformat:2 }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="lifecycle">
         <span class="{% if job.job_status == 'assigned' or job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Assigned</span>
@@ -131,21 +309,58 @@
         <p><strong>Confirmed at:</strong> {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
     </div>
 
-    <p><strong>Service Type:</strong> {{ job.service_type.name }}</p>
-
-    <p>
-        <strong>Address:</strong>
-        {{ job.address_line1 }},
-        {{ job.city }},
-        {{ job.province }},
-        {{ job.postal_code }}
-    </p>
-
     {% if job.job_mode == "scheduled" %}
         <p><strong>Date:</strong> {{ job.scheduled_date }}</p>
         <p><strong>Time:</strong> {{ job.scheduled_start_time }}</p>
     {% else %}
         <p><strong>Service Mode:</strong> ASAP</p>
+    {% endif %}
+
+    {% if job.requested_subservice_name or job.requested_extras_list or job.has_requested_pricing_snapshot %}
+        <div class="request-box">
+            <span class="request-meta-label">Requested details</span>
+            <div class="request-meta-value">Main Offer: {{ job.provider_service_name_display|default:"-" }}</div>
+            {% if job.requested_subservice_name %}
+                <div class="request-meta-value">Subservice: {{ job.requested_subservice_name }}</div>
+            {% endif %}
+            {% if job.requested_extras_list %}
+                <div class="request-meta-value" style="margin-top: 6px;">Extras:</div>
+                {% for requested_extra in job.requested_extras_list %}
+                    <div class="request-meta-value">
+                        {{ requested_extra.extra_name_snapshot }} x {{ requested_extra.quantity }}
+                        {% if requested_extra.unit_price_snapshot != None %}
+                            - ${{ requested_extra.unit_price_snapshot|floatformat:2 }}
+                        {% endif %}
+                        {% if requested_extra.line_total_snapshot != None %}
+                            = ${{ requested_extra.line_total_snapshot|floatformat:2 }}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="request-box">
+        <span class="request-meta-label">Service address</span>
+        <div class="request-meta-value">
+            {{ job.address_line1 }}{% if job.address_line2 %}, {{ job.address_line2 }}{% endif %},
+            {{ job.city }}, {{ job.province }}, {{ job.postal_code }}
+        </div>
+        {% if job.access_notes %}
+            <div class="request-meta-value" style="margin-top: 6px;">
+                Access notes: {{ job.access_notes }}
+            </div>
+        {% endif %}
+    </div>
+
+    {% if job.job_status == "posted" and job.cancel_reason == "provider_rejected" %}
+        <div class="request-box">
+            <span class="request-meta-label">Update</span>
+            <div class="request-meta-value">
+                The previous provider declined your request. We are looking for another provider.
+                You can keep waiting or cancel this request.
+            </div>
+        </div>
     {% endif %}
 
     <div class="action-box">
@@ -156,6 +371,13 @@
             <form method="post">
                 {% csrf_token %}
                 <button class="btn" name="action" value="confirm_close">Confirm &amp; Close</button>
+            </form>
+        {% endif %}
+
+        {% if job.job_status == "posted" or job.job_status == "waiting_provider_response" or job.job_status == "assigned" %}
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-danger" name="action" value="cancel_request">Cancel Request</button>
             </form>
         {% elif job.job_status == "confirmed" %}
             <div class="status-closed">
@@ -185,6 +407,8 @@
                     Cancelled - Dispute approved.
                 {% elif job.cancel_reason == "provider_rejected" %}
                     Cancelled - Provider rejected.
+                {% elif job.cancel_reason == "client_cancelled" %}
+                    Cancelled - Client cancelled the request.
                 {% elif job.cancel_reason == "auto_timeout" %}
                     Cancelled - Automatic timeout.
                 {% else %}

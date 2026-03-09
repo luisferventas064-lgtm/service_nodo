@@ -1,50 +1,334 @@
 {% extends "base.html" %}
 
-{% block title %}My Services{% endblock %}
-
 {% block content %}
-<div class="container page">
-  <div class="card">
-    <h1 class="card-title">My Services</h1>
-    <p class="muted">Manage the services you offer to clients.</p>
+<style>
+.provider-services-wrap{
+    max-width: 1100px;
+    margin: 0 auto;
+}
 
-    <div style="margin: 16px 0 22px;">
-      <h3 style="margin:0 0 10px;">Add a service type</h3>
-      {% if available_types %}
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          {% for st in available_types %}
-            <a class="btn" href="{% url 'portal:provider_service_add' st.service_type_id %}">
-              Add {{ st.name }}
-            </a>
-          {% endfor %}
+.provider-category-card{
+    background: #fff;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+    padding: 28px;
+    margin-bottom: 24px;
+}
+
+.provider-service-section{
+    margin-top: 24px;
+}
+
+.provider-service-list{
+    display: grid;
+    gap: 14px;
+}
+
+.provider-service-item{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    padding: 16px;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.provider-service-item.addon{
+    background: #F8FAFC;
+}
+
+.provider-service-info{
+    flex: 1 1 auto;
+    min-width: 220px;
+}
+
+.provider-service-name{
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.provider-service-meta{
+    font-size: 14px;
+    color: #64748B;
+    margin-bottom: 8px;
+}
+
+.provider-service-price-row{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.provider-service-price{
+    font-weight: 700;
+    color: #0F172A;
+}
+
+.provider-status-badge{
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.provider-status-badge.active{
+    background: #DCFCE7;
+    color: #166534;
+}
+
+.provider-status-badge.inactive{
+    background: #E2E8F0;
+    color: #475569;
+}
+
+.provider-service-actions{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+}
+
+.provider-service-actions form{
+    margin: 0;
+    display: inline-flex;
+}
+
+.provider-action-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid #CBD5E1;
+    background: #fff;
+    color: #0F172A;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.provider-action-btn:hover{
+    text-decoration: none;
+    border-color: #94A3B8;
+}
+
+.provider-action-btn.edit{
+    background: #fff;
+    color: #334155;
+}
+
+.provider-action-btn.activate{
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+    color: #166534;
+}
+
+.provider-action-btn.deactivate{
+    background: #FEF2F2;
+    border-color: #FECACA;
+    color: #991B1B;
+}
+
+.provider-top-actions{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px){
+    .provider-service-item{
+        flex-direction: column;
+    }
+
+    .provider-service-actions{
+        width: 100%;
+    }
+}
+</style>
+
+<div class="container py-4 provider-services-wrap">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h1 class="h3 mb-1">My Services</h1>
+            <p class="text-muted mb-0">
+                Manage your services, pricing, and availability.
+            </p>
         </div>
-      {% else %}
-        <p class="muted" style="margin:0;">All active service types are already configured.</p>
-      {% endif %}
+
+        <a href="{% url 'portal:provider_service_categories' %}" class="btn btn-outline-primary btn-sm">
+            Categories
+        </a>
     </div>
 
-    <h3 style="margin:0 0 12px;">Configured services</h3>
-    {% if my_services %}
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
-        {% for s in my_services %}
-          <article style="border:1px solid #E2E8F0; border-radius:12px; padding:14px; background:#fff;">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-              <strong>{{ s.service_type.name }}</strong>
-              {% if s.is_active %}
-                <span class="badge certified">Active</span>
-              {% else %}
-                <span class="badge">Inactive</span>
-              {% endif %}
+    {% if is_filtered and selected_service_type %}
+        <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="small text-muted">
+                    Filtered by category: <strong>{{ selected_service_type.name }}</strong>
+                </div>
+
+                <a href="{% url 'portal:provider_services' %}" class="btn btn-outline-secondary btn-sm">
+                    Back to all services
+                </a>
             </div>
-            <p style="margin:8px 0 4px;">{{ s.custom_name }}</p>
-            <p class="muted" style="margin:0 0 6px;">{{ s.get_billing_unit_display }}</p>
-            <p style="margin:0;">${{ s.display_price|floatformat:2 }} CAD</p>
-          </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="muted">No services added yet.</p>
+        </div>
     {% endif %}
-  </div>
+
+    {% if grouped_services %}
+        <div class="d-grid gap-4">
+            {% for service_type_name, group in grouped_services.items %}
+                <div class="provider-category-card">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+                        <div>
+                            <h2 class="h4 mb-1">{{ service_type_name }}</h2>
+                            <p class="text-muted mb-0 small">
+                                {{ group.main_offers|length }} main offer{{ group.main_offers|length|pluralize }}
+                                ·
+                                {{ group.addons|length }} add-on{{ group.addons|length|pluralize }}
+                            </p>
+                        </div>
+
+                        <a href="{% url 'portal:provider_service_add' group.service_type.service_type_id %}"
+                           class="btn btn-primary btn-sm">
+                            Add service
+                        </a>
+                    </div>
+
+                    <div class="provider-service-section">
+                    <h3 class="h5 mb-3">Main Offers</h3>
+                    <p class="text-muted small mb-3">Your standard services visible to clients.</p>
+
+                        {% if group.main_offers %}
+                            <div class="provider-service-list">
+                                {% for s in group.main_offers %}
+                                    <div class="provider-service-item">
+                                        <div class="provider-service-info">
+                                            <div class="provider-service-name">{{ s.custom_name }}</div>
+
+                                            <div class="provider-service-meta">
+                                                <p>
+                                                  {{ s.get_billing_unit_display|default:s.billing_unit|default:"Fixed price" }}
+                                                </p>
+                                            </div>
+
+                                            <div class="provider-service-price-row">
+                                                <span class="provider-service-price">${{ s.display_price|floatformat:2 }}</span>
+
+                                                {% if s.is_active %}
+                                                    <span class="provider-status-badge active">Active</span>
+                                                {% else %}
+                                                    <span class="provider-status-badge inactive">Inactive</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <div class="provider-service-actions">
+                                            <a href="{% url 'portal:provider_service_edit' s.id %}"
+                                               class="provider-action-btn edit">
+                                                Edit
+                                            </a>
+
+                                            <form method="post" action="{% url 'portal:provider_service_toggle' s.id %}">
+                                                {% csrf_token %}
+                                                {% if s.is_active %}
+                                                    <button type="submit" class="provider-action-btn deactivate">
+                                                        Deactivate
+                                                    </button>
+                                                {% else %}
+                                                    <button type="submit" class="provider-action-btn activate">
+                                                        Activate
+                                                    </button>
+                                                {% endif %}
+                                            </form>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-muted">No main offers yet.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="provider-service-section">
+                    <h3 class="h5 mb-3">Add-ons</h3>
+                    <p class="text-muted small mb-3">Optional extras you can attach to a service.</p>
+
+                        {% if group.addons %}
+                            <div class="provider-service-list">
+                                {% for s in group.addons %}
+                                    <div class="provider-service-item addon">
+                                        <div class="provider-service-info">
+                                            <div class="provider-service-name">{{ s.custom_name }}</div>
+
+                                            <div class="provider-service-meta">
+                                                <p>
+                                                  {{ s.get_billing_unit_display|default:s.billing_unit|default:"Fixed price" }}
+                                                </p>
+                                            </div>
+
+                                            <div class="provider-service-price-row">
+                                                <span class="provider-service-price">${{ s.display_price|floatformat:2 }}</span>
+
+                                                {% if s.is_active %}
+                                                    <span class="provider-status-badge active">Active</span>
+                                                {% else %}
+                                                    <span class="provider-status-badge inactive">Inactive</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <div class="provider-service-actions">
+                                            <a href="{% url 'portal:provider_service_edit' s.id %}"
+                                               class="provider-action-btn edit">
+                                                Edit
+                                            </a>
+
+                                            <form method="post" action="{% url 'portal:provider_service_toggle' s.id %}">
+                                                {% csrf_token %}
+                                                {% if s.is_active %}
+                                                    <button type="submit" class="provider-action-btn deactivate">
+                                                        Deactivate
+                                                    </button>
+                                                {% else %}
+                                                    <button type="submit" class="provider-action-btn activate">
+                                                        Activate
+                                                    </button>
+                                                {% endif %}
+                                            </form>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-muted">No add-ons yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-2">No services yet</h2>
+                <p class="text-muted mb-3">
+                    Start by adding a service in a category.
+                </p>
+
+                <a href="{% url 'portal:provider_service_categories' %}" class="btn btn-outline-primary btn-sm">
+                    Add your first service
+                </a>
+            </div>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

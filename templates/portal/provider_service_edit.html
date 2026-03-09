@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Add Service{% endblock %}
+{% block title %}Edit Service{% endblock %}
 
 {% block content %}
 <div class="container page">
   <div class="card" style="max-width:760px;margin:auto;">
-    <h1 class="card-title">Add Service</h1>
+    <h1 class="card-title">Edit Service</h1>
     <p class="muted">
-      You are adding: <strong>{{ service_type.name }}</strong>
+      Service type: <strong>{{ service_type.name }}</strong>
     </p>
 
     {% if form.non_field_errors %}
@@ -66,7 +66,7 @@
       {% endif %}
 
       <div class="auth-actions">
-        <button class="btn primary" type="submit">Save service</button>
+        <button class="btn primary" type="submit">Save changes</button>
         <a class="btn" href="{% url 'portal:provider_services' %}">Cancel</a>
       </div>
     </form>

@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Service Areas{% endblock %}
+
+{% block content %}
+<style>
+  .page {
+    max-width: 980px;
+    margin: 32px auto;
+    padding: 0 16px 100px 16px;
+  }
+
+  .page-header {
+    margin-bottom: 20px;
+  }
+
+  .page-header h1 {
+    margin: 0 0 8px 0;
+    font-size: 30px;
+    color: #1F2937;
+  }
+
+  .page-header p {
+    margin: 0;
+    color: #475569;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    margin-bottom: 20px;
+  }
+
+  .card h2 {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+    color: #1F2937;
+  }
+
+  .muted {
+    color: #475569;
+    margin-bottom: 14px;
+  }
+
+  .flash {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #E5E7EB;
+    font-size: 14px;
+  }
+
+  .flash-success {
+    background: rgba(16, 185, 129, 0.10);
+    border-color: rgba(16, 185, 129, 0.22);
+    color: #047857;
+  }
+
+  .flash-info {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+    color: #334155;
+  }
+
+  .flash-error {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.18);
+    color: #B91C1C;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: end;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1F2937;
+  }
+
+  input {
+    width: 100%;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #1F2937;
+    background: #fff;
+    box-sizing: border-box;
+    min-height: 40px;
+  }
+
+  input:focus {
+    outline: none;
+    border-color: #0FB9B1;
+    box-shadow: 0 0 0 3px rgba(15, 185, 177, 0.14);
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background: #0FB9B1;
+    color: #fff;
+    border-color: #0FB9B1;
+  }
+
+  .btn-primary:hover {
+    background: #0F766E;
+    border-color: #0F766E;
+    color: #fff;
+  }
+
+  .btn-secondary {
+    background: #fff;
+    color: #1F2937;
+    border-color: #E5E7EB;
+  }
+
+  .btn-secondary:hover {
+    background: #F8FAFC;
+  }
+
+  .area-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .area-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .area-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .area-title {
+    font-weight: 700;
+    color: #1F2937;
+  }
+
+  .area-subtitle {
+    color: #475569;
+    font-size: 14px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #E5E7EB;
+  }
+
+  .badge-active {
+    background: rgba(16,185,129,.10);
+    border-color: rgba(16,185,129,.22);
+    color: #047857;
+  }
+
+  .badge-inactive {
+    background: #F8FAFC;
+    border-color: #E5E7EB;
+    color: #64748B;
+  }
+
+  .empty {
+    color: #64748B;
+    padding: 12px 0 4px;
+  }
+
+  .inline-form {
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .area-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Manage Service Areas</h1>
+    <p>Add, review, and activate the cities where you provide services.</p>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="flash flash-{{ message.tags|default:'info' }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="card">
+    <h2>Add Service Area</h2>
+    <p class="muted">Create a new active service area for this provider.</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add">
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="city">City</label>
+          <input type="text" id="city" name="city" placeholder="City" required>
+        </div>
+
+        <div class="field">
+          <label for="province">Province</label>
+          <input type="text" id="province" name="province" placeholder="Province" required>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Add Service Area</button>
+        <a href="{% url 'provider_profile' %}" class="btn btn-secondary">Back to Profile</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Active Service Areas</h2>
+    <p class="muted">These areas are currently active for profile completion and operations.</p>
+
+    {% if active_areas %}
+      <div class="area-list">
+        {% for area in active_areas %}
+          <div class="area-item">
+            <div class="area-meta">
+              <div class="area-title">{{ area.city }}, {{ area.province }}</div>
+              <div class="area-subtitle">
+                <span class="badge badge-active">Active</span>
+              </div>
+            </div>
+
+            <form method="post" class="inline-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="toggle">
+              <input type="hidden" name="area_id" value="{{ area.provider_service_area_id }}">
+              <button type="submit" class="btn btn-secondary">Deactivate</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">No active service areas yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Inactive Service Areas</h2>
+    <p class="muted">You can reactivate any area when needed.</p>
+
+    {% if inactive_areas %}
+      <div class="area-list">
+        {% for area in inactive_areas %}
+          <div class="area-item">
+            <div class="area-meta">
+              <div class="area-title">{{ area.city }}, {{ area.province }}</div>
+              <div class="area-subtitle">
+                <span class="badge badge-inactive">Inactive</span>
+              </div>
+            </div>
+
+            <form method="post" class="inline-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="toggle">
+              <input type="hidden" name="area_id" value="{{ area.provider_service_area_id }}">
+              <button type="submit" class="btn btn-primary">Activate</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">No inactive service areas.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

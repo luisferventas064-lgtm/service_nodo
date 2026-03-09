@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Terms and Conditions{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <h1 class="h3 mb-3">Terms and Conditions</h1>
+                    <p class="text-muted">
+                        These terms apply to provider onboarding and account use on NODO.
+                    </p>
+
+                    <div class="border rounded p-4 bg-light">
+                        <h2 class="h5">1. Accurate Information</h2>
+                        <p>
+                            Providers must submit accurate, current, and complete information when creating and maintaining their account.
+                        </p>
+
+                        <h2 class="h5 mt-4">2. Service Information</h2>
+                        <p>
+                            Providers are responsible for keeping service areas, service details, and other profile information updated.
+                        </p>
+
+                        <h2 class="h5 mt-4">3. Compliance Responsibilities</h2>
+                        <p>
+                            Providers are responsible for complying with applicable local laws, permits, certifications, and insurance requirements related to the services they offer.
+                        </p>
+
+                        <h2 class="h5 mt-4">4. Payment Setup</h2>
+                        <p>
+                            Payment and payout setup may be handled through third-party providers. Sensitive payment details are not stored directly in this onboarding flow.
+                        </p>
+
+                        <h2 class="h5 mt-4">5. Platform Rules</h2>
+                        <p>
+                            NODO may review, restrict, or remove access if account information is inaccurate, incomplete, or inconsistent with platform requirements.
+                        </p>
+
+                        <h2 class="h5 mt-4">6. Draft Status</h2>
+                        <p class="mb-0">
+                            This is a draft version for the current development phase and may be updated later.
+                        </p>
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="{% url 'provider_profile' %}" class="btn btn-primary">
+                            Back to Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -8,6 +8,17 @@
 
 <style>
 
+:root{
+    --nodo-primary:#0FB9B1;
+    --nodo-primary-dark:#0F766E;
+    --nodo-success:#10B981;
+    --nodo-bg:#F8FAFC;
+    --nodo-surface:#FFFFFF;
+    --nodo-border:#E5E7EB;
+    --nodo-text:#1F2937;
+    --nodo-text-soft:#475569;
+}
+
 /* PAGE */
 
 body{
@@ -692,6 +703,221 @@ font-size: 13px;
 opacity: .75;
 }
 
+body{
+    background:var(--nodo-bg);
+    color:var(--nodo-text);
+}
+
+.container,
+.page-container,
+.content-wrap{
+    color:var(--nodo-text);
+}
+
+.card,
+.panel,
+.box,
+.section-card{
+    background:var(--nodo-surface);
+    border:1px solid var(--nodo-border);
+    border-radius:16px;
+    box-shadow:0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+h1, h2, h3, h4, h5, h6{
+    color:var(--nodo-text);
+}
+
+p, .text-muted, .muted, small{
+    color:var(--nodo-text-soft);
+}
+
+a{
+    color:var(--nodo-primary-dark);
+    text-decoration:none;
+}
+
+a:hover{
+    color:var(--nodo-primary);
+}
+
+.btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.45rem;
+    padding:.7rem 1rem;
+    border-radius:10px;
+    border:1px solid transparent;
+    font-weight:600;
+    text-decoration:none;
+    transition:.18s ease;
+    cursor:pointer;
+}
+
+.btn-primary,
+.btn.primary{
+    background:var(--nodo-primary);
+    color:#ffffff;
+    border-color:var(--nodo-primary);
+}
+
+.btn-primary:hover,
+.btn.primary:hover{
+    background:var(--nodo-primary-dark);
+    border-color:var(--nodo-primary-dark);
+    color:#ffffff;
+}
+
+.btn-secondary{
+    background:#ffffff;
+    color:var(--nodo-primary-dark);
+    border-color:var(--nodo-border);
+}
+
+.btn-secondary:hover{
+    background:#f1f5f9;
+    color:var(--nodo-primary-dark);
+    border-color:#cbd5e1;
+}
+
+.btn-success{
+    background:var(--nodo-success);
+    color:#ffffff;
+    border-color:var(--nodo-success);
+}
+
+.btn-success:hover{
+    filter:brightness(.95);
+    color:#ffffff;
+}
+
+.btn-outline-primary,
+.btn-outline-secondary,
+.btn-outline-success,
+.btn-outline-danger,
+.btn-outline{
+    background:transparent;
+    color:var(--nodo-primary-dark);
+    border:1px solid var(--nodo-primary);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover,
+.btn-outline-success:hover,
+.btn-outline-danger:hover,
+.btn-outline:hover{
+    background:rgba(15,185,177,.08);
+    color:var(--nodo-primary-dark);
+}
+
+.badge,
+.tag{
+    display:inline-flex;
+    align-items:center;
+    padding:.35rem .65rem;
+    border-radius:999px;
+    font-size:.85rem;
+    font-weight:600;
+    border:1px solid var(--nodo-border);
+    background:#ffffff;
+    color:var(--nodo-text);
+}
+
+.badge-primary{
+    background:rgba(15,185,177,.12);
+    color:var(--nodo-primary-dark);
+    border-color:rgba(15,185,177,.22);
+}
+
+.badge-success{
+    background:rgba(16,185,129,.12);
+    color:#047857;
+    border-color:rgba(16,185,129,.22);
+}
+
+.badge-muted{
+    background:#f8fafc;
+    color:#64748b;
+    border-color:var(--nodo-border);
+}
+
+input,
+select,
+textarea{
+    background:#ffffff;
+    color:var(--nodo-text);
+    border:1px solid var(--nodo-border);
+    border-radius:10px;
+    padding:.75rem .9rem;
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+    outline:none;
+    border-color:var(--nodo-primary);
+    box-shadow:0 0 0 3px rgba(15,185,177,.14);
+}
+
+table{
+    background:#ffffff;
+}
+
+th{
+    color:var(--nodo-text);
+}
+
+td{
+    color:var(--nodo-text-soft);
+    border-color:var(--nodo-border);
+}
+
+hr{
+    border:none;
+    border-top:1px solid var(--nodo-border);
+}
+
+.nav,
+.navbar,
+.topbar,
+.site-header{
+    background:#ffffff;
+    border-bottom:1px solid var(--nodo-border);
+}
+
+.nav a,
+.navbar a,
+.topbar a,
+.site-header a{
+    color:var(--nodo-text);
+}
+
+.nav a:hover,
+.navbar a:hover,
+.topbar a:hover,
+.site-header a:hover,
+.nav a.active,
+.navbar a.active,
+.topbar a.active,
+.site-header a.active{
+    color:var(--nodo-primary-dark);
+}
+
+.alert-success{
+    background:rgba(16,185,129,.10);
+    border:1px solid rgba(16,185,129,.25);
+    color:#047857;
+    border-radius:12px;
+}
+
+.alert-info{
+    background:rgba(15,185,177,.10);
+    border:1px solid rgba(15,185,177,.25);
+    color:var(--nodo-primary-dark);
+    border-radius:12px;
+}
+
 </style>
 
 </head>
@@ -789,6 +1015,9 @@ Your provider profile is incomplete.
     <a class="nodo-subnav__item" href="{% url 'portal:provider_dashboard' %}">Dashboard</a>
     <a class="nodo-subnav__item" href="{% url 'portal:provider_services' %}">My Services</a>
     <a class="nodo-subnav__item" href="{% url 'provider_profile' %}">Profile</a>
+    <a class="nodo-subnav__item" href="{% url 'provider_jobs' %}">Jobs</a>
+    <a class="nodo-subnav__item" href="{% url 'provider_activity' %}">Activity</a>
+    <a class="nodo-subnav__item" href="{% url 'provider_compliance' %}">Compliance</a>
     <a class="nodo-subnav__item" href="{% url 'provider_billing' %}">Billing</a>
   </nav>
 {% endif %}

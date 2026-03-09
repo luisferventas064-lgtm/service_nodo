@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -348,6 +350,66 @@ class ProviderService(models.Model):
 
     def __str__(self):
         return f"{self.provider_id} - {self.custom_name}"
+
+
+class ProviderServiceSubservice(models.Model):
+    provider_service = models.ForeignKey(
+        "providers.ProviderService",
+        on_delete=models.CASCADE,
+        related_name="subservices",
+    )
+    name = models.CharField(max_length=150)
+    base_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "provider_service_subservice"
+        ordering = ("sort_order", "id")
+
+    def __str__(self) -> str:
+        return f"{self.provider_service_id} - {self.name}"
+
+
+class ProviderServiceExtra(models.Model):
+    provider_service = models.ForeignKey(
+        "providers.ProviderService",
+        on_delete=models.CASCADE,
+        related_name="extras",
+    )
+    name = models.CharField(max_length=150)
+    unit_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    is_active = models.BooleanField(default=True)
+    allows_quantity = models.BooleanField(default=True)
+    min_qty = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    max_qty = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "provider_service_extra"
+        ordering = ("sort_order", "id")
+
+    def clean(self):
+        super().clean()
+        if self.max_qty < self.min_qty:
+            raise ValidationError({"max_qty": "max_qty must be greater than or equal to min_qty."})
+
+    def __str__(self) -> str:
+        return f"{self.provider_service_id} - {self.name}"
 
 
 class PricingUnit(models.TextChoices):

@@ -3,28 +3,38 @@
 {% block title %}Provider Profile{% endblock %}
 
 {% block content %}
-<h2>Provider Profile</h2>
+<div class="page">
+  <div class="card">
+    <h2 class="card-title">Provider Profile</h2>
+    <p class="muted">Review your account information and quick access to provider tools.</p>
 
-{% if not provider.profile_completed %}
-<p>
-  <a class="btn primary" href="{% url 'provider_complete_profile' %}">Complete your profile</a>
-</p>
-{% endif %}
+    {% if not provider.profile_completed %}
+      <div class="status-banner provider" role="status">
+        Your profile is not fully completed yet.
+      </div>
+      <div class="auth-actions">
+        <a class="btn primary" href="{% url 'provider_complete_profile' %}">Complete your profile</a>
+      </div>
+    {% endif %}
+  </div>
 
-<p>Type: {{ provider.provider_type }}</p>
-<p><strong>Languages spoken:</strong> {{ provider.languages_spoken|default:"-" }}</p>
-<p>Phone verified: {{ provider.is_phone_verified }}</p>
-<p>Profile completed: {{ provider.profile_completed }}</p>
-<p>Billing completed: {{ provider.billing_profile_completed }}</p>
-<p>Operational: {{ provider.is_operational }}</p>
+  <div class="card">
+    <h3 style="margin:0 0 12px 0;">Profile details</h3>
+    <p class="form-row"><strong>Type:</strong> {{ provider.provider_type }}</p>
+    <p class="form-row"><strong>Languages spoken:</strong> {{ provider.languages_spoken|default:"-" }}</p>
+    <p class="form-row"><strong>Phone verified:</strong> {{ provider.is_phone_verified }}</p>
+    <p class="form-row"><strong>Profile completed:</strong> {{ provider.profile_completed }}</p>
+    <p class="form-row"><strong>Billing completed:</strong> {{ provider.billing_profile_completed }}</p>
+    <p class="form-row"><strong>Operational:</strong> {{ provider.is_operational }}</p>
+  </div>
 
-<hr>
-<h3>Provider Dashboard</h3>
-<ul>
-  <li><a href="{% url 'provider_jobs' %}">Jobs</a></li>
-  <li><a href="{% url 'provider_activity' %}">Activity</a></li>
-  <li><a href="{% url 'provider_billing' %}">Billing</a></li>
-  <li><a href="{% url 'provider_compliance' %}">Compliance</a></li>
-  <li><a href="{% url 'provider_edit' %}">Account Settings</a></li>
-</ul>
+  <div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+      <h3 class="h5 mb-2">Provider Profile</h3>
+      <p class="text-muted mb-0">
+        This page is only for your provider profile summary. Service management, jobs, and billing should be handled from their dedicated sections.
+      </p>
+    </div>
+  </div>
+</div>
 {% endblock %}

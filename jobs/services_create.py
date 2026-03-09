@@ -58,7 +58,7 @@ def create_normal_job(data: CreateNormalJobInput) -> Job:
                 pk=data.selected_provider_service_id,
                 is_active=True,
             )
-            .only("provider_id", "price_cents", "billing_unit")
+            .only("provider_id", "price_cents", "billing_unit", "custom_name")
             .first()
         )
         if not provider_service:
