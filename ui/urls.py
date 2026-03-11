@@ -47,6 +47,8 @@ urlpatterns = [
     path("dashboard/marketplace/", views.marketplace_analytics_dashboard_view, name="marketplace_analytics_dashboard"),
     path("marketplace/", views.marketplace_search_view, name="marketplace_search"),
     path("marketplace/results/", views.marketplace_results_view, name="marketplace_results"),
+    path("providers/nearby/<int:job_id>/", views.providers_nearby_view, name="providers_nearby_job"),
+    path("providers/nearby/", views.providers_nearby_view, name="providers_nearby"),
     path("request/<int:provider_id>/", views.request_create_view, name="request_create"),
     path(
         "request/success/",

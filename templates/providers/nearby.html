@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Providers Nearby{% endblock %}
+
+{% block content %}
+<style>
+  .nearby-wrap {
+    max-width: 980px;
+    margin: 24px auto;
+    padding: 0 16px 40px;
+  }
+
+  .nearby-card {
+    background: #ffffff;
+    border: 1px solid #e7eef1;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 8px 24px rgba(18, 46, 58, 0.06);
+  }
+
+  .nearby-summary {
+    color: #4b6470;
+    margin: 0 0 18px;
+    line-height: 1.6;
+  }
+
+  .nearby-alert {
+    color: #991b1b;
+    background: #fee2e2;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+
+  .nearby-filters {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 20px;
+  }
+
+  .nearby-label {
+    display: block;
+    margin-bottom: 6px;
+    color: #29444d;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .nearby-input,
+  .nearby-select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #d1dbe0;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .nearby-button,
+  .nearby-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 16px;
+    border-radius: 10px;
+    border: none;
+    background: #111827;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  .nearby-grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .nearby-provider-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid #e7eef1;
+    border-radius: 14px;
+    background: #f8fbfc;
+  }
+
+  .nearby-provider-name {
+    margin: 0 0 6px;
+    color: #16313a;
+    font-size: 1.05rem;
+  }
+
+  .nearby-provider-meta {
+    color: #4b6470;
+    margin: 3px 0;
+  }
+
+  .nearby-disabled {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 16px;
+    border-radius: 10px;
+    background: #d1d5db;
+    color: #374151;
+    font-weight: 700;
+  }
+
+  .nearby-empty {
+    margin: 0;
+    color: #4b6470;
+  }
+
+  @media (max-width: 720px) {
+    .nearby-filters {
+      grid-template-columns: 1fr;
+    }
+
+    .nearby-provider-card {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="nearby-wrap">
+  <div class="nearby-card">
+    <h2 style="margin-top: 0;">
+      {% if job %}
+        Providers near this job
+      {% else %}
+        Providers available in your area
+      {% endif %}
+    </h2>
+    <p class="nearby-summary">
+      {% if job %}
+        Job: <strong>#{{ job.job_id }}</strong>
+        <br>Address: <strong>{{ job.city }}, {{ job.province }} {{ job.postal_code }}</strong>
+      {% else %}
+        Postal area: <strong>{{ fsa|default:"-" }}</strong>
+      {% endif %}
+      {% if selected_service_type %}
+        <br>Service: <strong>{{ selected_service_type.name }}</strong>
+      {% endif %}
+    </p>
+
+    {% if error %}
+      <div class="nearby-alert">{{ error }}</div>
+    {% endif %}
+
+    {% if not job %}
+      <form method="get" class="nearby-filters">
+        <input type="hidden" name="fsa" value="{{ fsa }}">
+        <input type="hidden" name="service_type" value="{{ service_type_id }}">
+
+        <div>
+          <label class="nearby-label" for="rating">Rating</label>
+          <select class="nearby-select" id="rating" name="rating">
+            <option value="" {% if not rating %}selected{% endif %}>Any</option>
+            <option value="4" {% if rating == "4" %}selected{% endif %}>4+ stars</option>
+            <option value="4.5" {% if rating == "4.5" %}selected{% endif %}>4.5+ stars</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="nearby-label" for="search">Search provider</label>
+          <input
+            class="nearby-input"
+            id="search"
+            type="text"
+            name="search"
+            value="{{ search }}"
+            placeholder="Company or provider name"
+          >
+        </div>
+
+        <button type="submit" class="nearby-button">Filter</button>
+      </form>
+    {% endif %}
+
+    {% if providers %}
+      <div class="nearby-grid">
+        {% for provider_offer in providers %}
+          <article class="nearby-provider-card">
+            <div>
+              <h3 class="nearby-provider-name">{{ provider_offer.provider_display_name }}</h3>
+              <p class="nearby-provider-meta">Rating: {{ provider_offer.safe_rating|floatformat:1 }}</p>
+              <p class="nearby-provider-meta">Service: {{ provider_offer.service_type_name }}</p>
+              {% if provider_offer.distance_km is not None %}
+                <p class="nearby-provider-meta">Distance: {{ provider_offer.distance_km|floatformat:2 }} km</p>
+              {% endif %}
+              {% if provider_offer.score is not None %}
+                <p class="nearby-provider-meta">Score: {{ provider_offer.score|floatformat:2 }}</p>
+              {% endif %}
+              <p class="nearby-provider-meta">
+                Price from ${{ provider_offer.display_price|floatformat:2 }}
+                / {{ provider_offer.get_billing_unit_display|default:provider_offer.billing_unit }}
+              </p>
+            </div>
+
+            {% if job %}
+              <span class="nearby-disabled">Distance candidate</span>
+            {% elif provider_offer.is_compliant %}
+              <a
+                class="nearby-link"
+                href="{% url 'ui:request_create' provider_offer.provider_id %}?service_type_id={{ service_type_id }}"
+              >
+                View Service
+              </a>
+            {% else %}
+              <span class="nearby-disabled">Compliance required</span>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% elif not error %}
+      <p class="nearby-empty">No providers found in this area.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

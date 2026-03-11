@@ -1,0 +1,9 @@
+{% with current_url_name=request.resolver_match.url_name %}
+<nav class="nodo-subnav">
+  <a class="nodo-subnav__item{% if current_url_name == 'worker_dashboard' %} active{% endif %}" href="{% url 'portal:worker_dashboard' %}"{% if current_url_name == 'worker_dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'worker_jobs' or current_url_name == 'worker_jobs_legacy' %} active{% endif %}" href="{% url 'worker_jobs' %}"{% if current_url_name == 'worker_jobs' or current_url_name == 'worker_jobs_legacy' %} aria-current="page"{% endif %}>Jobs</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'worker_activity' or current_url_name == 'worker_activity_legacy' %} active{% endif %}" href="{% url 'worker_activity' %}"{% if current_url_name == 'worker_activity' or current_url_name == 'worker_activity_legacy' %} aria-current="page"{% endif %}>Activity</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'worker_profile' or current_url_name == 'worker_profile_legacy' %} active{% endif %}" href="{% url 'worker_profile' %}"{% if current_url_name == 'worker_profile' or current_url_name == 'worker_profile_legacy' %} aria-current="page"{% endif %}>Profile</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'worker_edit' or current_url_name == 'worker_edit_legacy' %} active{% endif %}" href="{% url 'worker_edit' %}"{% if current_url_name == 'worker_edit' or current_url_name == 'worker_edit_legacy' %} aria-current="page"{% endif %}>Account Settings</a>
+</nav>
+{% endwith %}

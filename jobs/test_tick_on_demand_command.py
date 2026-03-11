@@ -116,5 +116,8 @@ class TickOnDemandCommandTest(TestCase):
 
         out2 = io.StringIO()
         call_command("tick_on_demand", stdout=out2)
-        self.assertIn("skipped=2", out2.getvalue().lower())
+        output = out2.getvalue().lower()
+        self.assertIn("sent=0", output)
+        self.assertIn("skipped=0", output)
+        self.assertIn("candidates=0", output)
         self.assertEqual(JobBroadcastAttempt.objects.filter(job=job).count(), 2)

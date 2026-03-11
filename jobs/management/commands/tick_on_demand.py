@@ -1,11 +1,12 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from jobs.models import BroadcastAttemptStatus, Job
+from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt
 from jobs.services import (
-    get_broadcast_candidates_for_job,
+    rank_broadcast_candidates_for_job,
     process_on_demand_job,
     record_broadcast_attempt,
+    select_broadcast_wave_candidates,
 )
 from jobs.services_urgent_hold_expire import release_expired_holds
 
@@ -32,7 +33,22 @@ class Command(BaseCommand):
             result = process_on_demand_job(j.job_id)
             self.stdout.write(f"JOB {j.job_id} RESULT: {result}")
 
-            provider_ids = get_broadcast_candidates_for_job(j, limit=10)
+            j.refresh_from_db()
+            current_attempt_number = int(getattr(j, "alert_attempts", 1) or 1)
+            ranked_candidates = rank_broadcast_candidates_for_job(
+                j,
+                limit=10,
+                attempt_number=current_attempt_number,
+            )
+            already_attempted = set(
+                JobBroadcastAttempt.objects.filter(job_id=j.job_id).values_list("provider_id", flat=True)
+            )
+            provider_ids = select_broadcast_wave_candidates(
+                ranked_candidates,
+                already_attempted=already_attempted,
+                batch_size=10,
+                attempt_number=current_attempt_number,
+            )
             sent = skipped = 0
             for pid in provider_ids:
                 created = record_broadcast_attempt(

@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from core.auth_session import require_role
 from core.services.sms_service import send_sms
+from jobs.activity_service import build_activity_view_context, export_activity_csv
 from jobs.models import Job
 from ui.models import PasswordResetCode
 
@@ -19,6 +20,17 @@ from .models import Client, ClientTicket
 PASSWORD_CODE_WINDOW = timedelta(minutes=10)
 PASSWORD_CODE_PHONE_LIMIT = 3
 PASSWORD_CODE_IP_LIMIT = 10
+CLIENT_DASHBOARD_ACTIVE_JOB_STATUSES = (
+    Job.JobStatus.POSTED,
+    Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+    Job.JobStatus.PENDING_CLIENT_DECISION,
+    Job.JobStatus.HOLD,
+    Job.JobStatus.PENDING_PROVIDER_CONFIRMATION,
+    Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
+    Job.JobStatus.ASSIGNED,
+    Job.JobStatus.IN_PROGRESS,
+    Job.JobStatus.CONFIRMED,
+)
 
 
 def _split_full_name(full_name: str) -> tuple[str, str]:
@@ -125,6 +137,9 @@ def client_dashboard(request):
         .select_related("service_type", "selected_provider")
         .order_by("-created_at")
     )
+    recent_active_jobs = jobs_queryset.filter(
+        job_status__in=CLIENT_DASHBOARD_ACTIVE_JOB_STATUSES
+    )
     stats = jobs_queryset.aggregate(
         total_jobs=Count("job_id"),
         open_jobs=Count(
@@ -188,7 +203,7 @@ def client_dashboard(request):
             "languages": languages,
             "stats": stats,
             "billed_total_amount": billed_total_cents / 100,
-            "recent_jobs": jobs_queryset[:8],
+            "recent_jobs": recent_active_jobs[:8],
         },
     )
 
@@ -210,21 +225,35 @@ def client_profile(request):
 
 @require_role("client")
 def client_activity(request):
-    client_id = request.session.get("nodo_profile_id") or request.session.get("client_id")
-    client = Client.objects.get(pk=client_id)
+    client = getattr(request, "client_profile", None)
+    if client is None:
+        client_id = request.session.get("nodo_profile_id") or request.session.get("client_id")
+        if not client_id:
+            return redirect("client_register")
+        client = Client.objects.filter(pk=client_id).first()
+        if client is None:
+            request.session.pop("client_id", None)
+            request.session.pop("nodo_profile_id", None)
+            return redirect("client_register")
 
-    jobs = (
-        Job.objects.filter(client=client)
-        .select_related("service_type", "selected_provider", "provider_service")
-        .order_by("-job_id")[:50]
-    )
+    if request.GET.get("export") == "csv":
+        return export_activity_csv(
+            "client",
+            client,
+            request.GET,
+        )
 
     return render(
         request,
         "clients/activity.html",
         {
             "client": client,
-            "jobs": jobs,
+            "activity_page_title": "Activity History",
+            **build_activity_view_context(
+                "client",
+                client,
+                params=request.GET,
+            ),
         },
     )
 

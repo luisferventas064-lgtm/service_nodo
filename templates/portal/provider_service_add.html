@@ -5,10 +5,39 @@
 {% block content %}
 <div class="container page">
   <div class="card" style="max-width:760px;margin:auto;">
+    <style>
+      .compliance-box {
+        margin: 12px 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .compliance-ok {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #166534;
+      }
+
+      .compliance-warning {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #9a3412;
+      }
+
+      .compliance-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+      }
+    </style>
     <h1 class="card-title">Add Service</h1>
     <p class="muted">
       You are adding: <strong>{{ service_type.name }}</strong>
     </p>
+
+    {% include "partials/provider_compliance_boxes.html" with compliance_result=compliance_result service_type_name=service_type.name compliance_province_code=compliance_province_code %}
 
     {% if form.non_field_errors %}
       {% for error in form.non_field_errors %}

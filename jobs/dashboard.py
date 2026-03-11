@@ -11,6 +11,7 @@ from .attention import needing_attention
 from .kpis import funnel_counts, kpi_for_job, rates
 from .kpis_extended import funnel_extended, outcome_rates
 from .models import Job, JobEvent
+from .services_metrics import matching_health
 
 
 @dataclass(frozen=True)
@@ -161,6 +162,7 @@ def dashboard(*, since_hours: int = 168) -> dict:
         "rates": rt,
         "funnel_extended": funnel_extended(since_hours=since_hours),
         "outcome_rates": outcome_rates(since_hours=since_hours),
+        "matching_health": matching_health(since_hours=since_hours),
         "attention": needing_attention(since_hours=since_hours),
         "durations_seconds": durations,
         "stuck_preview": [

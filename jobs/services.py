@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+import random
 from typing import Callable, Optional
 
 from django.conf import settings
@@ -66,7 +67,12 @@ LOAD_WEIGHT = 2.0
 MARKETPLACE_RETRY_HOURS = 3
 MARKETPLACE_MIN_LEAD_HOURS = 24
 MARKETPLACE_EXPIRE_BUFFER_HOURS = 6
+BROADCAST_RADIUS_KM = 30.0
 MARKETPLACE_BATCH_SIZE = 10
+MIN_DYNAMIC_WAVE_SIZE = 2
+DISPATCH_SCORE_GAP_STEP = 0.05
+DISPATCH_SCORE_GAP_CAP = 0.25
+SOFT_RANDOM_BONUS_MAX = 0.02
 MARKETPLACE_MAX_ATTEMPTS = 6
 MARKETPLACE_SEARCH_TIMEOUT_HOURS = 24
 CLIENT_CONFIRMATION_TIMEOUT_MINUTES = 60
@@ -86,6 +92,17 @@ def default_schedule_fn(job_id: int, run_at):
 class ProcessResult:
     scheduled: bool
     reason: str
+
+
+@dataclass(frozen=True)
+class BroadcastCandidate:
+    provider_id: int
+    dynamic_score: float | None
+    dispatch_score: float | None
+    distance_km: float | None
+    area_score: int
+    cooldown_penalty: int
+    load_penalty: float
 
 
 class MarketplaceDecisionConflict(Exception):
@@ -239,6 +256,7 @@ def _resolve_active_provider_id_for_job(job: Job) -> int | None:
 
 def _activate_marketplace_assignment_for_job(*, job_id: int, provider_id: int) -> int:
     from assignments.models import JobAssignment
+    from providers.models import Provider
 
     JobAssignment.objects.select_for_update().filter(job_id=job_id).exists()
 
@@ -264,18 +282,24 @@ def _activate_marketplace_assignment_for_job(*, job_id: int, provider_id: int) -
     ).first()
     if assignment:
         if not assignment.is_active or assignment.assignment_status != "assigned":
+            assigned_at = timezone.now()
             assignment.is_active = True
             assignment.assignment_status = "assigned"
             assignment.save(update_fields=["is_active", "assignment_status", "updated_at"])
+            Provider.objects.filter(provider_id=provider_id).update(
+                last_job_assigned_at=assigned_at
+            )
         return assignment.assignment_id
 
     try:
+        assigned_at = timezone.now()
         assignment = JobAssignment.objects.create(
             job_id=job_id,
             provider_id=provider_id,
             is_active=True,
             assignment_status="assigned",
         )
+        Provider.objects.filter(provider_id=provider_id).update(last_job_assigned_at=assigned_at)
     except IntegrityError as exc:
         raise MarketplaceDecisionConflict("ASSIGNMENT_ACTIVATION_CONFLICT") from exc
 
@@ -370,7 +394,13 @@ def should_broadcast(job):
     return is_broadcastable(job)
 
 
-def get_broadcast_candidates_for_job(job, limit=10):
+def dispatch_soft_random_bonus(*, job_id: int, provider_id: int, attempt_number: int) -> float:
+    stable_attempt_number = max(int(attempt_number or 1), 1)
+    rng = random.Random(f"dispatch:{job_id}:{provider_id}:{stable_attempt_number}")
+    return rng.uniform(0, SOFT_RANDOM_BONUS_MAX)
+
+
+def rank_broadcast_candidates_for_job(job, limit=10, attempt_number: int | None = None):
     """
     PASO 6.3.1 - Matching real (optimizado con EXISTS)
 
@@ -383,7 +413,10 @@ def get_broadcast_candidates_for_job(job, limit=10):
           region o fallback a province
       - Orden deterministico + limit
     """
-    from providers.models import Provider, ProviderService, ProviderServiceArea
+    from providers.models import Provider, ProviderLocation, ProviderService, ProviderServiceArea
+    from providers.utils_distance import haversine_distance_km, providers_within_radius
+    from providers.utils_geo_grid import grid_window_for_radius
+    from providers.utils_ranking import dispatch_score_from_base, provider_runtime_dispatch_score
 
     qs = Provider.objects.all()
 
@@ -509,7 +542,165 @@ def get_broadcast_candidates_for_job(job, limit=10):
     )
 
     qs = qs.order_by("_final_score", "provider_id")
-    return list(qs.values_list("provider_id", flat=True)[:limit])
+    stable_attempt_number = max(int(attempt_number or 1), 1)
+
+    job_location = getattr(job, "location", None)
+    if job_location is None:
+        return [
+            BroadcastCandidate(
+                provider_id=provider.provider_id,
+                dynamic_score=None,
+                dispatch_score=None,
+                distance_km=None,
+                area_score=provider._score,
+                cooldown_penalty=provider._cooldown_penalty,
+                load_penalty=float(provider._load_penalty),
+            )
+            for provider in qs[:limit]
+        ]
+
+    grid_window = grid_window_for_radius(
+        job_location.latitude,
+        job_location.longitude,
+        radius_km=BROADCAST_RADIUS_KM,
+    )
+    grid_candidates = list(
+        qs.filter(
+            location__grid_lat__range=(
+                grid_window["min_grid_lat"],
+                grid_window["max_grid_lat"],
+            ),
+            location__grid_lng__range=(
+                grid_window["min_grid_lng"],
+                grid_window["max_grid_lng"],
+            ),
+        ).select_related("location")
+    )
+    if grid_candidates:
+        candidate_providers = grid_candidates
+    else:
+        candidate_providers = list(qs.select_related("location"))
+
+    nearby_providers = providers_within_radius(
+        job_location,
+        candidate_providers,
+        radius_km=BROADCAST_RADIUS_KM,
+    )
+
+    if nearby_providers:
+        providers_for_ranking = nearby_providers
+    else:
+        providers_for_ranking = []
+        for provider in candidate_providers:
+            try:
+                provider_location = provider.location
+                distance_km = haversine_distance_km(
+                    job_location.latitude,
+                    job_location.longitude,
+                    provider_location.latitude,
+                    provider_location.longitude,
+                )
+            except ProviderLocation.DoesNotExist:
+                distance_km = 50.0
+            providers_for_ranking.append((provider, distance_km))
+
+    ranked_candidates = []
+    for provider, distance_km in providers_for_ranking:
+        runtime_score = provider_runtime_dispatch_score(
+            distance_km=distance_km,
+            last_job_assigned_at=provider.last_job_assigned_at,
+        )
+        random_bonus = dispatch_soft_random_bonus(
+            job_id=job.job_id,
+            provider_id=provider.provider_id,
+            attempt_number=stable_attempt_number,
+        )
+        dispatch_score = dispatch_score_from_base(
+            base_dispatch_score=provider.base_dispatch_score,
+            distance_km=distance_km,
+            last_job_assigned_at=provider.last_job_assigned_at,
+            random_bonus=random_bonus,
+        )
+        ranked_candidates.append(
+            BroadcastCandidate(
+                provider_id=provider.provider_id,
+                dynamic_score=runtime_score,
+                dispatch_score=dispatch_score,
+                distance_km=distance_km,
+                area_score=provider._score,
+                cooldown_penalty=provider._cooldown_penalty,
+                load_penalty=float(provider._load_penalty),
+            )
+        )
+
+    ranked_candidates.sort(
+        key=lambda candidate: (
+            candidate.cooldown_penalty,
+            candidate.area_score,
+            candidate.load_penalty,
+            -(candidate.dispatch_score or candidate.dynamic_score or 0.0),
+            candidate.distance_km if candidate.distance_km is not None else 50.0,
+            candidate.provider_id,
+        )
+    )
+    return ranked_candidates[:limit]
+
+
+def get_broadcast_candidates_for_job(job, limit=10):
+    return [
+        candidate.provider_id
+        for candidate in rank_broadcast_candidates_for_job(job, limit=limit)
+    ]
+
+
+def select_broadcast_wave_candidates(
+    ranked_candidates,
+    *,
+    already_attempted=None,
+    batch_size=MARKETPLACE_BATCH_SIZE,
+    attempt_number=1,
+):
+    attempted_provider_ids = set(already_attempted or ())
+    available_candidates = [
+        candidate
+        for candidate in ranked_candidates
+        if candidate.provider_id not in attempted_provider_ids
+    ]
+
+    if not available_candidates:
+        return []
+
+    max_wave_size = max(1, int(batch_size or 1))
+    min_wave_size = min(max_wave_size, MIN_DYNAMIC_WAVE_SIZE)
+    if len(available_candidates) <= min_wave_size:
+        return [candidate.provider_id for candidate in available_candidates]
+
+    top_candidate = available_candidates[0]
+    if top_candidate.dispatch_score is None:
+        return [
+            candidate.provider_id
+            for candidate in available_candidates[:max_wave_size]
+        ]
+
+    score_gap = min(
+        DISPATCH_SCORE_GAP_STEP * max(int(attempt_number or 1), 1),
+        DISPATCH_SCORE_GAP_CAP,
+    )
+    top_score = top_candidate.dispatch_score
+
+    wave = []
+    for candidate in available_candidates:
+        if len(wave) < min_wave_size:
+            wave.append(candidate.provider_id)
+            continue
+        if len(wave) >= max_wave_size:
+            break
+        if (top_score - (candidate.dispatch_score or 0.0)) <= score_gap:
+            wave.append(candidate.provider_id)
+            continue
+        break
+
+    return wave
 
 
 def record_broadcast_attempt(*, job_id: int, provider_id: int, status: str, detail: str | None = None) -> bool:
@@ -524,6 +715,10 @@ def record_broadcast_attempt(*, job_id: int, provider_id: int, status: str, deta
                 status=status,
                 detail=detail,
             )
+            if status == BroadcastAttemptStatus.SENT:
+                from providers.services_metrics import increment_offers_received
+
+                increment_offers_received(provider_id)
         return True
     except IntegrityError:
         return False
@@ -657,12 +852,21 @@ def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
         job.next_marketplace_alert_at = now + timedelta(hours=MARKETPLACE_RETRY_HOURS)
 
         desired_pool = max(attempt_number * MARKETPLACE_BATCH_SIZE * 3, MARKETPLACE_BATCH_SIZE)
-        provider_ids_ranked = get_broadcast_candidates_for_job(job, limit=desired_pool)
+        ranked_candidates = rank_broadcast_candidates_for_job(
+            job,
+            limit=desired_pool,
+            attempt_number=attempt_number,
+        )
 
         already_attempted = set(
             JobBroadcastAttempt.objects.filter(job_id=job.job_id).values_list("provider_id", flat=True)
         )
-        wave = [pid for pid in provider_ids_ranked if pid not in already_attempted][:MARKETPLACE_BATCH_SIZE]
+        wave = select_broadcast_wave_candidates(
+            ranked_candidates,
+            already_attempted=already_attempted,
+            batch_size=MARKETPLACE_BATCH_SIZE,
+            attempt_number=attempt_number,
+        )
 
         if not wave:
             Job.objects.filter(pk=job.job_id).update(
@@ -907,6 +1111,15 @@ def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
             event_type=JobEvent.EventType.PROVIDER_ACCEPTED,
             provider_id=provider_id,
             note="provider accepted offer",
+        )
+        JobBroadcastAttempt.objects.filter(pk=attempt.pk).update(
+            status=BroadcastAttemptStatus.ACCEPTED,
+        )
+        from providers.services_metrics import record_offer_accepted
+
+        record_offer_accepted(
+            provider_id,
+            response_seconds=(now - attempt.created_at).total_seconds(),
         )
 
     return "accepted_waiting_client"

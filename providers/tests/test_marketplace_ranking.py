@@ -3,6 +3,12 @@ from decimal import Decimal
 from django.test import TestCase
 
 from providers.models import Provider, ProviderService, ProviderServiceArea
+from providers.services_metrics import (
+    increment_accepted,
+    increment_cancelled,
+    increment_offers_received,
+    record_offer_accepted,
+)
 from providers.services_marketplace import search_provider_services
 from service_type.models import ServiceType
 
@@ -161,3 +167,90 @@ class MarketplaceRankingTests(TestCase):
         self.assertEqual(len(ids1), 5)
         self.assertEqual(len(ids2), 5)
         self.assertTrue(set(ids1).isdisjoint(set(ids2)))
+
+    def test_provider_save_persists_hybrid_score_fields(self):
+        provider = self._create_provider(
+            rating=4.5,
+            price=10000,
+            completed=20,
+            cancelled=0,
+        )
+
+        provider.refresh_from_db()
+        metrics = provider.metrics
+
+        self.assertEqual(metrics.jobs_completed, provider.completed_jobs_count)
+        self.assertEqual(metrics.jobs_cancelled, provider.cancelled_jobs_count)
+        self.assertGreater(metrics.operational_score, 0.0)
+        self.assertGreater(metrics.experience_score, 0.0)
+        self.assertGreater(provider.hybrid_score, 0.0)
+        self.assertGreater(provider.base_dispatch_score, 0.0)
+
+    def test_provider_save_recalculates_hybrid_score_when_rating_changes(self):
+        provider = self._create_provider(
+            rating=3.0,
+            price=10000,
+            completed=20,
+            cancelled=0,
+        )
+        original_hybrid_score = provider.hybrid_score
+
+        provider.avg_rating = Decimal("5.00")
+        provider.save(update_fields=["avg_rating"])
+        provider.refresh_from_db()
+
+        self.assertGreater(provider.hybrid_score, original_hybrid_score)
+        self.assertGreater(provider.base_dispatch_score, 0.0)
+
+    def test_increment_cancelled_reduces_operational_and_hybrid_scores(self):
+        provider = self._create_provider(
+            rating=4.8,
+            price=10000,
+            completed=10,
+            cancelled=0,
+        )
+        original_operational_score = provider.metrics.operational_score
+        original_hybrid_score = provider.hybrid_score
+
+        increment_cancelled(provider.provider_id)
+        provider.refresh_from_db()
+        provider.metrics.refresh_from_db()
+
+        self.assertLess(provider.metrics.operational_score, original_operational_score)
+        self.assertLess(provider.hybrid_score, original_hybrid_score)
+
+    def test_increment_accepted_updates_provider_metrics(self):
+        provider = self._create_provider(
+            rating=4.2,
+            price=10000,
+            completed=0,
+            cancelled=0,
+        )
+
+        increment_accepted(provider.provider_id)
+        provider.refresh_from_db()
+        provider.metrics.refresh_from_db()
+
+        self.assertEqual(provider.metrics.jobs_accepted, 1)
+
+    def test_offer_learning_updates_acceptance_rate_and_response_time(self):
+        provider = self._create_provider(
+            rating=4.2,
+            price=10000,
+            completed=0,
+            cancelled=0,
+        )
+
+        increment_offers_received(provider.provider_id)
+        increment_offers_received(provider.provider_id)
+        record_offer_accepted(provider.provider_id, response_seconds=120)
+
+        provider.refresh_from_db()
+        provider.metrics.refresh_from_db()
+
+        self.assertEqual(provider.metrics.offers_received_count, 2)
+        self.assertEqual(provider.metrics.offers_accepted_count, 1)
+        self.assertEqual(provider.metrics.jobs_accepted, 1)
+        self.assertAlmostEqual(provider.metrics.avg_response_time, 2.0, places=2)
+        self.assertAlmostEqual(provider.metrics.acceptance_rate, 0.5, places=4)
+        self.assertGreater(provider.base_dispatch_score, 0.0)

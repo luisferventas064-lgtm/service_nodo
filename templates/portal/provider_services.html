@@ -145,6 +145,32 @@
     flex-wrap: wrap;
 }
 
+.compliance-box{
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.compliance-ok{
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    color: #166534;
+}
+
+.compliance-warning{
+    background: #FFF7ED;
+    border: 1px solid #FED7AA;
+    color: #9A3412;
+}
+
+.compliance-info{
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #1D4ED8;
+}
+
 @media (max-width: 768px){
     .provider-service-item{
         flex-direction: column;
@@ -230,6 +256,8 @@
                                                     <span class="provider-status-badge inactive">Inactive</span>
                                                 {% endif %}
                                             </div>
+
+                                            {% include "partials/provider_compliance_boxes.html" with compliance_result=s.compliance_result service_type_name=s.service_type.name compliance_province_code=provider.province %}
                                         </div>
 
                                         <div class="provider-service-actions">
@@ -285,6 +313,8 @@
                                                     <span class="provider-status-badge inactive">Inactive</span>
                                                 {% endif %}
                                             </div>
+
+                                            {% include "partials/provider_compliance_boxes.html" with compliance_result=s.compliance_result service_type_name=s.service_type.name compliance_province_code=provider.province %}
                                         </div>
 
                                         <div class="provider-service-actions">

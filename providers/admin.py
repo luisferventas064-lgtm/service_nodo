@@ -76,9 +76,22 @@ class MarketplaceAnalyticsSnapshotAdmin(admin.ModelAdmin):
 
 @admin.register(ProviderServiceArea)
 class ProviderServiceAreaAdmin(admin.ModelAdmin):
-    list_display = ("provider_service_area_id", "provider", "city", "province", "is_active")
+    list_display = (
+        "provider_service_area_id",
+        "provider",
+        "city",
+        "province",
+        "postal_prefix",
+        "is_active",
+    )
     list_filter = ("province", "is_active")
-    search_fields = ("city", "province", "provider__company_name", "provider__email")
+    search_fields = (
+        "city",
+        "province",
+        "postal_prefix",
+        "provider__company_name",
+        "provider__email",
+    )
 
 @admin.register(ProviderService)
 class ProviderServiceAdmin(admin.ModelAdmin):

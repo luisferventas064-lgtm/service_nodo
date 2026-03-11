@@ -23,4 +23,8 @@ def accept_normal_job_by_provider(*, job_id: int, provider_id: int):
     job.job_status = "pending_client_confirmation"
     job.save(update_fields=["job_status", "updated_at"])
 
+    from providers.services_metrics import increment_accepted
+
+    increment_accepted(provider_id)
+
     return True, job

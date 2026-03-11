@@ -1,7 +1,8 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import Provider, ProviderBillingProfile, ProviderInvoiceSequence
+from .models import Provider, ProviderBillingProfile, ProviderInvoiceSequence, ProviderMetrics
+from .ranking import hydrate_provider_metrics
 
 
 def _map_entity_type(provider_type: str) -> str:
@@ -35,6 +36,29 @@ def ensure_provider_profiles(sender, instance: Provider, created: bool, **kwargs
             "next_number": 1,
         },
     )
+
+    metrics, metrics_created = ProviderMetrics.objects.get_or_create(provider=instance)
+    if created or metrics_created:
+        metrics.jobs_completed = instance.completed_jobs_count or 0
+        metrics.jobs_cancelled = instance.cancelled_jobs_count or 0
+        metrics.jobs_accepted = max(
+            metrics.jobs_accepted or 0,
+            metrics.jobs_completed + metrics.jobs_cancelled,
+        )
+        hydrate_provider_metrics(instance, metrics)
+        metrics.save(
+            update_fields=[
+                "jobs_completed",
+                "jobs_accepted",
+                "jobs_cancelled",
+                "acceptance_rate",
+                "completion_rate",
+                "experience_score",
+                "operational_score",
+                "response_score",
+                "updated_at",
+            ]
+        )
 
     # Si cambian provider_type despues, mantener entity_type alineado.
     ProviderBillingProfile.objects.filter(provider=instance).exclude(

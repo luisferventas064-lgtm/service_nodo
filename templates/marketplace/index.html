@@ -2,10 +2,33 @@
 
 {% block content %}
 <div class="container page">
-<div class="card">
-  <h2 class="card-title">Marketplace</h2>
+  <div class="card">
+    <h2 class="card-title">Marketplace</h2>
 
   <form method="get" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:end; margin-bottom:24px;">
+    <div style="grid-column:1 / -1; padding:14px; border:1px solid #d1d5db; border-radius:10px; background:#f8fafc;">
+      <div style="font-weight:700; margin-bottom:10px;">When do you need the service?</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
+        {% for value, label, help_text in service_timing_choices %}
+          <label style="display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid #d1d5db; border-radius:8px; background:#fff;">
+            <input type="radio" name="service_timing" value="{{ value }}"{% if selected_service_timing == value %} checked{% endif %} required>
+            <span>
+              <strong style="display:block;">{{ label }}</strong>
+              <span style="font-size:12px; color:#4b5563;">{{ help_text }}</span>
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+      <div style="margin-top:10px; font-size:12px; color:#4b5563;">
+        Emergency sends your request to immediate dispatch. Urgent prioritizes fast available options. Scheduled lets you browse and choose providers normally.
+      </div>
+      {% if timing_required %}
+        <div style="margin-top:10px; color:#991b1b; font-size:13px; font-weight:600;">
+          Choose when you need the service before searching providers.
+        </div>
+      {% endif %}
+    </div>
+
     <div>
       <label for="service_type" style="display:block; margin-bottom:6px; font-weight:bold;">Service</label>
       <select id="service_type" name="service_type" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
@@ -21,13 +44,13 @@
     </div>
 
     <div>
-      <label for="city" style="display:block; margin-bottom:6px; font-weight:bold;">City</label>
-      <input id="city" type="text" name="city" placeholder="City" value="{{ selected_city|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+      <label for="postal_code" style="display:block; margin-bottom:6px; font-weight:bold;">Postal code</label>
+      <input id="postal_code" type="text" name="postal_code" placeholder="Postal code (example: H2X 1A4)" value="{{ selected_postal_code|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
     </div>
 
     <div>
-      <label for="zone" style="display:block; margin-bottom:6px; font-weight:bold;">Zone</label>
-      <input id="zone" type="text" name="zone" placeholder="Zone" value="{{ selected_zone|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+      <label for="city" style="display:block; margin-bottom:6px; font-weight:bold;">City</label>
+      <input id="city" type="text" name="city" placeholder="City" value="{{ selected_city|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
     </div>
 
     <div>
@@ -52,11 +75,6 @@
       Only insured
     </label>
 
-    <label style="display:flex; align-items:center; gap:8px; font-weight:bold; min-height:42px;">
-      <input type="checkbox" name="available_now"{% if available_now %} checked{% endif %}>
-      Available now
-    </label>
-
     <button type="submit" style="background:#111827; color:white; border:none; border-radius:6px; padding:10px 16px; cursor:pointer;">Search</button>
   </form>
 
@@ -65,7 +83,7 @@
 
     <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;">
       {% for service in service_types %}
-        <a href="?service_type={{ service.service_type_id }}"
+        <a href="?service_type={{ service.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}"
            style="display:block; padding:12px; border:1px solid #ccc; border-radius:10px; text-decoration:none;">
           <div style="font-weight:600;">{{ service.name }}</div>
           <div style="font-size:12px; opacity:.7;">ID: {{ service.service_type_id }}</div>
@@ -76,31 +94,258 @@
     </div>
   {% endif %}
 
-  {% if mode == "providers" %}
-    <h2>{{ selected_service_type.name }} Providers</h2>
+  {% if mode == "emergency" %}
+    <div style="padding:18px; border:1px solid #fecaca; border-radius:12px; background:#fff7ed;">
+      <h2 style="margin:0 0 10px;">Emergency request</h2>
+      <p style="margin:0 0 14px; color:#7c2d12;">
+        Emergency requests are handled through immediate dispatch and do not use the normal provider marketplace list.
+      </p>
+      {% if emergency_cta_url %}
+        <a href="{{ emergency_cta_url }}" style="display:inline-flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:8px; background:#111827; color:#fff; text-decoration:none; font-weight:600;">
+          Continue to emergency request
+        </a>
+      {% else %}
+        <div style="font-size:13px; color:#7c2d12;">
+          Add a postal code to continue to the emergency request flow.
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
 
-    {% for p in providers %}
-      <div style="border:1px solid #e5e7eb; border-radius:8px; padding:16px; margin-bottom:12px;">
-        <h3 style="margin:0 0 8px;">{{ p.provider }}</h3>
-        {% if p.provider.has_required_certifications %}
-          <span class="badge verified" style="display:inline-block; margin-bottom:8px; background:#dcfce7; color:#166534; border-radius:999px; padding:3px 10px; font-size:12px; font-weight:600;">Certified</span>
-        {% else %}
-          <span class="badge warning" style="display:inline-block; margin-bottom:8px; background:#fef3c7; color:#92400e; border-radius:999px; padding:3px 10px; font-size:12px; font-weight:600;">Certification Required</span>
+  {% if mode == "providers" %}
+    <style>
+      .marketplace-compact-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      .marketplace-search {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        width: 100%;
+      }
+
+      .marketplace-search__input {
+        flex: 1 1 260px;
+        min-width: 220px;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+      }
+
+      .marketplace-search__button {
+        border: none;
+        border-radius: 8px;
+        background: #111827;
+        color: #fff;
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+
+      .provider-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .provider-card.provider-card--compact {
+        display: flex;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        align-items: flex-start;
+      }
+
+      .provider-avatar {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+      }
+
+      .provider-avatar img,
+      .avatar-placeholder {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+      }
+
+      .provider-avatar img {
+        object-fit: cover;
+        display: block;
+      }
+
+      .avatar-placeholder {
+        background: #2f6fed;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .provider-info {
+        min-width: 0;
+        flex: 1 1 auto;
+        font-size: 13px;
+      }
+
+      .provider-name-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: baseline;
+        margin-bottom: 4px;
+        flex-wrap: wrap;
+      }
+
+      .provider-name-row strong {
+        font-size: 14px;
+        color: #111827;
+      }
+
+      .provider-line {
+        margin: 3px 0;
+        color: #4b5563;
+      }
+
+      .provider-line--service {
+        color: #111827;
+      }
+
+      .provider-line--price {
+        color: #0f172a;
+        font-weight: 600;
+      }
+
+      .provider-line--meta {
+        font-size: 12px;
+      }
+
+      .provider-actions {
+        margin-top: 8px;
+      }
+
+      .provider-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px 12px;
+        border-radius: 8px;
+        text-decoration: none;
+        background: #111827;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .provider-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px 12px;
+        border-radius: 8px;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 12px;
+        font-weight: 600;
+      }
+    </style>
+
+    <h2>
+      {% if selected_service_timing == "urgent" %}
+        Fast options for the next 24 hours
+      {% else %}
+        {{ selected_service_type.name }} Providers
+      {% endif %}
+    </h2>
+
+    <div class="marketplace-compact-toolbar">
+      <form method="get" class="marketplace-search">
+        <input type="hidden" name="service_type" value="{{ selected_service_type.service_type_id }}">
+        <input type="hidden" name="service_timing" value="{{ selected_service_timing }}">
+        {% if selected_postal_code %}
+          <input type="hidden" name="postal_code" value="{{ selected_postal_code }}">
         {% endif %}
-        <p style="margin:4px 0;">Rating: {{ p.provider.avg_rating }}</p>
-        <p style="margin:4px 0;">Price: {{ p.price_cents }}</p>
-        <p style="margin:4px 0;">
-          {% if p.is_compliant %}
-            <a href="{% url 'ui:request_create' p.provider_id %}?service_type_id={{ p.service_type_id }}">Request</a>
+        {% if selected_city %}
+          <input type="hidden" name="city" value="{{ selected_city }}">
+        {% endif %}
+        {% if selected_language %}
+          <input type="hidden" name="language" value="{{ selected_language }}">
+        {% endif %}
+        {% if only_certified %}
+          <input type="hidden" name="only_certified" value="1">
+        {% endif %}
+        {% if only_insured %}
+          <input type="hidden" name="only_insured" value="1">
+        {% endif %}
+        <input
+          class="marketplace-search__input"
+          type="text"
+          name="q"
+          value="{{ selected_query|default:'' }}"
+          placeholder="Search provider, service, skill or extra"
+        >
+        <button type="submit" class="marketplace-search__button">Search</button>
+      </form>
+    </div>
+
+    <div class="provider-list">
+    {% for p in providers %}
+      <div class="provider-card provider-card--compact">
+        <div class="provider-avatar">
+          {% if p.card_logo_url %}
+            <img src="{{ p.card_logo_url }}" alt="{{ p.card_display_name }}">
           {% else %}
-            <span style="color:#9A3412; font-weight:600;">Compliance required</span>
+            <div class="avatar-placeholder">{{ p.card_display_name|slice:":1" }}</div>
           {% endif %}
-        </p>
+        </div>
+
+        <div class="provider-info">
+          <div class="provider-name-row">
+            <strong>{{ p.card_display_name }}</strong>
+            <span class="provider-line provider-line--meta">Rating {{ p.provider.avg_rating|default:"0.0" }}</span>
+          </div>
+
+          <div class="provider-line provider-line--service">
+            {{ p.service_type.name }}{% if p.card_primary_subservice %} • {{ p.card_primary_subservice }}{% endif %}
+          </div>
+
+          {% if p.card_extra_preview %}
+            <div class="provider-line provider-line--meta">Extra: {{ p.card_extra_preview }}</div>
+          {% endif %}
+
+          <div class="provider-line provider-line--price">
+            From ${{ p.display_price|floatformat:2 }}
+          </div>
+
+          <div class="provider-actions">
+          {% if p.is_compliant %}
+            <a
+              class="provider-link"
+              href="{% url 'ui:request_create' p.provider_id %}?service_type_id={{ p.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}"
+            >
+              View
+            </a>
+          {% else %}
+            <span class="provider-status">Compliance required</span>
+          {% endif %}
+          </div>
+        </div>
       </div>
     {% empty %}
       <p>No providers found.</p>
     {% endfor %}
+    </div>
   {% endif %}
-</div>
+  </div>
 </div>
 {% endblock %}

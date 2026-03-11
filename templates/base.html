@@ -176,6 +176,53 @@ padding-top:14px;
 border-top:1px solid #E2E8F0;
 }
 
+.form-input{
+width:100%;
+padding:12px;
+border-radius:10px;
+border:1px solid #CBD5E1;
+background:#FFFFFF;
+font-size:14px;
+box-sizing:border-box;
+}
+
+.input-error{
+border:2px solid #d92d20;
+background:#fff5f5;
+}
+
+.input-error:focus{
+border-color:#d92d20;
+box-shadow:0 0 0 3px rgba(217,45,32,.14);
+}
+
+.password-field{
+position:relative;
+display:flex;
+align-items:center;
+}
+
+.password-field .form-input{
+padding-right:44px;
+}
+
+.password-toggle{
+position:absolute;
+right:12px;
+top:50%;
+transform:translateY(-50%);
+border:none;
+background:transparent;
+cursor:pointer;
+font-size:16px;
+line-height:1;
+padding:0;
+}
+
+.password-toggle:hover{
+opacity:.7;
+}
+
 .link-small{
 font-size:14px;
 color:#666;
@@ -623,20 +670,16 @@ border-left:5px solid #5B8DFF;
 border-left:5px solid #F57B2A;
 }
 
-/* PROVIDER SUBNAV */
+/* ROLE SUBNAV */
 
 .nodo-subnav{
-position: sticky;
-bottom: 0;
-display: flex;
-gap: 10px;
-justify-content: center;
-align-items: center;
-padding: 10px 12px;
-margin-top: 18px;
-border-top: 1px solid rgba(0,0,0,.08);
-background: #fff;
-z-index: 20;
+max-width:1100px;
+margin:0 auto 18px;
+padding:0 20px;
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+align-items:center;
 }
 
 .nodo-subnav__item{
@@ -649,10 +692,19 @@ text-decoration: none;
 font-weight: 600;
 border: 1px solid rgba(0,0,0,.10);
 color:#0F172A;
+background:#fff;
+box-shadow:0 4px 14px rgba(15,23,42,.05);
 }
 
 .nodo-subnav__item:hover{
 border-color: rgba(0,0,0,.20);
+}
+
+.nodo-subnav__item.active{
+background:#e9eef6;
+border-color:#cbd5e1;
+font-weight:700;
+color:#0F172A;
 }
 
 /* NODO FOOTER */
@@ -911,6 +963,19 @@ hr{
     border-radius:12px;
 }
 
+.alert{
+    padding:12px 16px;
+    border-radius:12px;
+    margin-bottom:16px;
+    font-size:14px;
+}
+
+.alert-error{
+    background:#fdecea;
+    color:#b42318;
+    border:1px solid #f5c2c7;
+}
+
 .alert-info{
     background:rgba(15,185,177,.10);
     border:1px solid rgba(15,185,177,.25);
@@ -955,9 +1020,9 @@ hr{
 
 <div class="navcta">
 
-{% if request.session.nodo_role %}
+{% if request.session.nodo_role or request.session.client_id or request.session.provider_id or request.session.worker_id %}
 
-<span>{{ nav_identity|default:"Account" }}</span>
+<span>{{ user_nav_label }}</span>
 
 <a class="btn" href="/logout/">Logout</a>
 
@@ -973,6 +1038,13 @@ hr{
 
 </header>
 
+{% if request.session.nodo_role == "provider" or request.session.provider_id %}
+{% include "partials/provider_nav.html" %}
+{% elif request.session.nodo_role == "client" or request.session.client_id %}
+{% include "partials/client_nav.html" %}
+{% elif request.session.nodo_role == "worker" or request.session.worker_id %}
+{% include "partials/worker_nav.html" %}
+{% endif %}
 
 {% if user_client and user_client.is_phone_verified and not user_client.profile_completed %}
 <div class="status-banner client">
@@ -1009,18 +1081,6 @@ Your provider profile is incomplete.
 {% endblock %}
 
 </div>
-
-{% if request.session.nodo_role == "provider" %}
-  <nav class="nodo-subnav">
-    <a class="nodo-subnav__item" href="{% url 'portal:provider_dashboard' %}">Dashboard</a>
-    <a class="nodo-subnav__item" href="{% url 'portal:provider_services' %}">My Services</a>
-    <a class="nodo-subnav__item" href="{% url 'provider_profile' %}">Profile</a>
-    <a class="nodo-subnav__item" href="{% url 'provider_jobs' %}">Jobs</a>
-    <a class="nodo-subnav__item" href="{% url 'provider_activity' %}">Activity</a>
-    <a class="nodo-subnav__item" href="{% url 'provider_compliance' %}">Compliance</a>
-    <a class="nodo-subnav__item" href="{% url 'provider_billing' %}">Billing</a>
-  </nav>
-{% endif %}
 
 
 
@@ -1059,6 +1119,20 @@ el.remove()
 })
 
 },4000)
+
+function togglePasswordVisibility(button){
+var wrapper = button.closest(".password-field");
+var field = wrapper ? wrapper.querySelector("input") : null;
+
+if(!field){
+return;
+}
+
+var showingPassword = field.type === "password";
+field.type = showingPassword ? "text" : "password";
+button.setAttribute("aria-pressed", showingPassword ? "true" : "false");
+button.setAttribute("aria-label", showingPassword ? "Hide password" : "Show password");
+}
 
 </script>
 

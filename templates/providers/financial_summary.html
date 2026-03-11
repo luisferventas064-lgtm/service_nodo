@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+  .provider-financial-page {
+    display: grid;
+    gap: 24px;
+  }
+
+  .provider-financial-hero {
+    background:
+      radial-gradient(circle at top right, rgba(15, 185, 177, 0.16), transparent 36%),
+      linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  }
+
+  .provider-financial-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+
+  .provider-financial-note {
+    margin: 14px 0 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #fff7e6;
+    border: 1px solid #f0d9a7;
+    color: #6b5b2b;
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  .provider-financial-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .provider-financial-card {
+    padding: 16px 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+  }
+
+  .provider-financial-label {
+    margin-bottom: 8px;
+    color: #475467;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .provider-financial-value {
+    color: #0f172a;
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .provider-financial-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .provider-financial-table th,
+  .provider-financial-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+  }
+
+  .provider-financial-table thead th {
+    color: #64748b;
+    font-size: 0.84rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .provider-financial-disclaimer {
+    margin: 0;
+    color: #475467;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 900px) {
+    .provider-financial-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="page provider-financial-page">
+  <div class="card provider-financial-hero">
+    <h2 class="card-title">{{ page_title }}</h2>
+    <p class="muted" style="margin: 0;">
+      Operational financial summary based on your provider jobs, pricing snapshots, tickets, and ledger records.
+    </p>
+    <div class="provider-financial-actions">
+      <a class="btn primary" href="?{{ export_querystring }}">Export CSV</a>
+      <a class="btn" href="{% url 'provider_activity' %}">View Activity</a>
+    </div>
+    <p class="provider-financial-note">
+      {{ financial_disclaimer_short }}
+    </p>
+  </div>
+
+  <div class="provider-financial-grid">
+    <div class="provider-financial-card">
+      <div class="provider-financial-label">Total jobs</div>
+      <div class="provider-financial-value">{{ activity_analytics.total_jobs }}</div>
+    </div>
+    <div class="provider-financial-card">
+      <div class="provider-financial-label">Completed jobs</div>
+      <div class="provider-financial-value">{{ activity_analytics.completed_jobs }}</div>
+    </div>
+    <div class="provider-financial-card">
+      <div class="provider-financial-label">Cancelled jobs</div>
+      <div class="provider-financial-value">{{ activity_analytics.cancelled_jobs }}</div>
+    </div>
+    <div class="provider-financial-card">
+      <div class="provider-financial-label">Gross</div>
+      <div class="provider-financial-value">{{ activity_analytics.total_gross_display }}</div>
+    </div>
+    <div class="provider-financial-card">
+      <div class="provider-financial-label">Platform fees</div>
+      <div class="provider-financial-value">{{ activity_analytics.total_platform_fees_display }}</div>
+    </div>
+    <div class="provider-financial-card">
+      <div class="provider-financial-label">Provider net</div>
+      <div class="provider-financial-value">{{ activity_analytics.total_provider_earnings_display }}</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 16px;">Monthly breakdown</h3>
+    <table class="provider-financial-table">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th>Gross</th>
+          <th>Platform fees</th>
+          <th>Provider net</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for month in monthly_revenue %}
+          <tr>
+            <td>{{ month.month|date:"Y-m" }}</td>
+            <td>{{ month.gross_display }}</td>
+            <td>{{ month.fees_display }}</td>
+            <td>{{ month.provider_display }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4">No data</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top: 0; margin-bottom: 12px;">{{ financial_disclaimer_full_title }}</h3>
+    <div class="provider-financial-disclaimer">
+      {{ financial_disclaimer_full|linebreaks }}
+    </div>
+  </div>
+</div>
+{% endblock %}

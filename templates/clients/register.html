@@ -14,8 +14,20 @@
     Find and request trusted services.
   </p>
 
-  {% if form.non_field_errors %}
-    <p style="color:#991B1B;">{{ form.non_field_errors }}</p>
+  {% if form.errors %}
+    <div class="form-alert form-alert-error" style="margin-bottom:16px; padding:12px 14px; border:1px solid #d9a3a3; border-radius:10px; background:#fff5f5; color:#7a1f1f;">
+      <strong>There was a problem with your submission.</strong>
+      <ul style="margin:8px 0 0 18px;">
+        {% for field in form %}
+          {% for error in field.errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
   {% endif %}
 
   <form method="post" novalidate>

@@ -257,6 +257,11 @@
           <label for="province">Province</label>
           <input type="text" id="province" name="province" placeholder="Province" required>
         </div>
+
+        <div class="field">
+          <label for="postal_prefix">Postal Prefix (FSA)</label>
+          <input type="text" id="postal_prefix" name="postal_prefix" placeholder="H2X" maxlength="3">
+        </div>
       </div>
 
       <div class="actions">
@@ -277,6 +282,9 @@
             <div class="area-meta">
               <div class="area-title">{{ area.city }}, {{ area.province }}</div>
               <div class="area-subtitle">
+                {% if area.postal_prefix %}
+                  <span>FSA {{ area.postal_prefix }}</span>
+                {% endif %}
                 <span class="badge badge-active">Active</span>
               </div>
             </div>
@@ -306,6 +314,9 @@
             <div class="area-meta">
               <div class="area-title">{{ area.city }}, {{ area.province }}</div>
               <div class="area-subtitle">
+                {% if area.postal_prefix %}
+                  <span>FSA {{ area.postal_prefix }}</span>
+                {% endif %}
                 <span class="badge badge-inactive">Inactive</span>
               </div>
             </div>

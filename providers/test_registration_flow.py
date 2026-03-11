@@ -1,14 +1,27 @@
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
 
-from providers.models import Provider, ProviderCertificate, ProviderService, ProviderServiceArea
+from providers.models import (
+    Provider,
+    ProviderCertificate,
+    ProviderLocation,
+    ProviderService,
+    ProviderServiceArea,
+)
 from service_type.models import RequiredCertification, ServiceType
 from ui.models import PasswordResetCode
 
 
 class ProviderRegistrationFlowTests(TestCase):
+    def setUp(self):
+        super().setUp()
+        self.geocode_address_patcher = patch("providers.views.geocode_address", return_value=None)
+        self.geocode_address_mock = self.geocode_address_patcher.start()
+        self.addCleanup(self.geocode_address_patcher.stop)
+
     @patch("providers.views.send_sms")
     def test_provider_register_creates_pending_provider_and_redirects_to_verify(self, send_sms_mock):
         response = self.client.post(
@@ -127,6 +140,7 @@ class ProviderRegistrationFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "There was a problem with your submission.")
         self.assertContains(response, "Passwords do not match.")
         self.assertFalse(Provider.objects.filter(email="acme.mismatch@example.com").exists())
 
@@ -278,6 +292,9 @@ class ProviderRegistrationFlowTests(TestCase):
         response = self.client.post(
             reverse("provider_complete_billing"),
             data={
+                "entity_type": "company",
+                "legal_name": "Acme Legal",
+                "business_name": "Acme Services",
                 "province": "QC",
                 "city": "Montreal",
                 "postal_code": "H1A1A1",
@@ -285,10 +302,130 @@ class ProviderRegistrationFlowTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("provider_dashboard"))
+        self.assertRedirects(response, reverse("portal:provider_dashboard"))
         provider.refresh_from_db()
         self.assertTrue(provider.billing_profile_completed)
         self.assertEqual(provider.city, "Montreal")
+
+    def test_provider_edit_creates_provider_location_from_geocode(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="Jane Smith",
+            contact_first_name="Jane",
+            contact_last_name="Smith",
+            phone_number="+15145550901",
+            email="provider.location.edit@example.com",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="123 Provider St",
+        )
+        self.geocode_address_mock.return_value = {
+            "lat": 45.5601,
+            "lng": -73.7124,
+            "components": [],
+        }
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        response = self.client.post(
+            reverse("provider_edit"),
+            data={
+                "provider_type": provider.provider_type,
+                "company_name": provider.company_name or "",
+                "legal_name": provider.legal_name,
+                "business_registration_number": provider.business_registration_number,
+                "employee_count": provider.employee_count,
+                "contact_first_name": provider.contact_first_name,
+                "contact_last_name": provider.contact_last_name,
+                "phone_number": provider.phone_number,
+                "email": provider.email,
+                "languages_spoken": provider.languages_spoken,
+                "country": "Canada",
+                "province": "QC",
+                "city": "Laval",
+                "postal_code": "H7A1A1",
+                "address_line1": "123 Updated St",
+                "availability_mode": provider.availability_mode,
+                "service_radius_km": str(provider.service_radius_km),
+            },
+        )
+
+        self.assertRedirects(response, reverse("provider_profile"))
+        location = ProviderLocation.objects.get(provider=provider)
+        self.assertEqual(location.latitude, Decimal("45.560100"))
+        self.assertEqual(location.longitude, Decimal("-73.712400"))
+        self.assertEqual(location.city, "Laval")
+        self.assertEqual(location.province, "QC")
+        self.assertEqual(location.postal_code, "H7A1A1")
+        self.geocode_address_mock.assert_called_once_with(
+            "H7A1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+
+    def test_provider_complete_billing_creates_provider_location_from_geocode(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Acme Services",
+            contact_first_name="Jane",
+            contact_last_name="Manager",
+            phone_number="+15145550902",
+            email="provider.location.billing@example.com",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=False,
+            accepts_terms=True,
+            country="Canada",
+            province="QC",
+            city="Pending",
+            postal_code="PENDING",
+            address_line1="Pending profile completion",
+        )
+        self.geocode_address_mock.return_value = {
+            "lat": 45.5017,
+            "lng": -73.5673,
+            "components": [],
+        }
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        response = self.client.post(
+            reverse("provider_complete_billing"),
+            data={
+                "entity_type": "company",
+                "legal_name": "Acme Legal",
+                "business_name": "Acme Services",
+                "province": "QC",
+                "city": "Montreal",
+                "postal_code": "H1A1A1",
+                "address_line1": "200 Business Ave",
+            },
+        )
+
+        self.assertRedirects(response, reverse("portal:provider_dashboard"))
+        location = ProviderLocation.objects.get(provider=provider)
+        self.assertEqual(location.latitude, Decimal("45.501700"))
+        self.assertEqual(location.longitude, Decimal("-73.567300"))
+        self.assertEqual(location.city, "Montreal")
+        self.assertEqual(location.province, "QC")
+        self.assertEqual(location.postal_code, "H1A1A1")
+        self.geocode_address_mock.assert_called_once_with(
+            "H1A1A1",
+            city="Montreal",
+            province="QC",
+            country="Canada",
+        )
 
     def test_provider_is_operational_requires_active_service(self):
         provider = Provider.objects.create(
@@ -407,7 +544,7 @@ class ProviderRegistrationFlowTests(TestCase):
         self.assertTrue(provider.has_required_certifications)
         self.assertTrue(provider.is_operational)
 
-    def test_provider_dashboard_shows_activation_banner_until_service_exists(self):
+    def test_provider_dashboard_redirects_provider_without_services_to_portal_dashboard(self):
         provider = Provider.objects.create(
             provider_type=Provider.TYPE_SELF_EMPLOYED,
             company_name=None,
@@ -430,14 +567,13 @@ class ProviderRegistrationFlowTests(TestCase):
         session["provider_id"] = provider.pk
         session.save()
 
-        response = self.client.get(reverse("provider_dashboard"))
+        response = self.client.get(reverse("provider_dashboard"), follow=True)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Setup in progress.")
-        self.assertContains(response, "Add at least one active service.")
-        self.assertContains(response, "Active Services: 0")
+        self.assertRedirects(response, reverse("portal:provider_dashboard"))
+        self.assertContains(response, "Provider Dashboard")
+        self.assertContains(response, "No jobs yet.")
 
-    def test_provider_dashboard_shows_billing_banner_when_billing_missing(self):
+    def test_provider_dashboard_allows_billing_incomplete_provider_into_portal_dashboard(self):
         provider = Provider.objects.create(
             provider_type=Provider.TYPE_SELF_EMPLOYED,
             company_name=None,
@@ -460,13 +596,13 @@ class ProviderRegistrationFlowTests(TestCase):
         session["provider_id"] = provider.pk
         session.save()
 
-        response = self.client.get(reverse("provider_dashboard"))
+        response = self.client.get(reverse("provider_dashboard"), follow=True)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Complete your billing information.")
-        self.assertContains(response, "Add at least one active service.")
+        self.assertRedirects(response, reverse("portal:provider_dashboard"))
+        self.assertContains(response, "Provider Dashboard")
+        self.assertContains(response, "No jobs yet.")
 
-    def test_provider_dashboard_shows_operational_state_when_ready(self):
+    def test_provider_dashboard_redirects_ready_provider_to_portal_dashboard(self):
         provider = Provider.objects.create(
             provider_type=Provider.TYPE_SELF_EMPLOYED,
             company_name=None,
@@ -499,8 +635,8 @@ class ProviderRegistrationFlowTests(TestCase):
         session["provider_id"] = provider.pk
         session.save()
 
-        response = self.client.get(reverse("provider_dashboard"))
+        response = self.client.get(reverse("provider_dashboard"), follow=True)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Your account is operational.")
-        self.assertContains(response, "Active Services: 1")
+        self.assertRedirects(response, reverse("portal:provider_dashboard"))
+        self.assertContains(response, "Provider Dashboard")
+        self.assertContains(response, "No jobs yet.")

@@ -8,16 +8,17 @@
     <h1 class="card-title">Client Login</h1>
     <p class="muted">Sign in to browse providers and track your requests.</p>
 
+    {% if form.non_field_errors %}
+    <div class="alert alert-error">
+      <strong>Login failed.</strong><br>
+      {% for error in form.non_field_errors %}
+        {{ error }}
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <form method="post">
       {% csrf_token %}
-
-      {% if form.non_field_errors %}
-        <div class="form-row">
-          {% for error in form.non_field_errors %}
-            <p style="color:#b91c1c; margin:0 0 8px;">{{ error }}</p>
-          {% endfor %}
-        </div>
-      {% endif %}
 
       <div class="form-row">
         <label for="id_identifier">Email or phone</label>
@@ -26,7 +27,18 @@
 
       <div class="form-row">
         <label for="id_password">Password</label>
-        {{ form.password }}
+        <div class="password-field">
+          {{ form.password }}
+          <button
+            type="button"
+            class="password-toggle"
+            onclick="togglePasswordVisibility(this)"
+            aria-label="Show password"
+            aria-pressed="false"
+          >
+            👁
+          </button>
+        </div>
       </div>
 
       <div style="margin-top:10px;">

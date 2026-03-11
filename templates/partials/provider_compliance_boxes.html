@@ -1,0 +1,24 @@
+{% if compliance_result %}
+  {% if compliance_result.is_compliant %}
+    <div class="compliance-box compliance-ok">
+      Compliant{% if service_type_name or compliance_province_code %} for {{ service_type_name|default:"this service" }}{% if compliance_province_code %} in {{ compliance_province_code }}{% endif %}{% endif %}.
+    </div>
+  {% else %}
+    {% if compliance_result.missing_certificates %}
+      <div class="compliance-box compliance-warning">
+        Missing certificates: {{ compliance_result.missing_certificates|join:", " }}
+      </div>
+    {% endif %}
+    {% if compliance_result.missing_insurance %}
+      <div class="compliance-box compliance-warning">
+        Insurance is required for this service and province. Verified insurance is still missing.
+      </div>
+    {% endif %}
+  {% endif %}
+
+  {% if compliance_result.insurance_required and not compliance_result.missing_insurance %}
+    <div class="compliance-box compliance-info">
+      Insurance is required for this service and province.
+    </div>
+  {% endif %}
+{% endif %}

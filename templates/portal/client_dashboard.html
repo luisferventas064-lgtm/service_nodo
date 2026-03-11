@@ -48,27 +48,84 @@
 .portal-job-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .portal-job {
   border: 1px solid #E2E8F0;
   border-radius: 12px;
-  padding: 14px;
+  padding: 10px 12px;
   background: #FFFFFF;
 }
 
-.portal-job-head {
+.portal-job-row {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
+}
+
+.portal-job-main {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+
+.portal-job-summary,
+.portal-job-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.portal-job-summary {
+  color: #0F172A;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.portal-job-reference {
+  font-weight: 700;
+}
+
+.portal-job-divider {
+  color: #CBD5E1;
 }
 
 .portal-job-meta {
   color: #64748B;
-  font-size: 13px;
-  margin-top: 6px;
+  font-size: 12px;
+  margin-top: 4px;
+  gap: 8px 12px;
+}
+
+.portal-job-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #F1F5F9;
+  color: #334155;
+  font-weight: 600;
+}
+
+.portal-job-action {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .portal-job {
+    padding: 10px;
+  }
+
+  .portal-job-row {
+    align-items: flex-start;
+  }
+
+  .portal-job-summary {
+    font-size: 13px;
+  }
 }
 </style>
 
@@ -124,38 +181,44 @@
 </div>
 
 <div class="card">
-  <h2 style="margin-top:0;">Recent Jobs</h2>
+  <h2 style="margin-top:0;">Recent Active Jobs</h2>
 
   {% if recent_jobs %}
     <div class="portal-job-list">
       {% for job in recent_jobs %}
         <div class="portal-job">
-          <div class="portal-job-head">
-            <strong>{{ job.public_reference }}</strong>
-            <span>{{ job.get_job_status_display }}</span>
-          </div>
-          <div class="portal-job-meta">
-            {{ job.service_type.name }} | {{ job.city }}, {{ job.province }}
-          </div>
-          <div class="portal-job-meta">
-            Provider:
-            {% if job.selected_provider %}
-              {{ job.selected_provider }}
-            {% else %}
-              Not assigned yet
-            {% endif %}
-          </div>
-          <div class="portal-job-meta">
-            Created: {{ job.created_at|date:"M d, Y H:i" }}
-          </div>
-          <div class="portal-actions">
-            <a class="btn" href="{% url 'ui:request_status' job_id=job.job_id %}">View Status</a>
+          <div class="portal-job-row">
+            <div class="portal-job-main">
+              <div class="portal-job-summary">
+                <span class="portal-job-reference">{{ job.public_reference }}</span>
+                <span class="portal-job-divider">|</span>
+                <span>{{ job.service_type.name }}</span>
+                <span class="portal-job-divider">|</span>
+                <span>{{ job.city }}, {{ job.province }}</span>
+              </div>
+              <div class="portal-job-meta">
+                <span class="portal-job-status">{{ job.get_job_status_display }}</span>
+                <span>
+                  Provider:
+                  {% if job.selected_provider %}
+                    {{ job.selected_provider }}
+                  {% else %}
+                    Not assigned yet
+                  {% endif %}
+                </span>
+                <span>Created {{ job.created_at|date:"M d, Y H:i" }}</span>
+              </div>
+            </div>
+            <a class="btn portal-job-action" href="{% url 'ui:request_status' job_id=job.job_id %}">View Status</a>
           </div>
         </div>
       {% endfor %}
     </div>
   {% else %}
-    <p class="muted">No jobs yet. Start by exploring the marketplace.</p>
+    <p class="muted">
+      No active jobs right now. Review past requests in <a href="{% url 'client_activity' %}">Activity</a>
+      or explore the marketplace.
+    </p>
     <a class="btn primary" href="{% url 'ui:marketplace_search' %}">Explore Marketplace</a>
   {% endif %}
 </div>

@@ -83,17 +83,23 @@ class MarketplaceProviderAcceptRaceTests(TestCase):
 
     def test_accept_ok_current_window(self):
         job = self._mk_job()
-        self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
+        attempt = self._mk_attempt(job, created_at=timezone.now() - timedelta(minutes=5))
 
         self.assertTrue(self.provider.is_operational)
         result = accept_marketplace_offer(job_id=job.job_id, provider_id=self.provider.provider_id)
         self.assertEqual(result, "accepted_waiting_client")
 
         job.refresh_from_db()
+        attempt.refresh_from_db()
+        self.provider.metrics.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.PENDING_CLIENT_CONFIRMATION)
         self.assertEqual(job.selected_provider_id, self.provider.provider_id)
         self.assertIsNotNone(job.client_confirmation_started_at)
         self.assertIsNone(job.next_marketplace_alert_at)
+        self.assertEqual(attempt.status, BroadcastAttemptStatus.ACCEPTED)
+        self.assertEqual(self.provider.metrics.offers_accepted_count, 1)
+        self.assertEqual(self.provider.metrics.jobs_accepted, 1)
+        self.assertAlmostEqual(self.provider.metrics.avg_response_time, 5.0, places=2)
 
     def test_accept_rejected_if_pending_client_decision(self):
         job = self._mk_job(status=Job.JobStatus.PENDING_CLIENT_DECISION)

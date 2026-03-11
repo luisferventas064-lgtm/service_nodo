@@ -110,6 +110,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     "clients.apps.ClientsConfig",
+    "compliance.apps.ComplianceConfig",
     "payments.apps.PaymentsConfig",
     "providers.apps.ProvidersConfig",
     "settlements.apps.SettlementsConfig",
@@ -127,6 +128,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'core.middleware.ActiveProfileMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -146,6 +148,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.active_profile_nav',
                 'clients.context_processors.client_session_context',
             ],
         },
@@ -160,12 +163,18 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     "default": {
-        "ENGINE": "mssql",
-        "NAME": "Nodo",  # <-- cambia esto por el nombre real de tu BD
-        "HOST": r".\SQLEXPRESS",
+        "ENGINE": os.getenv("DB_ENGINE", "mssql"),
+        "NAME": os.getenv("DB_NAME", "Nodo"),
+        "HOST": os.getenv("DB_HOST", r".\SQLEXPRESS"),
+        "PORT": os.getenv("DB_PORT", ""),
+        "USER": os.getenv("DB_USER", ""),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
         "OPTIONS": {
-            "driver": "ODBC Driver 17 for SQL Server",
-            "TrustServerCertificate": "yes",
+            "driver": os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server"),
+            "TrustServerCertificate": os.getenv(
+                "DB_TRUST_SERVER_CERTIFICATE",
+                "yes",
+            ),
         },
     }
 }
@@ -210,3 +219,5 @@ STATIC_URL = 'static/'
 
 # Optional override for auto evidence destination.
 NODO_EVIDENCE_DIR = None
+
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")

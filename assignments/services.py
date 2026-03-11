@@ -68,24 +68,27 @@ def activate_assignment_for_job(
 
     # 5) Create assignment + update job + event (same transaction)
     try:
+        assigned_at = timezone.now()
         assignment = JobAssignment.objects.create(
             job_id=job_id,
             provider_id=provider_id,
             is_active=ACTIVE_VALUE,
             assignment_status="accepted",
-            accepted_at=timezone.now(),
+            accepted_at=assigned_at,
         )
 
         Job.objects.filter(job_id=job_id).update(job_status=JobStatus.ASSIGNED)
+        from providers.models import Provider
+
+        Provider.objects.filter(provider_id=provider_id).update(last_job_assigned_at=assigned_at)
 
         from jobs.models import JobEvent
         JobEvent.objects.create(
             job_id=job_id,
-            event_type="JOB_ACCEPTED",
-            actor_type="provider",
+            event_type=JobEvent.EventType.ASSIGNED,
             provider_id=provider_id,
-            job_status_snapshot=JobStatus.ASSIGNED,
-            payload={"assignment_id": assignment.assignment_id},
+            assignment_id=assignment.assignment_id,
+            note="provider accepted job",
         )
 
         return ActivateResult(assignment_id=assignment.assignment_id, created=True)

@@ -1,7 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from providers.models import Provider, ProviderService
+from compliance.models import ComplianceRule
+from providers.models import Provider, ProviderCertificate, ProviderService, ProviderServiceArea
 from service_type.models import ServiceType
 
 
@@ -29,23 +30,28 @@ class ProviderServiceManagementFlowTests(TestCase):
             name="Painting",
             description="Painting",
         )
+        ProviderServiceArea.objects.create(
+            provider=self.provider,
+            city="Montreal",
+            province="QC",
+            is_active=True,
+        )
         session = self.client.session
         session["provider_id"] = self.provider.pk
         session.save()
 
     def test_provider_service_add_creates_service(self):
         response = self.client.post(
-            reverse("provider_service_add"),
+            reverse("portal:provider_service_add", args=[self.service_type.service_type_id]),
             data={
-                "service_type": self.service_type.pk,
                 "custom_name": "Interior Painting",
+                "description": "",
                 "billing_unit": "fixed",
-                "price_cents": 25000,
-                "is_active": "on",
+                "price": "250.00",
             },
         )
 
-        self.assertRedirects(response, reverse("provider_services_list"))
+        self.assertRedirects(response, reverse("portal:provider_services"))
         self.assertTrue(
             ProviderService.objects.filter(
                 provider=self.provider,
@@ -68,17 +74,16 @@ class ProviderServiceManagementFlowTests(TestCase):
         )
 
         response = self.client.post(
-            reverse("provider_service_edit", args=[service.pk]),
+            reverse("portal:provider_service_edit", args=[service.pk]),
             data={
-                "service_type": self.service_type.pk,
                 "custom_name": "Exterior Painting",
+                "description": "",
                 "billing_unit": "hour",
-                "price_cents": 30000,
-                "is_active": "on",
+                "price": "300.00",
             },
         )
 
-        self.assertRedirects(response, reverse("provider_services_list"))
+        self.assertRedirects(response, reverse("portal:provider_services"))
         service.refresh_from_db()
         self.assertEqual(service.custom_name, "Exterior Painting")
         self.assertEqual(service.billing_unit, "hour")
@@ -96,10 +101,10 @@ class ProviderServiceManagementFlowTests(TestCase):
         )
 
         response = self.client.post(
-            reverse("provider_service_toggle", args=[service.pk]),
+            reverse("portal:provider_service_toggle", args=[service.pk]),
         )
 
-        self.assertRedirects(response, reverse("provider_services_list"))
+        self.assertRedirects(response, reverse("portal:provider_services"))
         service.refresh_from_db()
         self.assertFalse(service.is_active)
 
@@ -114,11 +119,82 @@ class ProviderServiceManagementFlowTests(TestCase):
             is_active=True,
         )
 
-        response = self.client.get(reverse("provider_services_list"))
+        response = self.client.get(reverse("portal:provider_services"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "My Services")
         self.assertContains(response, "Interior Painting")
+
+    def test_provider_services_list_shows_missing_certificate_warning(self):
+        ProviderService.objects.create(
+            provider=self.provider,
+            service_type=self.service_type,
+            custom_name="Interior Painting",
+            description="",
+            billing_unit="fixed",
+            price_cents=25000,
+            is_active=True,
+        )
+        ComplianceRule.objects.create(
+            province_code="QC",
+            service_type=self.service_type,
+            certificate_name="RBQ License",
+            certificate_required=True,
+            insurance_required=False,
+            is_mandatory=True,
+        )
+
+        response = self.client.get(reverse("portal:provider_services"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Missing certificates")
+        self.assertContains(response, "RBQ License")
+
+    def test_provider_service_add_shows_insurance_required_message(self):
+        ComplianceRule.objects.create(
+            province_code="QC",
+            service_type=self.service_type,
+            certificate_name="",
+            certificate_required=False,
+            insurance_required=True,
+            is_mandatory=True,
+        )
+
+        response = self.client.get(
+            reverse("portal:provider_service_add", args=[self.service_type.service_type_id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Insurance is required for this service and province.")
+
+    def test_provider_service_edit_shows_compliant_status_when_certificate_is_verified(self):
+        service = ProviderService.objects.create(
+            provider=self.provider,
+            service_type=self.service_type,
+            custom_name="Interior Painting",
+            description="",
+            billing_unit="fixed",
+            price_cents=25000,
+            is_active=True,
+        )
+        ComplianceRule.objects.create(
+            province_code="QC",
+            service_type=self.service_type,
+            certificate_name="RBQ License",
+            certificate_required=True,
+            insurance_required=False,
+            is_mandatory=True,
+        )
+        ProviderCertificate.objects.create(
+            provider=self.provider,
+            cert_type="RBQ License",
+            status=ProviderCertificate.Status.VERIFIED,
+        )
+
+        response = self.client.get(reverse("portal:provider_service_edit", args=[service.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Compliant for Painting in QC.")
 
     def test_unverified_provider_cannot_manage_services(self):
         self.provider.is_phone_verified = False
@@ -133,10 +209,10 @@ class ProviderServiceManagementFlowTests(TestCase):
         )
 
     def test_incomplete_profile_provider_cannot_manage_services(self):
-        self.provider.profile_completed = False
-        self.provider.save(update_fields=["profile_completed"])
+        self.provider.accepts_terms = False
+        self.provider.save(update_fields=["accepts_terms"])
 
-        response = self.client.get(reverse("provider_services_list"))
+        response = self.client.get(reverse("provider_services_list"), follow=True)
 
         self.assertRedirects(response, reverse("provider_complete_profile"))
 
@@ -144,7 +220,7 @@ class ProviderServiceManagementFlowTests(TestCase):
         self.provider.billing_profile_completed = False
         self.provider.save(update_fields=["billing_profile_completed"])
 
-        response = self.client.get(reverse("provider_services_list"))
+        response = self.client.get(reverse("portal:provider_services"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "My Services")

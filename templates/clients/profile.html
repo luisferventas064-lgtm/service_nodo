@@ -12,8 +12,9 @@
 <p>Profile completed: {{ client.profile_completed }}</p>
 
 <hr>
-<h3>Client Dashboard</h3>
+<h3>Quick Links</h3>
 <ul>
+  <li><a href="{% url 'client_dashboard' %}">Dashboard</a></li>
   <li><a href="{% url 'client_activity' %}">Activity</a></li>
   <li><a href="{% url 'client_billing' %}">Billing</a></li>
   <li><a href="{% url 'client_edit' %}">Account Settings</a></li>

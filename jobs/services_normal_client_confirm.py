@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 
 from clients.lines import ensure_client_base_line
 from clients.lines_fee import ensure_client_fee_line
@@ -34,6 +35,8 @@ def _build_tax_region_code(job: Job) -> str:
 
 
 def _activate_assignment_for_job(job: Job):
+    assigned_at = timezone.now()
+
     # Desactiva cualquier assignment activo previo para este job
     JobAssignment.objects.filter(job=job, is_active=True).update(is_active=False)
 
@@ -47,6 +50,13 @@ def _activate_assignment_for_job(job: Job):
     if not created and not assignment.is_active:
         assignment.is_active = True
         assignment.save(update_fields=["is_active"])
+
+    if job.selected_provider_id:
+        from providers.models import Provider
+
+        Provider.objects.filter(provider_id=job.selected_provider_id).update(
+            last_job_assigned_at=assigned_at
+        )
 
     return assignment
 

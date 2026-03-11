@@ -11,6 +11,7 @@ urlpatterns = [
     path("profile/", views.provider_profile, name="provider_profile"),
     path("jobs/", views.provider_jobs, name="provider_jobs"),
     path("activity/", views.provider_activity, name="provider_activity"),
+    path("financial-summary/", views.provider_financial_summary, name="provider_financial_summary"),
     path("billing/", views.provider_billing, name="provider_billing"),
     path("compliance/", views.provider_compliance, name="provider_compliance"),
     path("account/", views.provider_edit, name="provider_edit"),

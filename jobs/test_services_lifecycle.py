@@ -53,9 +53,11 @@ class ServicesLifecycleTests(TestCase):
         assignment = accept_job_by_provider(job, provider)
 
         job.refresh_from_db()
+        provider.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.ASSIGNED)
         self.assertEqual(assignment.job_id, job.job_id)
         self.assertEqual(assignment.provider_id, provider.provider_id)
         self.assertTrue(assignment.is_active)
         self.assertEqual(assignment.assignment_status, "assigned")
         self.assertEqual(JobAssignment.objects.filter(job=job, is_active=True).count(), 1)
+        self.assertIsNotNone(provider.last_job_assigned_at)

@@ -111,6 +111,7 @@ class ClientRegistrationFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "There was a problem with your submission.")
         self.assertContains(response, "Passwords do not match.")
         self.assertFalse(Client.objects.filter(email="jane.mismatch@example.com").exists())
 

@@ -94,6 +94,11 @@ def marketplace_ranked_queryset(
             Value(0.0),
             output_field=FloatField(),
         ),
+        hybrid_score=Coalesce(
+            F("provider__hybrid_score"),
+            Value(0.0),
+            output_field=FloatField(),
+        ),
         safe_completed=Coalesce(F("provider__completed_jobs_count"), Value(0)),
         safe_cancelled=Coalesce(F("provider__cancelled_jobs_count"), Value(0)),
         verified_bonus=Cast(F("provider__is_verified"), FloatField()),
@@ -117,10 +122,6 @@ def marketplace_ranked_queryset(
         cancellation_rate=Least(
             Greatest(F("cancellation_rate"), Value(0.0)),
             Value(1.0),
-        ),
-        hybrid_score=ExpressionWrapper(
-            F("safe_rating") + (F("verified_bonus") * Value(0.1)),
-            output_field=FloatField(),
         ),
     )
 
@@ -166,8 +167,9 @@ def marketplace_ranked_queryset(
 
     return qs.order_by(
         "-compliance_score",
+        "-hybrid_score",
         "-safe_rating",
-        "-safe_completed",
+        "price_cents",
         "provider_id",
     )
 

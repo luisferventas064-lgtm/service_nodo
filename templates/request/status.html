@@ -81,6 +81,10 @@
             background: #e5eef8;
             color: #1e3a5f;
         }
+        .back-to-activity {
+            display: inline-flex;
+            align-items: center;
+        }
         .btn-danger {
             background: #f9d9de;
             color: #a14b5b;
@@ -167,6 +171,9 @@
 
 <div class="container">
     <div class="top-actions">
+        {% if next_url %}
+            <a class="btn btn-secondary back-to-activity" href="{{ next_url }}">Back to Activity</a>
+        {% endif %}
         <button class="btn btn-secondary" type="button" onclick="history.back()">Back</button>
         <a class="btn btn-secondary" href="{% url 'ui:marketplace_search' %}">Return to Marketplace</a>
     </div>
@@ -370,6 +377,9 @@
             {% endif %}
             <form method="post">
                 {% csrf_token %}
+                {% if next_url %}
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
                 <button class="btn" name="action" value="confirm_close">Confirm &amp; Close</button>
             </form>
         {% endif %}
@@ -377,6 +387,9 @@
         {% if job.job_status == "posted" or job.job_status == "waiting_provider_response" or job.job_status == "assigned" %}
             <form method="post">
                 {% csrf_token %}
+                {% if next_url %}
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
                 <button class="btn btn-danger" name="action" value="cancel_request">Cancel Request</button>
             </form>
         {% elif job.job_status == "confirmed" %}

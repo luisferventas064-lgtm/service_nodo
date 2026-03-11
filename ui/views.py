@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import random
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.hashers import check_password
@@ -25,24 +26,30 @@ from django.db.models import (
 )
 from django.db.models.functions import Cast, Coalesce, Greatest, Least
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from clients.models import ClientTicket
 from clients.models import Client
 from core.auth_session import clear_session, require_role, set_session
+from core.legal_disclaimers import build_financial_disclaimer_context
 from core.utils.phone import best_effort_normalize_phone, phone_lookup_candidates
 from jobs import services as job_services
-from jobs.models import Job, JobDispute, JobEvent, JobRequestedExtra, PlatformLedgerEntry
+from jobs.models import Job, JobDispute, JobEvent, JobLocation, JobRequestedExtra, PlatformLedgerEntry
 from jobs.services_pricing_snapshot import apply_provider_service_snapshot_to_job
 from jobs.services_lifecycle import accept_job_by_provider
-from providers.models import Provider, ProviderService, ProviderServiceExtra
+from providers.models import Provider, ProviderLocation, ProviderMetrics, ProviderService, ProviderServiceArea, ProviderServiceExtra
 from providers.models import ProviderTicket
 from providers.services_analytics import (
     marketplace_analytics_snapshot,
     marketplace_analytics_to_csv,
 )
+from providers.services_geocode import extract_province, geocode_address
 from providers.services_marketplace import Log10, marketplace_ranked_queryset
+from providers.utils_distance import haversine_distance_km
+from providers.utils_ranking import provider_ranking_score
 from service_type.models import ServiceType
 from workers.models import Worker
 
@@ -62,6 +69,32 @@ MARKETPLACE_ORDER_MAP = {
     "price_asc": ("price_cents", "-safe_rating", "provider_id"),
     "price_desc": ("-price_cents", "-safe_rating", "provider_id"),
 }
+MARKETPLACE_SERVICE_TIMING_CHOICES = (
+    (
+        "emergency",
+        "Emergency",
+        "less than 2 hours",
+    ),
+    (
+        "urgent",
+        "Urgent",
+        "2 to 24 hours",
+    ),
+    (
+        "scheduled",
+        "Scheduled",
+        "more than 24 hours",
+    ),
+)
+MARKETPLACE_SERVICE_TIMING_VALUES = {
+    choice[0] for choice in MARKETPLACE_SERVICE_TIMING_CHOICES
+}
+REQUEST_SERVICE_TIMING_VALUES = set(MARKETPLACE_SERVICE_TIMING_VALUES)
+REQUEST_SERVICE_TIMING_TO_JOB_MODE = {
+    "emergency": Job.JobMode.ON_DEMAND,
+    "urgent": Job.JobMode.ON_DEMAND,
+    "scheduled": Job.JobMode.SCHEDULED,
+}
 MARKETPLACE_LANGUAGE_CHOICES = (
     "English",
     "French",
@@ -75,6 +108,7 @@ MARKETPLACE_LANGUAGE_CHOICES = (
     "Vietnamese",
 )
 REQUEST_MONEY_Q = Decimal("0.01")
+REQUEST_AREA_UNAVAILABLE_ERROR = "Service not available in this area. Please choose another address."
 FRIENDLY_JOB_STATUS_LABELS = {
     Job.JobStatus.DRAFT: "Draft",
     Job.JobStatus.POSTED: "Looking for a provider",
@@ -128,7 +162,11 @@ def home(request):
 
 
 def terms_and_conditions(request):
-    return render(request, "ui/terms_and_conditions.html")
+    return render(
+        request,
+        "ui/terms_and_conditions.html",
+        build_financial_disclaimer_context(),
+    )
 
 
 def portal_view(request):
@@ -319,6 +357,54 @@ def _marketplace_top_results(*, queryset, limit=10):
     return ranked_rows
 
 
+def _apply_marketplace_search_query(*, queryset, search_q=""):
+    normalized_query = (search_q or "").strip()
+    if not normalized_query:
+        return queryset
+
+    return queryset.filter(
+        Q(provider_display_name__icontains=normalized_query)
+        | Q(provider__company_name__icontains=normalized_query)
+        | Q(provider__contact_first_name__icontains=normalized_query)
+        | Q(provider__contact_last_name__icontains=normalized_query)
+        | Q(provider__legal_name__icontains=normalized_query)
+        | Q(provider__email__icontains=normalized_query)
+        | Q(service_type__name__icontains=normalized_query)
+        | Q(custom_name__icontains=normalized_query)
+        | Q(subservices__is_active=True, subservices__name__icontains=normalized_query)
+        | Q(extras__is_active=True, extras__name__icontains=normalized_query)
+    ).distinct()
+
+
+def _prepare_marketplace_provider_cards(offers):
+    prepared = []
+
+    for offer in offers:
+        offer.display_price = Decimal(offer.price_cents) / Decimal("100")
+        offer.card_display_name = (
+            getattr(offer, "provider_display_name", "").strip()
+            or str(offer.provider)
+        )
+
+        provider_logo = getattr(offer.provider, "logo", None)
+        offer.card_logo_url = getattr(provider_logo, "url", "") if provider_logo else ""
+
+        subservices = sorted(
+            [subservice for subservice in offer.subservices.all() if subservice.is_active],
+            key=lambda subservice: (subservice.sort_order, subservice.pk),
+        )
+        extras = sorted(
+            [extra for extra in offer.extras.all() if extra.is_active],
+            key=lambda extra: (extra.sort_order, extra.pk),
+        )
+
+        offer.card_primary_subservice = subservices[0].name if subservices else ""
+        offer.card_extra_preview = extras[0].name if extras else ""
+        prepared.append(offer)
+
+    return prepared
+
+
 def _build_marketplace_results(*, client=None, service_type_id="", provider_type="", order="", province="", city="", zone_id=""):
     error = None
     selected_service_type = (service_type_id or "").strip()
@@ -438,6 +524,8 @@ def _login_for_role(request, *, model, template_name, role_label):
             return redirect(_redirect_after_role_login(actor, role=role_key))
 
         form.add_error(None, "Invalid credentials.")
+
+    form.apply_error_styles()
 
     return render(
         request,
@@ -748,47 +836,86 @@ def marketplace_search_view(request):
         return redirect("client_complete_profile")
 
     service_type_id = (request.GET.get("service_type") or "").strip()
+    postal_code = (request.GET.get("postal_code") or "").strip()
     city = (request.GET.get("city") or "").strip()
-    zone = (request.GET.get("zone") or "").strip()
     language = (request.GET.get("language") or "").strip()
-    available_now = request.GET.get("available_now")
+    search_q = (request.GET.get("q") or "").strip()
     only_certified = request.GET.get("only_certified")
     only_insured = request.GET.get("only_insured")
+    service_timing = (request.GET.get("service_timing") or "").strip().lower()
+    if service_timing not in MARKETPLACE_SERVICE_TIMING_VALUES:
+        service_timing = ""
 
     service_types = _marketplace_service_types(limit=20)
 
     context = {
         "service_types": service_types,
+        "selected_postal_code": postal_code,
         "selected_city": city,
-        "selected_zone": zone,
         "selected_language": language,
+        "selected_query": search_q,
+        "selected_service_timing": service_timing,
+        "service_timing_choices": MARKETPLACE_SERVICE_TIMING_CHOICES,
+        "timing_required": False,
         "language_options": MARKETPLACE_LANGUAGE_CHOICES,
-        "available_now": bool(available_now),
         "only_certified": bool(only_certified),
         "only_insured": bool(only_insured),
     }
 
-    if not service_type_id:
-        context["service_types"] = service_types
+    selected_service_type = None
+    if service_type_id:
+        selected_service_type = get_object_or_404(
+            ServiceType,
+            pk=service_type_id,
+            is_active=True,
+        )
+        context["selected_service_type"] = selected_service_type
+
+    if not service_type_id or not service_timing:
+        context["timing_required"] = bool(service_type_id and not service_timing)
         context["mode"] = "services"
         return render(request, "marketplace/index.html", context)
 
-    selected_service_type = get_object_or_404(
-        ServiceType,
-        pk=service_type_id,
-        is_active=True,
-    )
+    target_postal_prefix = _normalize_postal_prefix(postal_code)
+
+    if service_timing == "emergency":
+        emergency_cta_url = ""
+        emergency_postal_prefix = target_postal_prefix or _normalize_postal_prefix(
+            client.postal_code
+        )
+        if emergency_postal_prefix:
+            emergency_cta_url = (
+                f"{reverse('ui:providers_nearby')}?"
+                f"{urlencode({'fsa': emergency_postal_prefix, 'service_type': service_type_id})}"
+            )
+        context.update(
+            {
+                "mode": "emergency",
+                "selected_service_type": selected_service_type,
+                "emergency_cta_url": emergency_cta_url,
+            }
+        )
+        return render(request, "marketplace/index.html", context)
+
     providers = marketplace_ranked_queryset(
-        province=client.province,
-        city=city or client.city,
+        province=None if target_postal_prefix else client.province,
+        city=None if target_postal_prefix else city or client.city,
         service_type_id=service_type_id,
+    ).prefetch_related("subservices", "extras")
+
+    if target_postal_prefix:
+        providers = providers.filter(
+            provider__providerservicearea__is_active=True
+        ).filter(
+            Q(provider__providerservicearea__postal_prefix__iexact=target_postal_prefix)
+            | Q(provider__providerservicearea__postal_prefix__isnull=True)
+            | Q(provider__providerservicearea__postal_prefix__exact="")
+        ).distinct()
+
+    providers = _apply_marketplace_search_query(
+        queryset=providers,
+        search_q=search_q,
     )
-
-    if zone:
-        providers = providers.filter(provider__zone__name=zone)
-
-    if available_now:
-        providers = providers.filter(provider__is_available_now=True)
 
     qs = providers
     if language:
@@ -805,9 +932,11 @@ def marketplace_search_view(request):
             and ps.provider.insurance.is_verified
         ]
 
+    provider_cards = _prepare_marketplace_provider_cards(qs[:20])
+
     context.update(
         {
-            "providers": qs[:20],
+            "providers": provider_cards,
             "mode": "providers",
             "selected_service_type": selected_service_type,
         }
@@ -872,6 +1001,175 @@ def marketplace_results_view(request):
             "province": province,
             "city": city,
             "zone_id": zone_id,
+        },
+    )
+
+
+def providers_nearby_view(request, job_id=None):
+    if job_id is not None:
+        job = get_object_or_404(
+            Job.objects.select_related("location", "service_type"),
+            pk=job_id,
+        )
+        job_location = getattr(job, "location", None)
+
+        providers = []
+        error = None
+        selected_service_type = getattr(job, "service_type", None)
+        service_type_id = str(job.service_type_id or "")
+        fsa = _normalize_postal_prefix(job.postal_code)
+        rating = ""
+        search = ""
+
+        if job_location is None:
+            error = "Job has no location."
+        elif selected_service_type is None:
+            error = "Job has no service type."
+        else:
+            provider_offers = (
+                marketplace_ranked_queryset(service_type_id=job.service_type_id)
+                .filter(provider__location__isnull=False)
+                .select_related("provider", "provider__location", "provider__metrics", "service_type")
+                .order_by("provider_id", "price_cents")
+            )
+
+            seen_provider_ids = set()
+            for provider_offer in provider_offers:
+                if provider_offer.provider_id in seen_provider_ids:
+                    continue
+                seen_provider_ids.add(provider_offer.provider_id)
+
+                if not _provider_services_request_area(
+                    provider=provider_offer.provider,
+                    city=job.city,
+                    province=job.province,
+                    postal_code=job.postal_code,
+                ):
+                    continue
+
+                try:
+                    provider_location = provider_offer.provider.location
+                except ProviderLocation.DoesNotExist:
+                    continue
+
+                provider_offer.distance_km = haversine_distance_km(
+                    job_location.latitude,
+                    job_location.longitude,
+                    provider_location.latitude,
+                    provider_location.longitude,
+                )
+                try:
+                    provider_metrics = provider_offer.provider.metrics
+                except ProviderMetrics.DoesNotExist:
+                    provider_metrics = None
+                provider_offer.score = provider_ranking_score(
+                    distance_km=provider_offer.distance_km,
+                    rating=provider_offer.safe_rating or 0,
+                    response_minutes=getattr(provider_metrics, "avg_response_time", None),
+                    acceptance_rate=getattr(provider_metrics, "acceptance_rate", None),
+                    completion_rate=getattr(provider_metrics, "completion_rate", None),
+                    last_job_assigned_at=provider_offer.provider.last_job_assigned_at,
+                )
+                provider_offer.display_price = provider_offer.price_cents / 100
+                providers.append(provider_offer)
+
+            providers.sort(
+                key=lambda provider_offer: (
+                    -provider_offer.score,
+                    provider_offer.distance_km,
+                    provider_offer.provider_id,
+                )
+            )
+
+        return render(
+            request,
+            "providers/nearby.html",
+            {
+                "providers": providers,
+                "error": error,
+                "fsa": fsa,
+                "rating": rating,
+                "search": search,
+                "service_type_id": service_type_id,
+                "selected_service_type": selected_service_type,
+                "job": job,
+            },
+        )
+
+    fsa = _normalize_postal_prefix(request.GET.get("fsa"))
+    service_type_id = (request.GET.get("service_type") or "").strip()
+    rating = (request.GET.get("rating") or "").strip()
+    search = (request.GET.get("search") or "").strip()
+
+    providers = []
+    error = None
+    selected_service_type = None
+
+    try:
+        parsed_service_type_id = int(service_type_id)
+    except (TypeError, ValueError):
+        parsed_service_type_id = None
+        error = "Invalid service type."
+
+    if error is None and not fsa:
+        error = "Postal area is required."
+
+    if error is None:
+        selected_service_type = ServiceType.objects.filter(
+            pk=parsed_service_type_id,
+            is_active=True,
+        ).first()
+        if selected_service_type is None:
+            error = "Invalid service type."
+
+    if error is None:
+        providers_qs = (
+            marketplace_ranked_queryset(service_type_id=parsed_service_type_id)
+            .filter(
+                provider__providerservicearea__is_active=True,
+                provider__providerservicearea__postal_prefix__iexact=fsa,
+            )
+            .distinct()
+        )
+
+        if rating:
+            try:
+                minimum_rating = Decimal(rating)
+            except (TypeError, ValueError, InvalidOperation):
+                error = "Invalid rating filter."
+            else:
+                providers_qs = providers_qs.filter(safe_rating__gte=float(minimum_rating))
+
+        if error is None and search:
+            providers_qs = providers_qs.filter(
+                Q(provider__company_name__icontains=search)
+                | Q(provider__contact_first_name__icontains=search)
+                | Q(provider__contact_last_name__icontains=search)
+            )
+
+        if error is None:
+            providers = list(
+                providers_qs.order_by(
+                    "-hybrid_score",
+                    "-safe_rating",
+                    "price_cents",
+                    "provider_id",
+                )[:3]
+            )
+            for provider_offer in providers:
+                provider_offer.display_price = provider_offer.price_cents / 100
+
+    return render(
+        request,
+        "providers/nearby.html",
+        {
+            "providers": providers,
+            "error": error,
+            "fsa": fsa,
+            "rating": rating,
+            "search": search,
+            "service_type_id": service_type_id,
+            "selected_service_type": selected_service_type,
         },
     )
 
@@ -951,6 +1249,54 @@ def _build_request_extra_options(*, extras, selected_ids=None, selected_quantiti
     return options
 
 
+def _normalize_postal_prefix(raw_postal_code):
+    normalized = (raw_postal_code or "").replace(" ", "").strip().upper()
+    if not normalized:
+        return ""
+    return normalized[:3]
+
+
+def _redirect_to_nearby_providers(*, postal_code="", service_type_id=""):
+    fsa = _normalize_postal_prefix(postal_code)
+    if not fsa:
+        return None
+
+    params = {"fsa": fsa}
+    if service_type_id:
+        params["service_type"] = str(service_type_id).strip()
+
+    return redirect(f"{reverse('ui:providers_nearby')}?{urlencode(params)}")
+
+
+def _provider_services_request_area(*, provider, city="", province="", postal_code=""):
+    active_areas = ProviderServiceArea.objects.filter(provider=provider, is_active=True)
+    if not active_areas.exists():
+        return True
+
+    postal_prefix = _normalize_postal_prefix(postal_code)
+    normalized_city = (city or "").strip()
+    normalized_province = (province or "").strip()
+
+    active_areas_with_postal_prefix = active_areas.exclude(
+        postal_prefix__isnull=True
+    ).exclude(postal_prefix__exact="")
+    if active_areas_with_postal_prefix.exists():
+        if not postal_prefix:
+            return False
+        return active_areas_with_postal_prefix.filter(
+            postal_prefix__iexact=postal_prefix
+        ).exists()
+
+    if not normalized_city:
+        return False
+
+    area_filters = Q(city__iexact=normalized_city)
+    if normalized_province:
+        area_filters &= Q(province__iexact=normalized_province)
+
+    return active_areas.filter(area_filters).exists()
+
+
 def _request_money(value) -> Decimal:
     return Decimal(value).quantize(REQUEST_MONEY_Q, rounding=ROUND_HALF_UP)
 
@@ -1019,6 +1365,18 @@ def _billing_unit_display(value: str) -> str:
     return dict(ProviderService.BILLING_UNIT_CHOICES).get(value, value)
 
 
+def _normalize_request_service_timing(raw_value: str, *, fallback_job_mode: str = "") -> str:
+    normalized = (raw_value or "").strip().lower()
+    if normalized in REQUEST_SERVICE_TIMING_VALUES:
+        return normalized
+
+    if fallback_job_mode == Job.JobMode.SCHEDULED:
+        return "scheduled"
+
+    # Preserve existing request links and tests that still post legacy on-demand mode.
+    return "urgent"
+
+
 def request_create_view(request, provider_id):
     provider = get_object_or_404(Provider, pk=provider_id, is_active=True)
     provider_offers = list(
@@ -1062,11 +1420,28 @@ def request_create_view(request, provider_id):
         or request.GET.get("provider_service_id")
         or ""
     ).strip()
+    requested_service_timing = _normalize_request_service_timing(
+        request.GET.get("service_timing") or "",
+        fallback_job_mode=(request.GET.get("job_mode") or "").strip(),
+    )
     client_id = request.session.get("client_id")
     session_client = Client.objects.filter(pk=client_id).first() if client_id else None
     if client_id and session_client is None:
         request.session.pop("client_id", None)
     client_authenticated = bool(session_client)
+    provider_postal_prefixes = sorted(
+        {
+            (prefix or "").strip().upper()
+            for prefix in ProviderServiceArea.objects.filter(
+                provider=provider,
+                is_active=True,
+            )
+            .exclude(postal_prefix__isnull=True)
+            .exclude(postal_prefix__exact="")
+            .values_list("postal_prefix", flat=True)
+            if (prefix or "").strip()
+        }
+    )
 
     selected_offer = _resolve_request_offer(
         provider=provider,
@@ -1094,7 +1469,9 @@ def request_create_view(request, provider_id):
         "city": getattr(session_client, "city", None) or provider.city,
         "postal_code": getattr(session_client, "postal_code", None) or "",
         "address_line1": getattr(session_client, "address_line1", None) or "",
-        "job_mode": Job.JobMode.ON_DEMAND,
+        "use_other_address": False,
+        "service_timing": requested_service_timing,
+        "job_mode": REQUEST_SERVICE_TIMING_TO_JOB_MODE[requested_service_timing],
         "scheduled_date": "",
         "scheduled_start_time": "",
         "service_type": service_type_id,
@@ -1114,6 +1491,29 @@ def request_create_view(request, provider_id):
             }
         )
 
+    request_area_error = None
+    if default_form_data["postal_code"] and not _provider_services_request_area(
+        provider=provider,
+        city=default_form_data["city"],
+        province=default_form_data["province"],
+        postal_code=default_form_data["postal_code"],
+    ):
+        request_area_error = REQUEST_AREA_UNAVAILABLE_ERROR
+
+    request_service_type_id = (
+        str(default_form_data["service_type"]).strip()
+        if default_form_data["service_type"]
+        else ""
+    )
+
+    if request.method == "GET" and request_area_error == REQUEST_AREA_UNAVAILABLE_ERROR:
+        nearby_redirect = _redirect_to_nearby_providers(
+            postal_code=default_form_data["postal_code"],
+            service_type_id=request_service_type_id,
+        )
+        if nearby_redirect is not None:
+            return nearby_redirect
+
     if request.method == "GET":
         return render(
             request,
@@ -1127,9 +1527,10 @@ def request_create_view(request, provider_id):
                 "client": session_client,
                 "client_authenticated": client_authenticated,
                 "compliance_blocked": compliance_blocked,
-                "error": compliance_error,
+                "error": request_area_error or compliance_error,
                 "request_subservices": request_subservices,
                 "request_extra_options": request_extra_options,
+                "provider_postal_prefixes": provider_postal_prefixes,
             },
         )
 
@@ -1146,6 +1547,7 @@ def request_create_view(request, provider_id):
     raw_requested_quantity = request.POST.get("requested_quantity")
 
     if session_client is not None:
+        use_other_address = bool(request.POST.get("use_other_address"))
         form_data = {
             "first_name": session_client.first_name,
             "last_name": session_client.last_name,
@@ -1153,9 +1555,22 @@ def request_create_view(request, provider_id):
             "email": session_client.email,
             "country": session_client.country,
             "province": session_client.province,
-            "city": session_client.city,
-            "postal_code": session_client.postal_code,
-            "address_line1": session_client.address_line1,
+            "city": (
+                (request.POST.get("city") or "").strip()
+                if use_other_address
+                else session_client.city
+            ),
+            "postal_code": (
+                (request.POST.get("postal_code") or "").strip()
+                if use_other_address
+                else session_client.postal_code
+            ),
+            "address_line1": (
+                (request.POST.get("address_line1") or "").strip()
+                if use_other_address
+                else session_client.address_line1
+            ),
+            "use_other_address": use_other_address,
             "service_type": (request.POST.get("service_type") or "").strip(),
             "provider_service_id": (request.POST.get("provider_service_id") or "").strip(),
             "requested_quantity": (
@@ -1164,7 +1579,7 @@ def request_create_view(request, provider_id):
             "requested_subservice_id": (request.POST.get("requested_subservice_id") or "").strip(),
             "selected_extra_ids": selected_extra_ids,
             "selected_extra_quantities": selected_extra_quantities,
-            "job_mode": (request.POST.get("job_mode") or Job.JobMode.ON_DEMAND).strip(),
+            "service_timing": (request.POST.get("service_timing") or "").strip().lower(),
             "scheduled_date": (request.POST.get("scheduled_date") or "").strip(),
             "scheduled_start_time": (request.POST.get("scheduled_time") or "").strip(),
         }
@@ -1179,6 +1594,7 @@ def request_create_view(request, provider_id):
             "city": (request.POST.get("city") or "").strip(),
             "postal_code": (request.POST.get("postal_code") or "").strip(),
             "address_line1": (request.POST.get("address_line1") or "").strip(),
+            "use_other_address": False,
             "service_type": (request.POST.get("service_type") or "").strip(),
             "provider_service_id": (request.POST.get("provider_service_id") or "").strip(),
             "requested_quantity": (
@@ -1187,10 +1603,16 @@ def request_create_view(request, provider_id):
             "requested_subservice_id": (request.POST.get("requested_subservice_id") or "").strip(),
             "selected_extra_ids": selected_extra_ids,
             "selected_extra_quantities": selected_extra_quantities,
-            "job_mode": (request.POST.get("job_mode") or Job.JobMode.ON_DEMAND).strip(),
+            "service_timing": (request.POST.get("service_timing") or "").strip().lower(),
             "scheduled_date": (request.POST.get("scheduled_date") or "").strip(),
             "scheduled_start_time": (request.POST.get("scheduled_time") or "").strip(),
         }
+
+    form_data["service_timing"] = _normalize_request_service_timing(
+        form_data.get("service_timing", ""),
+        fallback_job_mode=(request.POST.get("job_mode") or "").strip(),
+    )
+    form_data["job_mode"] = REQUEST_SERVICE_TIMING_TO_JOB_MODE[form_data["service_timing"]]
 
     required_fields = [
         "first_name",
@@ -1210,9 +1632,9 @@ def request_create_view(request, provider_id):
     error = None
     if missing_required:
         error = "Complete all required fields."
-    elif form_data["job_mode"] not in {Job.JobMode.ON_DEMAND, Job.JobMode.SCHEDULED}:
-        error = "Invalid service mode."
-    elif form_data["job_mode"] == Job.JobMode.SCHEDULED and (
+    elif form_data["service_timing"] not in REQUEST_SERVICE_TIMING_VALUES:
+        error = "Invalid service timing."
+    elif form_data["service_timing"] == "scheduled" and (
         not form_data["scheduled_date"] or not form_data["scheduled_start_time"]
     ):
         error = "Scheduled mode requires date and time."
@@ -1267,6 +1689,33 @@ def request_create_view(request, provider_id):
                 selected_offer.display_price = selected_offer.price_cents / 100
                 form_data["provider_service_id"] = str(selected_offer.pk)
 
+    geo = None
+    if error is None:
+        geo = geocode_address(
+            form_data["postal_code"],
+            city=form_data["city"],
+            province=form_data["province"],
+        )
+        if geo:
+            real_province = (extract_province(geo["components"]) or "").strip().upper()
+            requested_province = (form_data["province"] or "").strip().upper()
+            if real_province and real_province != requested_province:
+                error = "The postal code does not belong to the selected province."
+
+    if error is None and not _provider_services_request_area(
+        provider=provider,
+        city=form_data["city"],
+        province=form_data["province"],
+        postal_code=form_data["postal_code"],
+    ):
+        nearby_redirect = _redirect_to_nearby_providers(
+            postal_code=form_data["postal_code"],
+            service_type_id=form_data["service_type"],
+        )
+        if nearby_redirect is not None:
+            return nearby_redirect
+        error = REQUEST_AREA_UNAVAILABLE_ERROR
+
     request_subservices, request_extras = _get_request_catalog(selected_offer=selected_offer)
     request_extra_options = _build_request_extra_options(
         extras=request_extras,
@@ -1311,7 +1760,7 @@ def request_create_view(request, provider_id):
                             error = f"Invalid quantity for {extra.name}."
                             break
 
-                    if quantity < extra.min_qty or quantity > extra.max_qty:
+                    if quantity < 0:
                         error = f"Invalid quantity for {extra.name}."
                         break
                 else:
@@ -1411,6 +1860,16 @@ def request_create_view(request, provider_id):
                         request_pricing_snapshot["total"] if request_pricing_snapshot else None
                     ),
                 )
+                if geo:
+                    JobLocation.objects.create(
+                        job=created_job,
+                        latitude=Decimal(str(geo["lat"])),
+                        longitude=Decimal(str(geo["lng"])),
+                        postal_code=form_data["postal_code"],
+                        city=form_data["city"],
+                        province=form_data["province"],
+                        country=form_data["country"] or "Canada",
+                    )
                 apply_provider_service_snapshot_to_job(
                     job=created_job,
                     provider_service=selected_offer,
@@ -1454,6 +1913,7 @@ def request_create_view(request, provider_id):
                 "compliance_blocked": compliance_blocked,
                 "request_subservices": request_subservices,
                 "request_extra_options": request_extra_options,
+                "provider_postal_prefixes": provider_postal_prefixes,
             },
         )
 
@@ -1522,6 +1982,25 @@ def _attach_job_lifecycle_details(job):
 
 
 def request_status_view(request, job_id):
+    next_url = (
+        request.POST.get("next")
+        if request.method == "POST"
+        else request.GET.get("next")
+    ) or ""
+    next_url = next_url.strip()
+    if next_url and not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = ""
+
+    def redirect_to_request_status():
+        request_status_url = reverse("ui:request_status", args=[job.job_id])
+        if next_url:
+            request_status_url = f"{request_status_url}?{urlencode({'next': next_url})}"
+        return redirect(request_status_url)
+
     if request.method == "POST":
         job = get_object_or_404(Job, pk=job_id)
         action = request.POST.get("action")
@@ -1533,7 +2012,7 @@ def request_status_view(request, job_id):
                 Job.JobStatus.ASSIGNED,
             }:
                 messages.error(request, "This request can no longer be cancelled.")
-                return redirect("ui:request_status", job_id=job.job_id)
+                return redirect_to_request_status()
 
             with transaction.atomic():
                 active_assignment = (
@@ -1558,14 +2037,14 @@ def request_status_view(request, job_id):
                 )
 
             messages.success(request, "Request cancelled successfully.")
-            return redirect("ui:request_status", job_id=job.job_id)
+            return redirect_to_request_status()
 
         if action != "confirm_close":
             return HttpResponseBadRequest("Accion invalida.")
 
         if not job.client_id:
             messages.error(request, "This job has no client assigned.")
-            return redirect("ui:request_status", job_id=job.job_id)
+            return redirect_to_request_status()
 
         try:
             result = job_services.confirm_service_closed_by_client(
@@ -1579,7 +2058,7 @@ def request_status_view(request, job_id):
         else:
             messages.success(request, f"Closure processed: {result}")
 
-        return redirect("ui:request_status", job_id=job.job_id)
+        return redirect_to_request_status()
 
     job = get_object_or_404(
         Job.objects.select_related(
@@ -1597,6 +2076,7 @@ def request_status_view(request, job_id):
         "request/status.html",
         {
             "job": job,
+            "next_url": next_url,
         },
     )
 
@@ -1707,10 +2187,17 @@ def provider_job_action_view(request, job_id):
                 )
 
             job.job_status = Job.JobStatus.POSTED
+            job.selected_provider = None
             job.cancelled_by = Job.CancellationActor.PROVIDER
             job.cancel_reason = Job.CancelReason.PROVIDER_REJECTED
             job.save(
-                update_fields=["job_status", "cancelled_by", "cancel_reason", "updated_at"]
+                update_fields=[
+                    "job_status",
+                    "selected_provider",
+                    "cancelled_by",
+                    "cancel_reason",
+                    "updated_at",
+                ]
             )
 
         messages.success(request, "Request declined.")
@@ -1813,18 +2300,6 @@ def quality_providers_dashboard_view(request):
         cancel_rate=Least(
             Greatest(F("cancel_rate"), Value(0.0)),
             Value(1.0),
-        ),
-    ).annotate(
-        quality_component=ExpressionWrapper(
-            (F("safe_rating") * Value(0.5))
-            + (F("volume_score") * Value(0.3))
-            - (F("cancel_rate") * Value(0.2))
-            - F("dispute_penalty_last_12m"),
-            output_field=FloatField(),
-        ),
-        hybrid_score=ExpressionWrapper(
-            F("quality_component") + (F("verified_bonus") * Value(0.1)),
-            output_field=FloatField(),
         ),
     )
 

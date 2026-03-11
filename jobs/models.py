@@ -621,6 +621,7 @@ class JobEvent(models.Model):
 
 class BroadcastAttemptStatus(models.TextChoices):
     SENT = "sent", "Sent"
+    ACCEPTED = "accepted", "Accepted"
     SKIPPED = "skipped", "Skipped"
     FAILED = "failed", "Failed"
 
@@ -806,3 +807,64 @@ class ApiIdempotencyKey(models.Model):
     key = models.CharField(max_length=80, unique=True)
     response_json = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class JobLocation(models.Model):
+    job = models.OneToOneField(
+        "jobs.Job",
+        on_delete=models.CASCADE,
+        related_name="location",
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+    )
+    grid_lat = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+    grid_lng = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+    postal_code = models.CharField(
+        max_length=10,
+    )
+    city = models.CharField(
+        max_length=120,
+    )
+    province = models.CharField(
+        max_length=10,
+    )
+    country = models.CharField(
+        max_length=50,
+        default="Canada",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["grid_lat", "grid_lng"], name="ix_job_location_grid"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.latitude is None or self.longitude is None:
+            self.grid_lat = None
+            self.grid_lng = None
+        else:
+            from providers.utils_geo_grid import compute_geo_grid
+
+            self.grid_lat, self.grid_lng = compute_geo_grid(
+                self.latitude,
+                self.longitude,
+            )
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Location for Job {self.job_id}"

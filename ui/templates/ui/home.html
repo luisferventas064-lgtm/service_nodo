@@ -531,7 +531,7 @@
         {% if request.session.nodo_role == "provider" %}
           <a href="{% url 'portal:provider_dashboard' %}">Dashboard</a>
         {% elif request.session.nodo_role == "client" %}
-          <a href="#">Client Dashboard</a>
+          <a href="{% url 'client_dashboard' %}">Client Dashboard</a>
         {% elif request.session.nodo_role == "worker" %}
           <a href="#">Worker Dashboard</a>
         {% else %}

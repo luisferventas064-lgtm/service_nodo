@@ -57,3 +57,6 @@ class BroadcastAttemptTests(TestCase):
         self.assertTrue(ok1)
         self.assertFalse(ok2)
         self.assertEqual(JobBroadcastAttempt.objects.count(), 1)
+        p.refresh_from_db()
+        p.metrics.refresh_from_db()
+        self.assertEqual(p.metrics.offers_received_count, 1)

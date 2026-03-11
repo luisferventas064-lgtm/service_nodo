@@ -6,6 +6,7 @@ from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from compliance.services import evaluate_provider_compliance
 from core.auth_session import LEGACY_ROLE_SESSION_KEYS, SESSION_KEY_ROLE, require_role, set_session
 from jobs.models import Job
 from providers.models import Provider, ProviderService
@@ -55,6 +56,14 @@ def _get_provider_from_session(request):
     if not provider_id:
         return None
     return Provider.objects.filter(pk=provider_id).first()
+
+
+def _get_provider_compliance_result(provider, service_type):
+    return evaluate_provider_compliance(
+        provider=provider,
+        province_code=provider.province,
+        service_type=service_type,
+    )
 
 
 @require_role("provider")
@@ -154,6 +163,10 @@ def provider_services_view(request):
 
     for service in services:
         service.display_price = service.price_cents / 100
+        service.compliance_result = _get_provider_compliance_result(
+            provider,
+            service.service_type,
+        )
         service_type_name = service.service_type.name.strip()
         is_addon = (service.custom_name or "").startswith("ADDON: ")
 
@@ -282,6 +295,8 @@ def provider_service_add_view(request, service_type_id):
             "provider": provider,
             "service_type": service_type,
             "form": form,
+            "compliance_result": _get_provider_compliance_result(provider, service_type),
+            "compliance_province_code": provider.province,
         },
     )
 
@@ -347,6 +362,8 @@ def provider_service_edit_view(request, service_id):
             "service": service,
             "service_type": service.service_type,
             "form": form,
+            "compliance_result": _get_provider_compliance_result(provider, service.service_type),
+            "compliance_province_code": provider.province,
         },
     )
 

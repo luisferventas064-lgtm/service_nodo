@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from core.auth_session import require_role
 from core.services.sms_service import send_sms
+from jobs.activity_service import build_activity_view_context, export_activity_csv
 from ui.models import PasswordResetCode
 
 from .forms import WorkerProfileForm, WorkerRegisterForm
@@ -168,7 +169,32 @@ def worker_jobs(request):
 
 @require_role("worker")
 def worker_activity(request):
-    return render(request, "workers/activity.html")
+    worker = getattr(request, "worker_profile", None) or _get_logged_worker(request)
+    if worker is None:
+        request.session.pop("worker_id", None)
+        request.session.pop("nodo_profile_id", None)
+        return redirect("ui:login")
+
+    if request.GET.get("export") == "csv":
+        return export_activity_csv(
+            "worker",
+            worker,
+            request.GET,
+        )
+
+    return render(
+        request,
+        "workers/activity.html",
+        {
+            "worker": worker,
+            "activity_page_title": "Activity History",
+            **build_activity_view_context(
+                "worker",
+                worker,
+                params=request.GET,
+            ),
+        },
+    )
 
 
 @require_role("worker")

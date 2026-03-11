@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 import random
 
 from django.contrib import messages
@@ -8,7 +9,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from core.auth_session import require_role
+from core.legal_disclaimers import build_financial_disclaimer_context
+from jobs.activity_query import ActivityQuery
 from core.services.sms_service import send_sms
+from jobs.activity_service import build_activity_view_context, export_activity_csv
 from ui.models import PasswordResetCode
 
 from .forms import (
@@ -18,7 +22,8 @@ from .forms import (
     ProviderRegisterForm,
     _split_contact_name,
 )
-from .models import Provider, ProviderCertificate, ProviderServiceArea
+from .models import Provider, ProviderCertificate, ProviderLocation, ProviderServiceArea
+from .services_geocode import geocode_address
 
 
 PASSWORD_CODE_WINDOW = timedelta(minutes=10)
@@ -34,6 +39,17 @@ def _set_provider_session(request, provider):
     request.session["provider_id"] = provider.pk
     request.session["nodo_role"] = "provider"
     request.session["nodo_profile_id"] = provider.pk
+
+
+def _get_logged_provider(request):
+    provider = getattr(request, "provider_profile", None)
+    if provider is not None:
+        return provider
+
+    provider_id = _get_provider_session_id(request)
+    if not provider_id:
+        return None
+    return Provider.objects.filter(pk=provider_id).first()
 
 
 def _to_model_provider_type(provider_type: str) -> str:
@@ -56,6 +72,39 @@ def _clean_placeholder_value(value: str) -> str:
         "pending profile completion",
     }
     return "" if value.lower() in blocked else value
+
+
+def _sync_provider_location(provider):
+    postal_code = _clean_placeholder_value(getattr(provider, "postal_code", ""))
+    city = _clean_placeholder_value(getattr(provider, "city", ""))
+    province = _clean_placeholder_value(getattr(provider, "province", ""))
+    country = _clean_placeholder_value(getattr(provider, "country", "")) or "Canada"
+
+    if not postal_code:
+        ProviderLocation.objects.filter(provider=provider).delete()
+        return None
+
+    geo = geocode_address(
+        postal_code,
+        city=city or None,
+        province=province or None,
+        country=country,
+    )
+    if not geo:
+        return None
+
+    location, _ = ProviderLocation.objects.update_or_create(
+        provider=provider,
+        defaults={
+            "latitude": Decimal(str(geo["lat"])),
+            "longitude": Decimal(str(geo["lng"])),
+            "postal_code": postal_code,
+            "city": city,
+            "province": province,
+            "country": country,
+        },
+    )
+    return location
 
 
 def provider_register(request):
@@ -187,7 +236,72 @@ def provider_jobs(request):
 
 @require_role("provider")
 def provider_activity(request):
-    return render(request, "providers/activity.html")
+    provider = _get_logged_provider(request)
+    if provider is None:
+        request.session.pop("provider_id", None)
+        request.session.pop("nodo_profile_id", None)
+        return redirect("provider_register")
+
+    if request.GET.get("export") == "csv":
+        return export_activity_csv(
+            "provider",
+            provider,
+            request.GET,
+        )
+
+    return render(
+        request,
+        "providers/activity.html",
+        {
+            "provider": provider,
+            "activity_page_title": "Activity History",
+            **build_activity_view_context(
+                "provider",
+                provider,
+                params=request.GET,
+            ),
+        },
+    )
+
+
+@require_role("provider")
+def provider_financial_summary(request):
+    provider = _get_logged_provider(request)
+    if provider is None:
+        request.session.pop("provider_id", None)
+        request.session.pop("nodo_profile_id", None)
+        return redirect("provider_register")
+
+    if request.GET.get("export") == "csv":
+        return export_activity_csv(
+            "provider",
+            provider,
+            request.GET,
+        )
+
+    query = ActivityQuery(
+        "provider",
+        provider,
+        params=request.GET,
+    )
+    jobs = list(query.get_filtered_queryset())
+    export_params = request.GET.copy()
+    export_params["export"] = "csv"
+
+    return render(
+        request,
+        "providers/financial_summary.html",
+        {
+            "provider": provider,
+            "page_title": "Financial Summary",
+            "role": "provider",
+            "show_activity_table": False,
+            "activity_analytics": query.get_analytics(jobs),
+            "monthly_revenue": query.get_monthly_revenue(jobs),
+            "export_querystring": export_params.urlencode(),
+            **build_financial_disclaimer_context(),
+        },
+    )
 
 
 @require_role("provider")
@@ -312,6 +426,7 @@ def provider_edit(request):
         provider.is_available_now = bool(request.POST.get("is_available_now"))
 
         provider.save()
+        _sync_provider_location(provider)
         provider.evaluate_profile_completion()
         return redirect("provider_profile")
 
@@ -421,27 +536,46 @@ def provider_service_areas(request):
     if not provider:
         return redirect("ui:root_login")
 
+    def _normalize_postal_prefix(raw_value):
+        normalized = (raw_value or "").replace(" ", "").strip().upper()
+        if not normalized:
+            return ""
+        return normalized[:3]
+
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
 
         if action == "add":
             city = (request.POST.get("city") or "").strip()
             province = (request.POST.get("province") or "").strip()
+            postal_prefix = _normalize_postal_prefix(request.POST.get("postal_prefix"))
 
             if not city or not province:
                 messages.error(request, "City and province are required.")
                 return redirect("provider_service_areas")
 
-            existing = ProviderServiceArea.objects.filter(
-                provider=provider,
-                city__iexact=city,
-                province__iexact=province,
-            ).first()
+            existing_filters = {
+                "provider": provider,
+                "postal_prefix__iexact": postal_prefix,
+            }
+            if not postal_prefix:
+                existing_filters = {
+                    "provider": provider,
+                    "city__iexact": city,
+                    "province__iexact": province,
+                    "postal_prefix__isnull": True,
+                }
+
+            existing = ProviderServiceArea.objects.filter(**existing_filters).first()
 
             if existing:
                 if not existing.is_active:
                     existing.is_active = True
-                    existing.save(update_fields=["is_active"])
+                    if postal_prefix and existing.postal_prefix != postal_prefix:
+                        existing.postal_prefix = postal_prefix
+                        existing.save(update_fields=["is_active", "postal_prefix"])
+                    else:
+                        existing.save(update_fields=["is_active"])
                     messages.success(request, "Service area reactivated.")
                 else:
                     messages.info(request, "That service area is already active.")
@@ -450,6 +584,7 @@ def provider_service_areas(request):
                     provider=provider,
                     city=city,
                     province=province,
+                    postal_prefix=postal_prefix or None,
                     is_active=True,
                 )
                 messages.success(request, "Service area added.")
@@ -660,6 +795,7 @@ def provider_complete_billing(request):
                         "updated_at",
                     ]
                 )
+            _sync_provider_location(provider)
 
             _set_provider_session(request, provider)
             request.session.pop("verify_actor_type", None)

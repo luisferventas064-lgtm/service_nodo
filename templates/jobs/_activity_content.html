@@ -1,0 +1,415 @@
+<style>
+  .activity-page {
+    margin-top: 8px;
+  }
+
+  .activity-filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .activity-range-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .activity-export-button {
+    white-space: nowrap;
+  }
+
+  .activity-clear-filters {
+    display: inline-flex;
+    align-items: center;
+    font-size: 14px;
+    text-decoration: none;
+    color: #475467;
+  }
+
+  .activity-range-form label {
+    color: #475467;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .activity-range-form select {
+    min-width: 150px;
+    padding: 8px 10px;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    background: #fff;
+    color: #101828;
+  }
+
+  .activity-table-wrap {
+    overflow-x: auto;
+  }
+
+  .activity-disclaimer {
+    margin-top: 18px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fff7e6;
+    border: 1px solid #f0d9a7;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #6b5b2b;
+  }
+
+  .activity-analytics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .activity-analytics-card {
+    padding: 14px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .activity-analytics-label {
+    margin-bottom: 8px;
+    color: #475467;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .activity-analytics-value {
+    color: #0f172a;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .activity-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 980px;
+  }
+
+  .activity-card-body {
+    padding: 0;
+  }
+
+  .activity-table th,
+  .activity-table td {
+    padding: 14px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+    text-align: left;
+  }
+
+  .activity-table thead th {
+    font-size: 0.84rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    background: #f8fafc;
+  }
+
+  .activity-table tbody tr:hover {
+    background: #f8fbfc;
+  }
+
+  .activity-table td:last-child,
+  .activity-table th:last-child {
+    text-align: right;
+  }
+
+  .activity-cell-title {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .activity-status-note {
+    display: block;
+    margin-top: 6px;
+    color: #b42318;
+  }
+
+  .activity-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .activity-status-posted {
+    background: #eef2ff;
+    color: #3730a3;
+  }
+
+  .activity-status-waiting,
+  .activity-status-pending,
+  .activity-status-hold {
+    background: #fff7ed;
+    color: #c2410c;
+  }
+
+  .activity-status-assigned {
+    background: #ecfeff;
+    color: #0f766e;
+  }
+
+  .activity-status-in-progress {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .activity-status-confirmed,
+  .activity-status-completed {
+    background: #ecfdf5;
+    color: #166534;
+  }
+
+  .activity-status-cancelled {
+    background: #fef2f2;
+    color: #991b1b;
+  }
+
+  .activity-status-expired,
+  .activity-status-draft,
+  .activity-status-default {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .activity-counterparty-missing {
+    color: #64748b;
+  }
+
+  .activity-empty {
+    text-align: center;
+    color: #64748b;
+    padding: 28px 12px;
+  }
+
+  .activity-payment-recorded {
+    color: #047857;
+    font-weight: 600;
+  }
+
+  .activity-payment-pending {
+    color: #64748b;
+  }
+
+  .btn-sm {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.9rem;
+  }
+
+  .activity-pagination {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+
+  .activity-pagination-info {
+    font-size: 14px;
+    color: #475467;
+  }
+
+  @media (max-width: 900px) {
+    .card {
+      padding: 20px;
+    }
+
+    .activity-analytics {
+      grid-template-columns: 1fr;
+    }
+
+    .activity-range-form {
+      width: 100%;
+      margin-left: 0;
+    }
+  }
+</style>
+
+<div class="activity-page">
+  <h2 style="margin-top: 0; margin-bottom: 16px;">{{ activity_page_title|default:"Activity History" }}</h2>
+
+  <div class="activity-filters">
+    {% for status_choice in status_choices %}
+      <a
+        href="?status={{ status_choice.value }}{% if selected_range %}&amp;range={{ selected_range }}{% endif %}{% if selected_sort %}&amp;sort={{ selected_sort }}{% endif %}"
+        class="btn btn-sm {% if selected_status == status_choice.value %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+      >
+        {{ status_choice.label }} ({{ status_choice.count }})
+      </a>
+    {% endfor %}
+
+    <form method="get" class="activity-range-form">
+      <input type="hidden" name="status" value="{{ selected_status }}">
+      <label for="activity-range">Date</label>
+      <select name="range" id="activity-range" onchange="this.form.submit()">
+        {% for range_value, range_label in date_range_choices %}
+          <option value="{{ range_value }}"{% if selected_range == range_value %} selected{% endif %}>
+            {{ range_label }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <label for="activity-sort">Sort</label>
+      <select name="sort" id="activity-sort" onchange="this.form.submit()">
+        {% for sort_value, sort_label in sort_choices %}
+          <option value="{{ sort_value }}"{% if selected_sort == sort_value %} selected{% endif %}>
+            {{ sort_label }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <button type="submit" name="export" value="csv" class="btn btn-sm btn-outline-primary activity-export-button">
+        Export CSV
+      </button>
+
+      <a href="{{ request.path }}" class="activity-clear-filters">
+        Clear filters
+      </a>
+    </form>
+  </div>
+
+  <div class="activity-analytics" aria-label="Activity analytics">
+    <div class="activity-analytics-card">
+      <div class="activity-analytics-label">Total jobs</div>
+      <div class="activity-analytics-value">{{ activity_analytics.total_jobs }}</div>
+    </div>
+    <div class="activity-analytics-card">
+      <div class="activity-analytics-label">Completed jobs</div>
+      <div class="activity-analytics-value">{{ activity_analytics.completed_jobs }}</div>
+    </div>
+    <div class="activity-analytics-card">
+      <div class="activity-analytics-label">Cancelled jobs</div>
+      <div class="activity-analytics-value">{{ activity_analytics.cancelled_jobs }}</div>
+    </div>
+    {% for financial_card in activity_analytics.financial_cards %}
+      <div class="activity-analytics-card">
+        <div class="activity-analytics-label">{{ financial_card.label }}</div>
+        <div class="activity-analytics-value">{{ financial_card.value }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="card-body activity-card-body">
+      <div class="activity-table-wrap">
+        <table class="table table-hover table-sm align-middle activity-table">
+          <thead>
+          <tr>
+            <th>Reference</th>
+            <th>Service</th>
+            <th>Location</th>
+            <th>Schedule</th>
+            <th>{{ activity_counterparty_label }}</th>
+            <th>Status</th>
+            {% if show_activity_payment_status %}
+              <th>Payment</th>
+            {% endif %}
+            {% for financial_header in activity_financial_headers %}
+              <th>{{ financial_header }}</th>
+            {% endfor %}
+            <th></th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for j in jobs %}
+            <tr>
+              <td>
+                <div class="activity-cell-title">{{ j.public_reference }}</div>
+                <small class="text-muted">Created {{ j.created_at|date:"Y-m-d H:i" }}</small>
+              </td>
+              <td>
+                {{ j.service_name }}<br>
+                <small class="text-muted">{{ j.service_option_name }}</small>
+              </td>
+              <td>
+                {{ j.city }}, {{ j.province }}<br>
+                <small class="text-muted">{{ j.postal_code }}</small>
+              </td>
+              <td>
+                {% if j.is_asap %}
+                  ASAP
+                {% else %}
+                  {{ j.scheduled_date|date:"Y-m-d" }}<br>
+                  <small class="text-muted">{{ j.scheduled_start_time|time:"H:i" }}</small>
+                {% endif %}
+              </td>
+              <td>
+                {% if j.counterparty_missing %}
+                  <span class="activity-counterparty-missing">{{ j.counterparty_display }}</span>
+                {% else %}
+                  {{ j.counterparty_display }}
+                {% endif %}
+              </td>
+              <td>
+                <span class="activity-status {{ j.status_class }}">{{ j.status_label }}</span>
+
+                {% if j.status_note %}
+                  <small class="activity-status-note">{{ j.status_note }}</small>
+                {% endif %}
+              </td>
+              {% if show_activity_payment_status %}
+                <td>
+                  {% if j.payment_recorded %}
+                    <span class="activity-payment-recorded">{{ j.payment_label }}</span>
+                  {% else %}
+                    <span class="activity-payment-pending">{{ j.payment_label|default:"-" }}</span>
+                  {% endif %}
+                </td>
+              {% endif %}
+              {% for financial_value in j.financial_cells %}
+                <td>{{ financial_value|default:"-" }}</td>
+              {% endfor %}
+              <td>
+                <a href="{% url 'ui:request_status' job_id=j.job_id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-primary btn-sm">
+                  View
+                </a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="{{ activity_table_colspan }}" class="activity-empty">No jobs found</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if is_paginated %}
+    <nav class="activity-pagination" aria-label="Activity pagination">
+      {% if page_obj.has_previous %}
+        <a href="?status={{ selected_status }}{% if selected_range %}&amp;range={{ selected_range }}{% endif %}{% if selected_sort %}&amp;sort={{ selected_sort }}{% endif %}&amp;page={{ page_obj.previous_page_number }}">
+          Previous
+        </a>
+      {% endif %}
+
+      <span class="activity-pagination-info">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+      </span>
+
+      {% if page_obj.has_next %}
+        <a href="?status={{ selected_status }}{% if selected_range %}&amp;range={{ selected_range }}{% endif %}{% if selected_sort %}&amp;sort={{ selected_sort }}{% endif %}&amp;page={{ page_obj.next_page_number }}">
+          Next
+        </a>
+      {% endif %}
+    </nav>
+  {% endif %}
+
+  <div class="activity-disclaimer">
+    {{ financial_disclaimer_short }}
+  </div>
+</div>

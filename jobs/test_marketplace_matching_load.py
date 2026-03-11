@@ -1,12 +1,17 @@
+from decimal import Decimal
 from datetime import timedelta
 
 from django.test import TestCase
 from django.utils import timezone
 
 from assignments.models import JobAssignment
-from jobs.models import Job
-from jobs.services import MAX_ACTIVE_JOBS, get_broadcast_candidates_for_job
-from providers.models import Provider, ProviderService, ProviderServiceArea
+from jobs.models import Job, JobLocation
+from jobs.services import (
+    MAX_ACTIVE_JOBS,
+    dispatch_soft_random_bonus,
+    get_broadcast_candidates_for_job,
+)
+from providers.models import Provider, ProviderLocation, ProviderService, ProviderServiceArea
 from service_type.models import ServiceType
 
 
@@ -91,3 +96,149 @@ class MarketplaceMatchingLoadTests(TestCase):
         self.assertIn(loaded.provider_id, candidates)
         self.assertIn(idle.provider_id, candidates)
         self.assertLess(candidates.index(idle.provider_id), candidates.index(loaded.provider_id))
+
+    def test_location_models_compute_grid_on_create(self):
+        provider = self._make_provider(99)
+        job = self._make_job()
+
+        job_location = JobLocation.objects.create(
+            job=job,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        provider_location = ProviderLocation.objects.create(
+            provider=provider,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+
+        self.assertEqual(job_location.grid_lat, 911)
+        self.assertEqual(job_location.grid_lng, -1475)
+        self.assertEqual(provider_location.grid_lat, 911)
+        self.assertEqual(provider_location.grid_lng, -1475)
+
+    def test_fairness_reorders_broadcast_candidates_when_job_has_location(self):
+        recent = self._make_provider(3)
+        rested = self._make_provider(4)
+        recent.avg_rating = 5
+        recent.last_job_assigned_at = timezone.now()
+        recent.save(update_fields=["avg_rating", "last_job_assigned_at"])
+        rested.avg_rating = 5
+        rested.last_job_assigned_at = timezone.now() - timedelta(hours=4)
+        rested.save(update_fields=["avg_rating", "last_job_assigned_at"])
+
+        target_job = self._make_job()
+        JobLocation.objects.create(
+            job=target_job,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=recent,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=rested,
+            latitude=Decimal("45.515000"),
+            longitude=Decimal("-73.620000"),
+            postal_code="H1A1A1",
+            city="Montreal",
+            province="QC",
+            country="Canada",
+        )
+
+        candidates = get_broadcast_candidates_for_job(target_job, limit=10)
+
+        self.assertLess(candidates.index(rested.provider_id), candidates.index(recent.provider_id))
+
+    def test_dispatch_soft_random_bonus_is_stable_per_attempt(self):
+        first = dispatch_soft_random_bonus(job_id=99, provider_id=42, attempt_number=1)
+        second = dispatch_soft_random_bonus(job_id=99, provider_id=42, attempt_number=1)
+        third = dispatch_soft_random_bonus(job_id=99, provider_id=42, attempt_number=2)
+
+        self.assertEqual(first, second)
+        self.assertGreaterEqual(first, 0.0)
+        self.assertLessEqual(first, 0.02)
+        self.assertNotEqual(first, third)
+
+    def test_geographic_prefilter_excludes_providers_outside_radius_when_nearby_exist(self):
+        nearby = self._make_provider(5)
+        remote = self._make_provider(6)
+        target_job = self._make_job()
+
+        JobLocation.objects.create(
+            job=target_job,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=nearby,
+            latitude=Decimal("45.561000"),
+            longitude=Decimal("-73.713000"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=remote,
+            latitude=Decimal("46.813900"),
+            longitude=Decimal("-71.208000"),
+            postal_code="G1A1A1",
+            city="Quebec City",
+            province="QC",
+            country="Canada",
+        )
+
+        candidates = get_broadcast_candidates_for_job(target_job, limit=10)
+
+        self.assertIn(nearby.provider_id, candidates)
+        self.assertNotIn(remote.provider_id, candidates)
+
+    def test_geographic_prefilter_falls_back_when_no_provider_is_within_radius(self):
+        remote = self._make_provider(7)
+        target_job = self._make_job()
+
+        JobLocation.objects.create(
+            job=target_job,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=remote,
+            latitude=Decimal("46.813900"),
+            longitude=Decimal("-71.208000"),
+            postal_code="G1A1A1",
+            city="Quebec City",
+            province="QC",
+            country="Canada",
+        )
+
+        candidates = get_broadcast_candidates_for_job(target_job, limit=10)
+
+        self.assertEqual(candidates, [remote.provider_id])

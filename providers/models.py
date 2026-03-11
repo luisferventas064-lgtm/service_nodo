@@ -97,6 +97,10 @@ class Provider(models.Model):
     quality_warning_active = models.BooleanField(default=False)
     restricted_until = models.DateTimeField(null=True, blank=True)
     avg_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
+    distance_score = models.FloatField(default=0.0)
+    hybrid_score = models.FloatField(default=0.0, db_index=True)
+    base_dispatch_score = models.FloatField(default=0.0, db_index=True)
+    last_job_assigned_at = models.DateTimeField(null=True, blank=True)
 
     # Trust / differentiation
     is_verified = models.BooleanField(default=False)
@@ -117,6 +121,21 @@ class Provider(models.Model):
         if self.company_name:
             return self.company_name
         return f"{self.contact_first_name} {self.contact_last_name}"
+
+    def save(self, *args, **kwargs):
+        from providers.ranking import hydrate_provider_ranking_fields
+
+        hydrate_provider_ranking_fields(self)
+
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {
+                "acceptance_rate",
+                "hybrid_score",
+                "base_dispatch_score",
+            }
+
+        return super().save(*args, **kwargs)
 
     @property
     def normalized_provider_type(self) -> str:
@@ -166,22 +185,26 @@ class Provider(models.Model):
 
     @property
     def has_required_certifications(self):
-        from service_type.models import RequiredCertification
+        from compliance.services import evaluate_provider_compliance
 
-        required = RequiredCertification.objects.filter(
-            service_type__provider_services__provider=self,
-            province=self.province,
-            requires_certificate=True,
-        ).exclude(
-            certificate_type="",
-        ).distinct()
+        active_services = self.services.filter(
+            is_active=True,
+        ).select_related("service_type")
 
-        for req in required:
-            if not self.certificates.filter(
-                cert_type=req.certificate_type,
-                status="verified",
-            ).exists():
-                return False
+        for service in active_services:
+            compliance_result = evaluate_provider_compliance(
+                provider=self,
+                province_code=self.province,
+                service_type=service.service_type,
+            )
+            if compliance_result["is_compliant"]:
+                continue
+
+            deadline = service.compliance_deadline
+            if deadline and deadline >= timezone.localdate():
+                continue
+
+            return False
 
         return True
 
@@ -236,6 +259,32 @@ class ServiceZone(models.Model):
         return f"{self.name} ({self.city}, {self.province})"
 
 
+class ProviderMetrics(models.Model):
+    provider = models.OneToOneField(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        related_name="metrics",
+    )
+    offers_received_count = models.IntegerField(default=0)
+    offers_accepted_count = models.IntegerField(default=0)
+    jobs_completed = models.IntegerField(default=0)
+    jobs_accepted = models.IntegerField(default=0)
+    jobs_cancelled = models.IntegerField(default=0)
+    avg_response_time = models.FloatField(default=0.0)
+    acceptance_rate = models.FloatField(default=0.0)
+    completion_rate = models.FloatField(default=0.0)
+    experience_score = models.FloatField(default=0.0)
+    operational_score = models.FloatField(default=0.0)
+    response_score = models.FloatField(default=0.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "provider_metrics"
+
+    def __str__(self) -> str:
+        return f"Metrics for provider {self.provider_id}"
+
+
 class MarketplaceAnalyticsSnapshot(models.Model):
     marketplace_analytics_snapshot_id = models.BigAutoField(primary_key=True)
     captured_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -262,13 +311,27 @@ class ProviderServiceArea(models.Model):
 
     city = models.CharField(max_length=100)
     province = models.CharField(max_length=100)
+    postal_prefix = models.CharField(max_length=3, blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "provider_service_area"
 
+    def clean(self):
+        super().clean()
+        if self.postal_prefix:
+            normalized_prefix = str(self.postal_prefix).replace(" ", "").strip().upper()
+            if len(normalized_prefix) != 3:
+                raise ValidationError(
+                    {"postal_prefix": "postal_prefix must contain exactly 3 characters."}
+                )
+            self.postal_prefix = normalized_prefix
+
     def __str__(self) -> str:
-        return f"{self.provider} - {self.city}, {self.province}"
+        area_label = f"{self.city}, {self.province}"
+        if self.postal_prefix:
+            area_label = f"{area_label} ({self.postal_prefix})"
+        return f"{self.provider} - {area_label}"
 
 
 class ProviderService(models.Model):
@@ -308,45 +371,18 @@ class ProviderService(models.Model):
 
     @property
     def is_compliant(self):
-        from service_type.models import RequiredCertification
+        from compliance.services import evaluate_provider_compliance
 
-        req = RequiredCertification.objects.filter(
+        compliance_result = evaluate_provider_compliance(
+            provider=self.provider,
+            province_code=self.provider.province,
             service_type=self.service_type,
-            province=self.provider.province,
-        ).first()
-
-        if not req:
+        )
+        if compliance_result["is_compliant"]:
             return True
 
-        today = timezone.now().date()
         deadline = self.compliance_deadline
-
-        if req.requires_certificate:
-            has_cert = self.provider.certificates.filter(
-                cert_type=req.certificate_type,
-                status="verified",
-            ).exists()
-            if not has_cert:
-                if deadline and deadline >= today:
-                    return True
-                return False
-
-        if req.requires_insurance:
-            if not hasattr(self.provider, "insurance"):
-                if deadline and deadline >= today:
-                    return True
-                return False
-
-            ins = self.provider.insurance
-            if not ins.has_insurance or not ins.is_verified:
-                if deadline and deadline >= today:
-                    return True
-                return False
-
-            if ins.expiry_date and ins.expiry_date < today:
-                return False
-
-        return True
+        return bool(deadline and deadline >= timezone.localdate())
 
     def __str__(self):
         return f"{self.provider_id} - {self.custom_name}"
@@ -774,4 +810,68 @@ class ProviderReview(models.Model):
             raise ValidationError("ProviderReview is immutable once created.")
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class ProviderLocation(models.Model):
+    provider = models.OneToOneField(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        related_name="location",
+    )
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+    )
+    grid_lat = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+    grid_lng = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+    postal_code = models.CharField(
+        max_length=10,
+    )
+    city = models.CharField(
+        max_length=120,
+    )
+    province = models.CharField(
+        max_length=10,
+    )
+    country = models.CharField(
+        max_length=50,
+        default="Canada",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["grid_lat", "grid_lng"], name="ix_provider_location_grid"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.latitude is None or self.longitude is None:
+            self.grid_lat = None
+            self.grid_lng = None
+        else:
+            from providers.utils_geo_grid import compute_geo_grid
+
+            self.grid_lat, self.grid_lng = compute_geo_grid(
+                self.latitude,
+                self.longitude,
+            )
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Location for Provider {self.provider_id}"
 

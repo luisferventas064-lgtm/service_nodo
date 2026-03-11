@@ -83,11 +83,13 @@ class MarketplaceClientConfirmationTests(TestCase):
         self.assertEqual(result, "confirmed")
 
         job.refresh_from_db()
+        self.provider.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.ASSIGNED)
         self.assertIsNone(job.next_marketplace_alert_at)
         self.assertIsNone(job.marketplace_search_started_at)
         self.assertIsNone(job.client_confirmation_started_at)
         self.assertIsNone(job.selected_provider_id)
+        self.assertIsNotNone(self.provider.last_job_assigned_at)
         active = JobAssignment.objects.filter(job=job, is_active=True).first()
         self.assertIsNotNone(active)
         self.assertEqual(active.provider_id, self.provider.provider_id)

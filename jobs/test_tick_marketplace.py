@@ -1,12 +1,13 @@
+from decimal import Decimal
 from datetime import time, timedelta
 from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
 
-from jobs.models import Job, JobBroadcastAttempt
+from jobs.models import Job, JobBroadcastAttempt, JobLocation
 from jobs.services import process_marketplace_job
-from providers.models import Provider, ProviderService, ProviderServiceArea
+from providers.models import Provider, ProviderLocation, ProviderService, ProviderServiceArea
 from service_type.models import ServiceType
 
 
@@ -145,3 +146,87 @@ class MarketplaceTickTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.PENDING_CLIENT_DECISION)
         self.assertIsNone(job.next_marketplace_alert_at)
+
+    @patch("jobs.services.MARKETPLACE_BATCH_SIZE", 4)
+    def test_marketplace_adaptive_wave_sends_only_top_tier_candidates_first(self):
+        top_provider = self._make_provider(1)
+        strong_provider = self._make_provider(2)
+        weak_provider_one = self._make_provider(3)
+        weak_provider_two = self._make_provider(4)
+
+        top_provider.avg_rating = Decimal("5.00")
+        top_provider.last_job_assigned_at = timezone.now() - timedelta(hours=4)
+        top_provider.save(update_fields=["avg_rating", "last_job_assigned_at"])
+
+        strong_provider.avg_rating = Decimal("4.90")
+        strong_provider.last_job_assigned_at = timezone.now() - timedelta(hours=4)
+        strong_provider.save(update_fields=["avg_rating", "last_job_assigned_at"])
+
+        weak_provider_one.avg_rating = Decimal("1.00")
+        weak_provider_one.last_job_assigned_at = timezone.now()
+        weak_provider_one.save(update_fields=["avg_rating", "last_job_assigned_at"])
+
+        weak_provider_two.avg_rating = Decimal("1.00")
+        weak_provider_two.last_job_assigned_at = timezone.now()
+        weak_provider_two.save(update_fields=["avg_rating", "last_job_assigned_at"])
+
+        job = self._make_scheduled_job()
+        JobLocation.objects.create(
+            job=job,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=top_provider,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=strong_provider,
+            latitude=Decimal("45.561000"),
+            longitude=Decimal("-73.713000"),
+            postal_code="H7N1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=weak_provider_one,
+            latitude=Decimal("45.501700"),
+            longitude=Decimal("-73.567300"),
+            postal_code="H1A1A1",
+            city="Montreal",
+            province="QC",
+            country="Canada",
+        )
+        ProviderLocation.objects.create(
+            provider=weak_provider_two,
+            latitude=Decimal("45.495000"),
+            longitude=Decimal("-73.560000"),
+            postal_code="H1A1A1",
+            city="Montreal",
+            province="QC",
+            country="Canada",
+        )
+
+        result = process_marketplace_job(job.job_id)
+
+        self.assertEqual(result[0], "dispatched_wave")
+        self.assertEqual(result[1], 2)
+        attempt_provider_ids = list(
+            JobBroadcastAttempt.objects.filter(job=job)
+            .order_by("provider_id")
+            .values_list("provider_id", flat=True)
+        )
+        self.assertEqual(
+            set(attempt_provider_ids),
+            {top_provider.provider_id, strong_provider.provider_id},
+        )

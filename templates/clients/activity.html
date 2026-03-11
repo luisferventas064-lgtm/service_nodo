@@ -3,18 +3,5 @@
 {% block title %}Client Activity{% endblock %}
 
 {% block content %}
-<h2>Activity</h2>
-
-{% if jobs %}
-  <ul>
-    {% for j in jobs %}
-      <li>
-        Job #{{ j.job_id }} &mdash; {{ j.service_type.name }} &mdash; {{ j.city }}, {{ j.province }}
-        {% if j.selected_provider %} &mdash; Provider: {{ j.selected_provider }}{% endif %}
-      </li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>No jobs yet.</p>
-{% endif %}
+{% include "jobs/_activity_content.html" %}
 {% endblock %}

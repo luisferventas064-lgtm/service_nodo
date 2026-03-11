@@ -94,6 +94,15 @@ class ServiceLifecycleTicketingTests(TestCase):
         self.assertEqual(pt.subtotal_cents, 12_000)
         self.assertEqual(ct.subtotal_cents, 12_000)
 
+    def test_confirm_normal_job_updates_provider_last_job_assigned_at(self):
+        self.assertIsNone(self.provider.last_job_assigned_at)
+
+        ok, *_ = confirm_normal_job_by_client(job_id=self.job.job_id, client_id=self.client.client_id)
+
+        self.assertTrue(ok)
+        self.provider.refresh_from_db()
+        self.assertIsNotNone(self.provider.last_job_assigned_at)
+
     def test_close_is_idempotent(self):
         ok, *_ = confirm_normal_job_by_client(job_id=self.job.job_id, client_id=self.client.client_id)
         self.assertTrue(ok)
