@@ -112,6 +112,35 @@
     padding: 14px;
   }
 
+  .request-pricing-preview {
+    margin-top: 12px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .request-pricing-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #18343d;
+  }
+
+  .request-pricing-line strong {
+    color: #111827;
+  }
+
+  .request-pricing-total {
+    padding-top: 10px;
+    border-top: 1px solid #dbe6ea;
+  }
+
+  .request-confirm-note {
+    margin: 12px 0 0;
+    color: #5f7280;
+    font-size: 0.92rem;
+  }
+
   .request-create-extra-row {
     display: flex;
     align-items: center;
@@ -458,11 +487,57 @@
 
           {% if selected_offer %}
             <div class="request-create-field-full">
-              <div class="request-create-option-card">
+              <div
+                class="request-create-option-card"
+                id="request-pricing-card"
+                data-offer-base-price="{{ selected_offer.display_price|floatformat:2 }}"
+              >
                 <strong>Pricing Preview</strong><br>
                 Unit Price: ${{ selected_offer.display_price|floatformat:2 }}<br>
                 Quantity: {{ form_data.requested_quantity|default:"1" }}<br>
                 Billing Unit: {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}
+                <div class="request-pricing-preview" id="request-pricing-preview">
+                  <div class="request-pricing-line">
+                    <span>Base service</span>
+                    <span id="request-pricing-base-service">
+                      {% if pricing %}${{ pricing.base_line_total|floatformat:2 }}{% else %}-{% endif %}
+                    </span>
+                  </div>
+                  <div class="request-pricing-line">
+                    <span>Extras</span>
+                    <span id="request-pricing-extras">
+                      {% if pricing %}${{ pricing.extras_total|floatformat:2 }}{% else %}-{% endif %}
+                    </span>
+                  </div>
+                  <div class="request-pricing-line">
+                    <span>Subtotal</span>
+                    <span id="request-pricing-subtotal">
+                      {% if pricing %}${{ pricing.subtotal|floatformat:2 }}{% else %}-{% endif %}
+                    </span>
+                  </div>
+                  <div class="request-pricing-line">
+                    <span>Taxes (<span id="request-pricing-region">{{ pricing.tax_region_code|default:form_data.province|upper }}</span>)</span>
+                    <span id="request-pricing-tax">
+                      {% if pricing %}${{ pricing.tax|floatformat:2 }}{% else %}-{% endif %}
+                    </span>
+                  </div>
+                  <div class="request-pricing-line request-pricing-total">
+                    <strong>Total</strong>
+                    <strong id="request-pricing-total">
+                      {% if pricing %}${{ pricing.total|floatformat:2 }}{% else %}-{% endif %}
+                    </strong>
+                  </div>
+                </div>
+                <p class="request-confirm-note">
+                  Taxes calculated based on service location.
+                  {% if pricing %}
+                    Total including taxes (<span id="request-pricing-note-region">{{ pricing.tax_region_code }}</span>):
+                    <strong id="request-pricing-note-total">${{ pricing.total|floatformat:2 }}</strong>
+                  {% else %}
+                    <span id="request-pricing-note-region"></span>
+                    <strong id="request-pricing-note-total"></strong>
+                  {% endif %}
+                </p>
               </div>
             </div>
           {% endif %}
@@ -508,6 +583,7 @@
               {% for subservice in request_subservices %}
                 <option
                   value="{{ subservice.id }}"
+                  data-base-price="{{ subservice.base_price|default_if_none:0|floatformat:2 }}"
                   {% if form_data.requested_subservice_id == subservice.id|stringformat:"s" %}selected{% endif %}
                 >
                   {{ subservice.name }}
@@ -532,6 +608,7 @@
                     name="selected_extras"
                     value="{{ option.extra.id }}"
                     data-extra-toggle="{{ option.extra.id }}"
+                    data-unit-price="{{ option.extra.unit_price|default_if_none:0|floatformat:2 }}"
                     {% if option.selected %}checked{% endif %}
                   >
                   {{ option.extra.name }} - ${{ option.extra.unit_price|floatformat:2 }}
@@ -613,6 +690,7 @@
 </div>
 
 {{ provider_postal_prefixes|json_script:"provider-postal-prefixes" }}
+{{ request_tax_rates|json_script:"request-tax-rates" }}
 <script>
   function escapeRequestModalHtml(value) {
     return String(value || "")
@@ -623,14 +701,27 @@
       .replace(/'/g, "&#39;");
   }
 
-  function buildRequestSummaryRows(confirmationData) {
+  function formatPricingCents(centsValue) {
+    return "$" + ((centsValue || 0) / 100).toFixed(2);
+  }
+
+  function buildRequestPricingRows(pricingData) {
+    return (
+      '<div><strong>Subtotal</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.subtotalCents)) + '</div>' +
+      '<div><strong>Taxes (' + escapeRequestModalHtml(pricingData.taxRegionCode) + ')</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.taxCents)) + '</div>' +
+      '<div><strong>Total</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.totalCents)) + '</div>'
+    );
+  }
+
+  function buildRequestSummaryRows(confirmationData, pricingData) {
     return (
       '<div><strong>Service</strong><br>' + escapeRequestModalHtml(confirmationData.service) + '</div>' +
       '<div><strong>Date</strong><br>' + escapeRequestModalHtml(confirmationData.date) + '</div>' +
       '<div><strong>Time</strong><br>' + escapeRequestModalHtml(confirmationData.time) + '</div>' +
       '<div><strong>Address</strong><br>' + escapeRequestModalHtml(confirmationData.address) + '</div>' +
       '<div><strong>Quantity</strong><br>' + escapeRequestModalHtml(confirmationData.quantity) + '</div>' +
-      '<div><strong>Extras</strong><br>' + escapeRequestModalHtml(confirmationData.extras) + '</div>'
+      '<div><strong>Extras</strong><br>' + escapeRequestModalHtml(confirmationData.extras) + '</div>' +
+      (pricingData ? buildRequestPricingRows(pricingData) : '')
     );
   }
 
@@ -782,27 +873,154 @@
     ].filter(Boolean);
     var postalPrefixesNode = document.getElementById("provider-postal-prefixes");
     var providerPostalPrefixes = postalPrefixesNode ? JSON.parse(postalPrefixesNode.textContent) : [];
+    var taxRatesNode = document.getElementById("request-tax-rates");
+    var requestTaxRates = taxRatesNode ? JSON.parse(taxRatesNode.textContent) : {};
     var postalInput = document.querySelector("[name='postal_code']");
+    var provinceInput = document.querySelector("[name='province']");
+    var quantityInput = document.querySelector("[name='requested_quantity']");
+    var subserviceSelect = document.getElementById("requested_subservice_id");
     var submitButton = document.querySelector("button[type='submit']");
     var requestAreaFeedback = document.getElementById("request-area-feedback");
     var confirmModal = document.getElementById("request-confirm-modal");
     var confirmCancelButton = document.getElementById("request-confirm-cancel");
     var confirmSubmitButton = document.getElementById("request-confirm-submit");
+    var pricingCard = document.getElementById("request-pricing-card");
+    var pricingBaseService = document.getElementById("request-pricing-base-service");
+    var pricingExtras = document.getElementById("request-pricing-extras");
+    var pricingSubtotal = document.getElementById("request-pricing-subtotal");
+    var pricingTax = document.getElementById("request-pricing-tax");
+    var pricingRegion = document.getElementById("request-pricing-region");
+    var pricingTotal = document.getElementById("request-pricing-total");
+    var pricingNoteRegion = document.getElementById("request-pricing-note-region");
+    var pricingNoteTotal = document.getElementById("request-pricing-note-total");
     var submitBlockedByServer = submitButton ? submitButton.disabled : false;
     var allowConfirmedSubmit = false;
+    var activePricingSnapshot = null;
+
+    var normalizeProvince = function (value) {
+      return String(value || "").trim().toUpperCase().slice(0, 2);
+    };
+
+    var moneyToCents = function (value) {
+      var amount = parseFloat(value || "0");
+      if (!isFinite(amount)) {
+        return 0;
+      }
+      return Math.round(amount * 100);
+    };
+
+    var quantityToNumber = function (value, fallbackValue) {
+      var amount = parseFloat(value || "");
+      if (!isFinite(amount)) {
+        return fallbackValue;
+      }
+      return amount;
+    };
+
+    var computePreviewPricing = function () {
+      if (!pricingCard) {
+        return null;
+      }
+
+      var baseUnitPriceCents = moneyToCents(pricingCard.getAttribute("data-offer-base-price"));
+      if (subserviceSelect) {
+        var selectedSubserviceOption = subserviceSelect.options[subserviceSelect.selectedIndex];
+        var subserviceBaseCents = moneyToCents(selectedSubserviceOption ? selectedSubserviceOption.getAttribute("data-base-price") : "0");
+        if (subserviceBaseCents > 0) {
+          baseUnitPriceCents = subserviceBaseCents;
+        }
+      }
+
+      var requestedQuantity = quantityToNumber(quantityInput ? quantityInput.value : "1", 1);
+      if (requestedQuantity < 0) {
+        requestedQuantity = 0;
+      }
+
+      var baseLineTotalCents = Math.round(baseUnitPriceCents * requestedQuantity);
+      var extrasTotalCents = 0;
+
+      document.querySelectorAll("[data-extra-toggle]:checked").forEach(function (checkbox) {
+        var extraId = checkbox.getAttribute("data-extra-toggle");
+        var extraUnitPriceCents = moneyToCents(checkbox.getAttribute("data-unit-price"));
+        var extraQuantityInput = document.querySelector('[data-extra-qty="' + extraId + '"]');
+        var extraQuantity = quantityToNumber(extraQuantityInput ? extraQuantityInput.value : "1", 1);
+        if (extraQuantity < 0) {
+          extraQuantity = 0;
+        }
+        extrasTotalCents += Math.round(extraUnitPriceCents * extraQuantity);
+      });
+
+      var subtotalCents = baseLineTotalCents + extrasTotalCents;
+      var taxRegionCode = normalizeProvince(provinceInput ? provinceInput.value : "");
+      var taxRateBps = Object.prototype.hasOwnProperty.call(requestTaxRates, taxRegionCode)
+        ? requestTaxRates[taxRegionCode]
+        : (requestTaxRates.DEFAULT || 0);
+      var taxCents = Math.floor((subtotalCents * taxRateBps + 50000) / 100000);
+      var totalCents = subtotalCents + taxCents;
+
+      return {
+        baseLineTotalCents: baseLineTotalCents,
+        extrasTotalCents: extrasTotalCents,
+        subtotalCents: subtotalCents,
+        taxCents: taxCents,
+        totalCents: totalCents,
+        taxRegionCode: taxRegionCode || "DEFAULT",
+        taxRateBps: taxRateBps
+      };
+    };
+
+    var renderPreviewPricing = function () {
+      activePricingSnapshot = computePreviewPricing();
+      if (!activePricingSnapshot) {
+        return null;
+      }
+
+      if (pricingBaseService) {
+        pricingBaseService.textContent = formatPricingCents(activePricingSnapshot.baseLineTotalCents);
+      }
+      if (pricingExtras) {
+        pricingExtras.textContent = formatPricingCents(activePricingSnapshot.extrasTotalCents);
+      }
+      if (pricingSubtotal) {
+        pricingSubtotal.textContent = formatPricingCents(activePricingSnapshot.subtotalCents);
+      }
+      if (pricingTax) {
+        pricingTax.textContent = formatPricingCents(activePricingSnapshot.taxCents);
+      }
+      if (pricingRegion) {
+        pricingRegion.textContent = activePricingSnapshot.taxRegionCode;
+      }
+      if (pricingTotal) {
+        pricingTotal.textContent = formatPricingCents(activePricingSnapshot.totalCents);
+      }
+      if (pricingNoteRegion) {
+        pricingNoteRegion.textContent = activePricingSnapshot.taxRegionCode;
+      }
+      if (pricingNoteTotal) {
+        pricingNoteTotal.textContent = formatPricingCents(activePricingSnapshot.totalCents);
+      }
+
+      return activePricingSnapshot;
+    };
 
     var openConfirmModal = function (confirmationData) {
       if (!confirmModal) {
         return;
       }
 
+      var pricingData = renderPreviewPricing();
+
       openRequestModal(
         "Confirm Request",
-        buildRequestSummaryRows(confirmationData),
+        buildRequestSummaryRows(confirmationData, pricingData),
         {
-          description: "Review the request details before submitting.",
+          description: pricingData
+            ? "Review the request details before submitting. Taxes are calculated based on service location."
+            : "Review the request details before submitting.",
           cancelText: "Cancel",
-          submitText: "Confirm Request"
+          submitText: pricingData
+            ? "Confirm Request - " + formatPricingCents(pricingData.totalCents)
+            : "Confirm Request"
         }
       );
     };
@@ -910,10 +1128,23 @@
       postalInput.addEventListener("input", syncPostalCoverage);
     }
 
+    if (quantityInput) {
+      quantityInput.addEventListener("input", renderPreviewPricing);
+    }
+
+    if (provinceInput) {
+      provinceInput.addEventListener("input", renderPreviewPricing);
+    }
+
+    if (subserviceSelect) {
+      subserviceSelect.addEventListener("change", renderPreviewPricing);
+    }
+
     document.querySelectorAll("[data-extra-toggle]").forEach(function (checkbox) {
       var extraId = checkbox.getAttribute("data-extra-toggle");
       var quantityInput = document.querySelector('[data-extra-qty="' + extraId + '"]');
       if (!quantityInput) {
+        checkbox.addEventListener("change", renderPreviewPricing);
         return;
       }
 
@@ -925,8 +1156,14 @@
       };
 
       syncState();
-      checkbox.addEventListener("change", syncState);
+      checkbox.addEventListener("change", function () {
+        syncState();
+        renderPreviewPricing();
+      });
+      quantityInput.addEventListener("input", renderPreviewPricing);
     });
+
+    renderPreviewPricing();
 
     if (requestForm) {
       requestForm.addEventListener("submit", function (event) {

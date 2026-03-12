@@ -40,6 +40,7 @@ from jobs import services as job_services
 from jobs.models import Job, JobDispute, JobEvent, JobLocation, JobRequestedExtra, PlatformLedgerEntry
 from jobs.services_pricing_snapshot import apply_provider_service_snapshot_to_job
 from jobs.services_lifecycle import accept_job_by_provider
+from jobs.taxes import TAX_RULES_BY_REGION, compute_tax_cents, get_tax_rule_for_region
 from providers.models import Provider, ProviderLocation, ProviderMetrics, ProviderService, ProviderServiceArea, ProviderServiceExtra
 from providers.models import ProviderTicket
 from providers.services_analytics import (
@@ -393,16 +394,53 @@ def _prepare_marketplace_provider_cards(offers):
             [subservice for subservice in offer.subservices.all() if subservice.is_active],
             key=lambda subservice: (subservice.sort_order, subservice.pk),
         )
-        extras = sorted(
-            [extra for extra in offer.extras.all() if extra.is_active],
-            key=lambda extra: (extra.sort_order, extra.pk),
-        )
 
-        offer.card_primary_subservice = subservices[0].name if subservices else ""
-        offer.card_extra_preview = extras[0].name if extras else ""
+        # Locked marketplace card rule:
+        # - one visible card per provider
+        # - card source = first ranked ProviderService row for that provider
+        # - visible service text = base service of the visible offer
+        # - extras are not shown on the card
+        service_type_name = getattr(getattr(offer, "service_type", None), "name", "") or ""
+        offer.card_primary_service = service_type_name.strip()
+
+        # Optional fallback only if service_type name is unexpectedly empty.
+        if not offer.card_primary_service and subservices:
+            offer.card_primary_service = subservices[0].name
+
+        # Extras intentionally hidden in marketplace card.
+        offer.card_extra_preview = ""
+        offer.card_primary_subservice = ""
         prepared.append(offer)
 
     return prepared
+
+
+def _select_marketplace_card_rows(provider_services):
+    """
+    Select one visible marketplace card row per provider.
+
+    Current locked rule:
+    - preserve the incoming ranking/order
+    - visible card = first ranked row for each provider
+
+    Important:
+    ProviderService does not currently expose a field that distinguishes
+    a main/base service from secondary/extra-like rows. Because of that,
+    the marketplace intentionally uses the first ranked row per provider
+    as the visible card source.
+    """
+    seen_provider_ids = set()
+    selected_rows = []
+
+    for row in provider_services:
+        provider_id = getattr(row, "provider_id", None)
+        if not provider_id or provider_id in seen_provider_ids:
+            continue
+
+        seen_provider_ids.add(provider_id)
+        selected_rows.append(row)
+
+    return selected_rows
 
 
 def _build_marketplace_results(*, client=None, service_type_id="", provider_type="", order="", province="", city="", zone_id=""):
@@ -898,19 +936,10 @@ def marketplace_search_view(request):
         return render(request, "marketplace/index.html", context)
 
     providers = marketplace_ranked_queryset(
-        province=None if target_postal_prefix else client.province,
-        city=None if target_postal_prefix else city or client.city,
+        province=client.province,
+        city=city or client.city,
         service_type_id=service_type_id,
     ).prefetch_related("subservices", "extras")
-
-    if target_postal_prefix:
-        providers = providers.filter(
-            provider__providerservicearea__is_active=True
-        ).filter(
-            Q(provider__providerservicearea__postal_prefix__iexact=target_postal_prefix)
-            | Q(provider__providerservicearea__postal_prefix__isnull=True)
-            | Q(provider__providerservicearea__postal_prefix__exact="")
-        ).distinct()
 
     providers = _apply_marketplace_search_query(
         queryset=providers,
@@ -921,18 +950,14 @@ def marketplace_search_view(request):
     if language:
         qs = qs.filter(provider__languages_spoken__icontains=language)
 
+    if only_insured:
+        qs = qs.filter(has_verified_insurance=True)
+
     if only_certified:
         qs = [ps for ps in qs if ps.is_compliant]
 
-    if only_insured:
-        qs = [
-            ps for ps in qs
-            if hasattr(ps.provider, "insurance")
-            and ps.provider.insurance.has_insurance
-            and ps.provider.insurance.is_verified
-        ]
-
-    provider_cards = _prepare_marketplace_provider_cards(qs[:20])
+    visible_provider_services = _select_marketplace_card_rows(qs)
+    provider_cards = _prepare_marketplace_provider_cards(visible_provider_services[:20])
 
     context.update(
         {
@@ -1321,6 +1346,7 @@ def _build_request_pricing_snapshot(
     selected_subservice,
     requested_quantity,
     selected_requested_extras,
+    tax_region_code="",
 ):
     base_unit_price = _resolve_requested_base_price(
         selected_offer=selected_offer,
@@ -1344,12 +1370,21 @@ def _build_request_pricing_snapshot(
         )
 
     subtotal = _request_money(base_line_total + extras_total)
-    total = subtotal
+    subtotal_cents = int((subtotal * 100).quantize(Decimal("1")))
+    tax_rule = get_tax_rule_for_region(tax_region_code)
+    tax_cents = compute_tax_cents(subtotal_cents, tax_rule)
+    tax_amount = Decimal(tax_cents) / Decimal("100")
+    total = _request_money(subtotal + tax_amount)
     return {
         "base_unit_price": base_unit_price,
         "requested_quantity": requested_quantity,
         "base_line_total": base_line_total,
+        "extras_total": _request_money(extras_total),
         "subtotal": subtotal,
+        "tax": tax_amount,
+        "tax_cents": tax_cents,
+        "tax_rate_bps": tax_rule.rate_bps,
+        "tax_region_code": (tax_region_code or "").strip().upper(),
         "total": total,
         "priced_extras": priced_extras,
     }
@@ -1424,6 +1459,9 @@ def request_create_view(request, provider_id):
         request.GET.get("service_timing") or "",
         fallback_job_mode=(request.GET.get("job_mode") or "").strip(),
     )
+    marketplace_postal_code = (request.GET.get("postal_code") or "").strip()
+    marketplace_city = (request.GET.get("city") or "").strip()
+    marketplace_province = (request.GET.get("province") or "").strip()
     client_id = request.session.get("client_id")
     session_client = Client.objects.filter(pk=client_id).first() if client_id else None
     if client_id and session_client is None:
@@ -1455,6 +1493,10 @@ def request_create_view(request, provider_id):
         selected_offer.display_price = selected_offer.price_cents / 100
     request_subservices, request_extras = _get_request_catalog(selected_offer=selected_offer)
     request_extra_options = _build_request_extra_options(extras=request_extras)
+    request_tax_rates = {
+        region_code: rule.rate_bps
+        for region_code, rule in TAX_RULES_BY_REGION.items()
+    }
 
     compliance_blocked = bool(selected_offer and not selected_offer.is_compliant)
     compliance_error = (
@@ -1465,9 +1507,21 @@ def request_create_view(request, provider_id):
 
     default_form_data = {
         "country": getattr(session_client, "country", None) or "CA",
-        "province": getattr(session_client, "province", None) or provider.province,
-        "city": getattr(session_client, "city", None) or provider.city,
-        "postal_code": getattr(session_client, "postal_code", None) or "",
+        "province": (
+            marketplace_province
+            or getattr(session_client, "province", None)
+            or provider.province
+        ),
+        "city": (
+            marketplace_city
+            or getattr(session_client, "city", None)
+            or provider.city
+        ),
+        "postal_code": (
+            marketplace_postal_code
+            or getattr(session_client, "postal_code", None)
+            or ""
+        ),
         "address_line1": getattr(session_client, "address_line1", None) or "",
         "use_other_address": False,
         "service_timing": requested_service_timing,
@@ -1500,19 +1554,20 @@ def request_create_view(request, provider_id):
     ):
         request_area_error = REQUEST_AREA_UNAVAILABLE_ERROR
 
-    request_service_type_id = (
-        str(default_form_data["service_type"]).strip()
-        if default_form_data["service_type"]
-        else ""
-    )
-
-    if request.method == "GET" and request_area_error == REQUEST_AREA_UNAVAILABLE_ERROR:
-        nearby_redirect = _redirect_to_nearby_providers(
-            postal_code=default_form_data["postal_code"],
-            service_type_id=request_service_type_id,
-        )
-        if nearby_redirect is not None:
-            return nearby_redirect
+    default_pricing_snapshot = None
+    if selected_offer is not None:
+        try:
+            default_pricing_snapshot = _build_request_pricing_snapshot(
+                selected_offer=selected_offer,
+                selected_subservice=None,
+                requested_quantity=_request_money(
+                    Decimal(default_form_data["requested_quantity"] or "1")
+                ),
+                selected_requested_extras=[],
+                tax_region_code=default_form_data["province"],
+            )
+        except (InvalidOperation, TypeError, ValueError):
+            default_pricing_snapshot = None
 
     if request.method == "GET":
         return render(
@@ -1531,6 +1586,8 @@ def request_create_view(request, provider_id):
                 "request_subservices": request_subservices,
                 "request_extra_options": request_extra_options,
                 "provider_postal_prefixes": provider_postal_prefixes,
+                "pricing": default_pricing_snapshot,
+                "request_tax_rates": request_tax_rates,
             },
         )
 
@@ -1774,6 +1831,7 @@ def request_create_view(request, provider_id):
                 selected_subservice=selected_subservice,
                 requested_quantity=requested_quantity_decimal,
                 selected_requested_extras=selected_requested_extras,
+                tax_region_code=form_data["province"],
             )
 
     compliance_blocked = bool(selected_offer and not selected_offer.is_compliant)
@@ -1856,6 +1914,15 @@ def request_create_view(request, provider_id):
                     requested_subtotal_snapshot=(
                         request_pricing_snapshot["subtotal"] if request_pricing_snapshot else None
                     ),
+                    requested_tax_snapshot=(
+                        request_pricing_snapshot["tax"] if request_pricing_snapshot else None
+                    ),
+                    requested_tax_rate_bps_snapshot=(
+                        request_pricing_snapshot["tax_rate_bps"] if request_pricing_snapshot else None
+                    ),
+                    requested_tax_region_code_snapshot=(
+                        request_pricing_snapshot["tax_region_code"] if request_pricing_snapshot else ""
+                    ),
                     requested_total_snapshot=(
                         request_pricing_snapshot["total"] if request_pricing_snapshot else None
                     ),
@@ -1914,6 +1981,8 @@ def request_create_view(request, provider_id):
                 "request_subservices": request_subservices,
                 "request_extra_options": request_extra_options,
                 "provider_postal_prefixes": provider_postal_prefixes,
+                "pricing": request_pricing_snapshot,
+                "request_tax_rates": request_tax_rates,
             },
         )
 
@@ -1975,6 +2044,7 @@ def _attach_job_lifecycle_details(job):
             job.requested_unit_price_snapshot,
             job.requested_base_line_total_snapshot,
             job.requested_subtotal_snapshot,
+            job.requested_tax_snapshot,
             job.requested_total_snapshot,
         )
     )

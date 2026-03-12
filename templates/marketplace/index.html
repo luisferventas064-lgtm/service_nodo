@@ -149,36 +149,42 @@
         cursor: pointer;
       }
 
-      .provider-list {
+      .provider-grid {
         display: grid;
-        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 18px;
+        align-items: stretch;
       }
 
       .provider-card.provider-card--compact {
         display: flex;
-        gap: 12px;
-        padding: 12px;
+        flex-direction: column;
+        justify-content: flex-start;
+        min-height: 220px;
+        height: 100%;
         border: 1px solid #e5e7eb;
-        border-radius: 10px;
+        border-radius: 14px;
         background: #fff;
-        align-items: flex-start;
+        padding: 16px;
+        box-sizing: border-box;
       }
 
       .provider-avatar {
-        width: 40px;
-        height: 40px;
-        flex: 0 0 40px;
+        width: 64px;
+        height: 64px;
+        margin-bottom: 12px;
+        flex: 0 0 auto;
       }
 
       .provider-avatar img,
       .avatar-placeholder {
-        width: 40px;
-        height: 40px;
-        border-radius: 999px;
+        width: 64px;
+        height: 64px;
+        border-radius: 12px;
+        object-fit: cover;
       }
 
       .provider-avatar img {
-        object-fit: cover;
         display: block;
       }
 
@@ -193,18 +199,17 @@
       }
 
       .provider-info {
-        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
         flex: 1 1 auto;
         font-size: 13px;
       }
 
       .provider-name-row {
         display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: baseline;
-        margin-bottom: 4px;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 4px;
       }
 
       .provider-name-row strong {
@@ -219,6 +224,7 @@
 
       .provider-line--service {
         color: #111827;
+        min-height: 40px;
       }
 
       .provider-line--price {
@@ -231,7 +237,8 @@
       }
 
       .provider-actions {
-        margin-top: 8px;
+        margin-top: auto;
+        padding-top: 8px;
       }
 
       .provider-link {
@@ -298,7 +305,7 @@
       </form>
     </div>
 
-    <div class="provider-list">
+    <div class="provider-grid">
     {% for p in providers %}
       <div class="provider-card provider-card--compact">
         <div class="provider-avatar">
@@ -316,12 +323,8 @@
           </div>
 
           <div class="provider-line provider-line--service">
-            {{ p.service_type.name }}{% if p.card_primary_subservice %} • {{ p.card_primary_subservice }}{% endif %}
+            {{ p.card_primary_service }}
           </div>
-
-          {% if p.card_extra_preview %}
-            <div class="provider-line provider-line--meta">Extra: {{ p.card_extra_preview }}</div>
-          {% endif %}
 
           <div class="provider-line provider-line--price">
             From ${{ p.display_price|floatformat:2 }}
@@ -331,7 +334,7 @@
           {% if p.is_compliant %}
             <a
               class="provider-link"
-              href="{% url 'ui:request_create' p.provider_id %}?service_type_id={{ p.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}"
+              href="{% url 'ui:request_create' p.provider_id %}?service_type_id={{ p.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}{% if selected_postal_code %}&amp;postal_code={{ selected_postal_code|urlencode }}{% endif %}{% if selected_city %}&amp;city={{ selected_city|urlencode }}{% endif %}"
             >
               View
             </a>

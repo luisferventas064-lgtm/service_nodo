@@ -229,6 +229,21 @@ class Job(models.Model):
         null=True,
         blank=True,
     )
+    requested_tax_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    requested_tax_rate_bps_snapshot = models.IntegerField(
+        null=True,
+        blank=True,
+    )
+    requested_tax_region_code_snapshot = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+    )
     requested_total_snapshot = models.DecimalField(
         max_digits=12,
         decimal_places=2,

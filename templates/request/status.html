@@ -225,7 +225,7 @@
             <div class="request-meta-value">{{ job.provider_service_name_display|default:"-" }}</div>
         </div>
         <div class="summary-card">
-            <span class="request-meta-label">Estimated total</span>
+            <span class="request-meta-label">Total</span>
             <div class="request-meta-value">
                 {% if job.requested_total_snapshot != None %}
                     ${{ job.requested_total_snapshot|floatformat:2 }}
@@ -269,7 +269,7 @@
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Base Line Total</span>
+                <span class="request-meta-label">Base Service Total</span>
                 <div class="request-meta-value">
                     {% if job.requested_base_line_total_snapshot != None %}
                         ${{ job.requested_base_line_total_snapshot|floatformat:2 }}
@@ -291,7 +291,20 @@
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Estimated Total</span>
+                <span class="request-meta-label">
+                    Taxes{% if job.requested_tax_region_code_snapshot %} ({{ job.requested_tax_region_code_snapshot }}){% endif %}
+                </span>
+                <div class="request-meta-value">
+                    {% if job.requested_tax_snapshot != None %}
+                        ${{ job.requested_tax_snapshot|floatformat:2 }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Total</span>
                 <div class="request-meta-value">
                     {% if job.requested_total_snapshot != None %}
                         ${{ job.requested_total_snapshot|floatformat:2 }}
