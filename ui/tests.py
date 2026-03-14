@@ -1,5 +1,6 @@
 from decimal import Decimal
 from datetime import timedelta
+import json
 from unittest.mock import patch
 from urllib.parse import quote, urlencode
 
@@ -15,7 +16,8 @@ from django.utils import timezone
 from assignments.models import JobAssignment
 from clients.models import Client
 from clients.models import ClientTicket
-from jobs.models import Job, JobLocation, JobRequestedExtra
+from jobs.models import Job, JobEvent, JobLocation, JobRequestedExtra, PlatformLedgerEntry
+from notifications.models import PushDevice
 from providers.models import (
     Provider,
     ProviderInsurance,
@@ -24,6 +26,8 @@ from providers.models import (
     ProviderServiceArea,
     ProviderServiceExtra,
     ProviderServiceSubservice,
+    ProviderTicket,
+    ProviderTicketLine,
 )
 from service_type.models import RequiredCertification, ServiceType
 from workers.models import Worker
@@ -45,6 +49,174 @@ class QualityProvidersDashboardViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Provider Quality Dashboard")
+
+    def test_staff_can_filter_quality_dashboard_by_provider_name(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            username="quality_dashboard_filter_staff",
+            password="test-pass-123",
+            is_staff=True,
+        )
+        self.client.force_login(user)
+
+        matching_provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Alpha Quality Cleaners",
+            legal_name="Alpha Quality Cleaners",
+            business_registration_number="REG-ALPHA-001",
+            contact_first_name="Alpha",
+            contact_last_name="Team",
+            phone_number="5550000001",
+            email="alpha.quality@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="1 Alpha St",
+        )
+        other_provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Beta Quality Cleaners",
+            legal_name="Beta Quality Cleaners",
+            business_registration_number="REG-BETA-001",
+            contact_first_name="Beta",
+            contact_last_name="Team",
+            phone_number="5550000002",
+            email="beta.quality@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A2",
+            address_line1="2 Beta St",
+        )
+
+        response = self.client.get(
+            "/admin/quality/providers/",
+            {"provider": "alpha"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, matching_provider.company_name)
+        self.assertNotContains(response, other_provider.company_name)
+        self.assertEqual(len(response.context["providers"]), 1)
+        self.assertEqual(response.context["providers"][0].provider_id, matching_provider.provider_id)
+
+
+class RegisterPushDeviceViewTests(TestCase):
+    def test_register_push_device_creates_device_for_authenticated_user(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            username="push_device_user",
+            password="test-pass-123",
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("ui:register_push_device"),
+            data=json.dumps(
+                {
+                    "role": "client",
+                    "platform": "ios",
+                    "token": "push-token-001",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        device = PushDevice.objects.get(token="push-token-001")
+        self.assertEqual(
+            response.json(),
+            {
+                "ok": True,
+                "created": True,
+                "device_id": device.pk,
+                "role": "client",
+                "platform": "ios",
+                "is_active": True,
+            },
+        )
+        self.assertEqual(device.user, user)
+        self.assertEqual(device.role, PushDevice.Role.CLIENT)
+        self.assertEqual(device.platform, PushDevice.Platform.IOS)
+        self.assertTrue(device.is_active)
+
+    def test_register_push_device_updates_existing_token(self):
+        user_model = get_user_model()
+        first_user = user_model.objects.create_user(
+            username="push_device_first",
+            password="test-pass-123",
+        )
+        second_user = user_model.objects.create_user(
+            username="push_device_second",
+            password="test-pass-123",
+        )
+        PushDevice.objects.create(
+            user=first_user,
+            role=PushDevice.Role.CLIENT,
+            platform=PushDevice.Platform.IOS,
+            token="push-token-shared",
+            is_active=False,
+        )
+        self.client.force_login(second_user)
+
+        response = self.client.post(
+            reverse("ui:register_push_device"),
+            data=json.dumps(
+                {
+                    "role": "provider",
+                    "platform": "android",
+                    "token": "push-token-shared",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        device = PushDevice.objects.get(token="push-token-shared")
+        self.assertFalse(response.json()["created"])
+        self.assertEqual(device.user, second_user)
+        self.assertEqual(device.role, PushDevice.Role.PROVIDER)
+        self.assertEqual(device.platform, PushDevice.Platform.ANDROID)
+        self.assertTrue(device.is_active)
+
+    def test_register_push_device_requires_authenticated_user(self):
+        response = self.client.post(
+            reverse("ui:register_push_device"),
+            data=json.dumps(
+                {
+                    "role": "client",
+                    "platform": "ios",
+                    "token": "push-token-anon",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["ok"], False)
+
+    def test_register_push_device_validates_payload(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            username="push_device_validation",
+            password="test-pass-123",
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("ui:register_push_device"),
+            data=json.dumps(
+                {
+                    "role": "admin",
+                    "platform": "web",
+                    "token": "",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["ok"], False)
+        self.assertEqual(PushDevice.objects.count(), 0)
 
 
 class HomeViewTests(TestCase):
@@ -1603,6 +1775,378 @@ class RequestCreateViewTests(TestCase):
         self.assertContains(response, "$22.46")
         self.assertContains(response, "$172.46")
         self.assertContains(response, "Taxes calculated based on service location.")
+        self.assertContains(response, "taxRegionCode: taxRegionCode,")
+        self.assertNotContains(response, 'taxRegionCode: taxRegionCode || "DEFAULT"')
+
+    def test_request_create_get_uses_requested_subservice_for_initial_pricing_preview(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Preview Subservice",
+            phone_number="5550000108",
+            email="provider.preview.subservice@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="37 Provider Preview St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Preview Subservice Pricing",
+            description="Preview Subservice Pricing",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Starter cleaning",
+            billing_unit="fixed",
+            price_cents=7900,
+            is_active=True,
+        )
+        deep_clean = ProviderServiceSubservice.objects.create(
+            provider_service=provider_service,
+            name="Deep Cleaning",
+            base_price=Decimal("150.00"),
+            is_active=True,
+            sort_order=1,
+        )
+
+        response = self.client.get(
+            f"/request/{provider.provider_id}/",
+            {
+                "service_type_id": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "requested_subservice_id": str(deep_clean.pk),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["form_data"]["requested_subservice_id"],
+            str(deep_clean.pk),
+        )
+        pricing = response.context["pricing"]
+        self.assertIsNotNone(pricing)
+        self.assertEqual(pricing["base_unit_price"], Decimal("150.00"))
+        self.assertEqual(pricing["base_line_total"], Decimal("150.00"))
+        self.assertEqual(pricing["subtotal"], Decimal("150.00"))
+        self.assertEqual(pricing["tax"], Decimal("22.46"))
+        self.assertEqual(pricing["total"], Decimal("172.46"))
+        self.assertNotContains(response, "Additional service detail")
+        self.assertNotContains(response, "Choose one subservice")
+        self.assertContains(response, 'id="request-pricing-unit-price">150.00<', html=False)
+        self.assertContains(response, 'id="request-summary-unit-price">150.00<', html=False)
+        self.assertContains(response, "$172.46")
+
+    def test_request_create_preview_matches_job_snapshot(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Preview Sync",
+            phone_number="5550000102",
+            email="provider.preview.sync@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="31 Provider Preview St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Preview Sync Pricing",
+            description="Preview Sync Pricing",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Snapshot cleaning",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Preview Sync",
+            phone_number="5550000103",
+            email="client.preview.sync@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="32 Client Preview St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        preview_response = self.client.get(
+            f"/request/{provider.provider_id}/",
+            {
+                "service_type_id": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "province": "QC",
+                "city": "Laval",
+                "postal_code": "H7W4A2",
+            },
+        )
+
+        self.assertEqual(preview_response.status_code, 200)
+        preview = preview_response.context["pricing"]
+        self.assertIsNotNone(preview)
+        self.assertEqual(preview["subtotal_cents"], 10000)
+        self.assertEqual(preview["tax_cents"], 1498)
+        self.assertEqual(preview["total_cents"], 11498)
+        self.assertEqual(preview["tax_region_code"], "QC")
+
+        create_response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "job_mode": "on_demand",
+            },
+        )
+
+        self.assertEqual(create_response.status_code, 302)
+        job = client.jobs.get()
+        self.assertEqual(job.requested_subtotal_snapshot, preview["subtotal"])
+        self.assertEqual(job.requested_tax_snapshot, preview["tax"])
+        self.assertEqual(job.requested_total_snapshot, preview["total"])
+        self.assertEqual(job.requested_tax_region_code_snapshot, preview["tax_region_code"])
+        self.assertEqual(job.requested_subtotal_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_tax_snapshot, Decimal("14.98"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("114.98"))
+
+    def test_marketplace_request_flow_e2e_pricing_consistency(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="E2E Provider",
+            contact_first_name="E2E",
+            contact_last_name="Provider",
+            phone_number="5550000104",
+            email="provider.e2e.flow@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W1A1",
+            address_line1="33 Provider Flow St",
+            service_area="Laval",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="E2E Pricing Flow",
+            description="E2E Pricing Flow",
+        )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7W",
+            is_active=True,
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="E2E Cleaning",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="E2E",
+            phone_number="5550000105",
+            email="client.e2e.flow@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="34 Client Flow St",
+            is_phone_verified=True,
+            accepts_terms=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        marketplace_response = self.client.get(
+            reverse("ui:marketplace_search"),
+            {
+                "service_type": service_type.pk,
+                "service_timing": "urgent",
+                "postal_code": "H7W4A2",
+                "city": "Laval",
+            },
+        )
+
+        self.assertEqual(marketplace_response.status_code, 200)
+        self.assertContains(
+            marketplace_response,
+            f'href="{reverse("ui:request_create", args=[provider.pk])}',
+            html=False,
+        )
+        self.assertContains(marketplace_response, "E2E Provider")
+        self.assertContains(marketplace_response, "From $100.00")
+
+        create_get_response = self.client.get(
+            reverse("ui:request_create", args=[provider.provider_id]),
+            {
+                "service_type_id": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "service_timing": "urgent",
+                "province": "QC",
+                "city": "Laval",
+                "postal_code": "H7W4A2",
+            },
+        )
+
+        self.assertEqual(create_get_response.status_code, 200)
+        preview = create_get_response.context["pricing"]
+        self.assertIsNotNone(preview)
+        self.assertEqual(preview["tax_region_code"], "QC")
+
+        create_post_response = self.client.post(
+            reverse("ui:request_create", args=[provider.provider_id]),
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "service_timing": "urgent",
+                "job_mode": Job.JobMode.ON_DEMAND,
+            },
+        )
+
+        self.assertEqual(create_post_response.status_code, 302)
+        job = client.jobs.get()
+
+        self.assertEqual(preview["subtotal"], job.requested_subtotal_snapshot)
+        self.assertEqual(preview["tax"], job.requested_tax_snapshot)
+        self.assertEqual(preview["total"], job.requested_total_snapshot)
+
+        status_response = self.client.get(
+            reverse("ui:request_status", args=[job.job_id])
+        )
+
+        self.assertEqual(status_response.status_code, 200)
+        self.assertContains(status_response, "$100.00")
+        self.assertContains(status_response, "$14.98")
+        self.assertContains(status_response, "$114.98")
+        self.assertContains(status_response, "Taxes (QC)")
+
+    def test_marketplace_to_request_status_keeps_same_pricing(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="Consistency Provider",
+            contact_first_name="Consistency",
+            contact_last_name="Provider",
+            phone_number="5550000106",
+            email="provider.consistency@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W1B1",
+            address_line1="35 Provider Consistency St",
+            service_area="Laval",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="Consistency Pricing",
+            description="Consistency Pricing",
+        )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7W",
+            is_active=True,
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Consistency Cleaning",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Consistency",
+            phone_number="5550000107",
+            email="client.consistency@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="36 Client Consistency St",
+            is_phone_verified=True,
+            accepts_terms=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        marketplace_response = self.client.get(
+            reverse("ui:marketplace_search"),
+            {
+                "service_type": service_type.pk,
+                "service_timing": "urgent",
+                "postal_code": "H7W4A2",
+                "city": "Laval",
+            },
+        )
+        self.assertEqual(marketplace_response.status_code, 200)
+
+        provider_cards = marketplace_response.context["providers"]
+        selected_card = next(card for card in provider_cards if card.provider_id == provider.provider_id)
+        self.assertEqual(selected_card.display_price, Decimal("100"))
+
+        create_get_response = self.client.get(
+            reverse("ui:request_create", args=[provider.provider_id]),
+            {
+                "service_type_id": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "service_timing": "urgent",
+                "postal_code": "H7W4A2",
+                "city": "Laval",
+                "province": "QC",
+            },
+        )
+        self.assertEqual(create_get_response.status_code, 200)
+
+        preview = create_get_response.context["pricing"]
+        self.assertEqual(preview["subtotal"], Decimal("100.00"))
+        self.assertEqual(preview["tax"], Decimal("14.98"))
+        self.assertEqual(preview["total"], Decimal("114.98"))
+        self.assertEqual(preview["tax_region_code"], "QC")
+
+        post_response = self.client.post(
+            reverse("ui:request_create", args=[provider.provider_id]),
+            {
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "service_timing": "urgent",
+                "job_mode": Job.JobMode.ON_DEMAND,
+            },
+            follow=True,
+        )
+        self.assertEqual(post_response.status_code, 200)
+
+        job = client.jobs.get()
+        self.assertEqual(job.requested_subtotal_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_tax_snapshot, Decimal("14.98"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("114.98"))
+        self.assertEqual(job.requested_tax_region_code_snapshot, "QC")
+
+        status_response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+        self.assertEqual(status_response.status_code, 200)
+        self.assertContains(status_response, "100.00")
+        self.assertContains(status_response, "14.98")
+        self.assertContains(status_response, "114.98")
+        self.assertContains(status_response, "Taxes (QC)")
 
     def test_request_create_get_uses_visible_service_timing_instead_of_job_mode_radios(self):
         provider = Provider.objects.create(
@@ -1640,6 +2184,183 @@ class RequestCreateViewTests(TestCase):
         self.assertContains(response, 'type="hidden" name="job_mode" value="on_demand"', html=False)
         self.assertNotContains(response, "On Demand (ASAP)")
         self.assertNotContains(response, "Scheduled date")
+
+    def test_request_create_hides_authenticated_address_editor_for_emergency(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Emergency",
+            phone_number="5550000110",
+            email="provider.emergency.flow@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="32 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Emergency Address Flow",
+            description="Emergency Address Flow",
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Emergency cleaning",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Emergency",
+            phone_number="5550000111",
+            email="client.emergency.flow@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="33 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.get(
+            f"/request/{provider.provider_id}/?service_type_id={service_type.pk}&service_timing=emergency"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Service location: Laval, QC H7A0A1")
+        self.assertContains(
+            response,
+            'type="hidden" id="postal_code" name="postal_code" value="H7A0A1"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            'type="hidden" id="address_line1" name="address_line1" value="33 Client St"',
+            html=False,
+        )
+        self.assertNotContains(response, "Use another service address")
+
+    def test_request_create_hides_authenticated_address_editor_for_scheduled(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Scheduled Address",
+            phone_number="5550000112",
+            email="provider.scheduled.address@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="34 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Scheduled Address Flow",
+            description="Scheduled Address Flow",
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Scheduled cleaning",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Scheduled",
+            phone_number="5550000113",
+            email="client.scheduled.address@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="35 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.get(
+            f"/request/{provider.provider_id}/?service_type_id={service_type.pk}&service_timing=scheduled"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Service location: Laval, QC H7A0A1")
+        self.assertContains(
+            response,
+            'type="hidden" id="postal_code" name="postal_code" value="H7A0A1"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            'type="hidden" id="address_line1" name="address_line1" value="35 Client St"',
+            html=False,
+        )
+        self.assertNotContains(response, "Use another service address")
+
+    def test_request_create_hides_authenticated_address_editor_for_urgent(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Urgent Address",
+            phone_number="5550000114",
+            email="provider.urgent.address@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="36 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Urgent Address Flow",
+            description="Urgent Address Flow",
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Urgent cleaning",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Urgent",
+            phone_number="5550000115",
+            email="client.urgent.address@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="37 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.get(
+            f"/request/{provider.provider_id}/?service_type_id={service_type.pk}&service_timing=urgent"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Service location: Laval, QC H7A0A1")
+        self.assertContains(
+            response,
+            'type="hidden" id="postal_code" name="postal_code" value="H7A0A1"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            'type="hidden" id="address_line1" name="address_line1" value="37 Client St"',
+            html=False,
+        )
+        self.assertNotContains(response, "Use another service address")
 
     def test_request_create_maps_scheduled_service_timing_to_scheduled_job_mode(self):
         provider = Provider.objects.create(
@@ -1980,14 +2701,13 @@ class RequestCreateViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Providers available in your area")
-        for alternative_provider in alternatives[:3]:
+        for alternative_provider in alternatives:
             self.assertContains(response, alternative_provider.company_name)
             self.assertContains(
                 response,
                 f'href="{reverse("ui:request_create", args=[alternative_provider.provider_id])}?service_type_id={service_type.pk}"',
                 html=False,
             )
-        self.assertNotContains(response, alternatives[3].company_name)
         self.assertNotContains(response, "Wrong Service Provider")
         self.assertNotContains(response, "Other Area Provider")
         response_text = response.content.decode()
@@ -1998,6 +2718,247 @@ class RequestCreateViewTests(TestCase):
         self.assertLess(
             response_text.index("ABC Cleaning"),
             response_text.index("Sparkle Services"),
+        )
+        self.assertLess(
+            response_text.index("Sparkle Services"),
+            response_text.index("Fourth Option"),
+        )
+
+    def test_providers_nearby_allows_change_address_with_postal_code_and_preserves_view_link_params(self):
+        service_type = ServiceType.objects.create(
+            name="Nearby Change Address Test",
+            description="Nearby Change Address Test",
+        )
+        provider = Provider.objects.create(
+            provider_type="company",
+            company_name="Postal Area Cleaning",
+            contact_first_name="Postal",
+            contact_last_name="Cleaner",
+            phone_number="5550000140",
+            email="provider.nearby.postal@test.local",
+            province="QC",
+            city="Montreal",
+            postal_code="H2X1A4",
+            address_line1="60 Postal St",
+            avg_rating=Decimal("4.90"),
+        )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Montreal",
+            province="QC",
+            postal_prefix="H2X",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Postal Area Service",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:providers_nearby"),
+            {
+                "postal_code": "H2X1A4",
+                "city": "Montreal",
+                "province": "QC",
+                "service_type": str(service_type.pk),
+                "service_timing": "emergency",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Change address")
+        self.assertContains(response, 'name="postal_code"', html=False)
+        self.assertContains(response, 'value="H2X1A4"', html=False)
+        self.assertContains(response, "Postal code / area")
+        self.assertContains(response, "Update results")
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("ui:request_create", args=[provider.provider_id])}'
+                f'?service_type_id={service_type.pk}'
+                f'&amp;postal_code=H2X1A4'
+                f'&amp;city=Montreal'
+                f'&amp;province=QC'
+                f'&amp;service_timing=emergency"'
+            ),
+            html=False,
+        )
+
+    def test_providers_nearby_preserves_search_in_request_link(self):
+        service_type = ServiceType.objects.create(
+            name="Nearby Search Preserve Test",
+            description="Nearby Search Preserve Test",
+        )
+        provider = Provider.objects.create(
+            provider_type="company",
+            company_name="Provider Manual Test",
+            contact_first_name="Provider",
+            contact_last_name="Manual",
+            phone_number="5550000141",
+            email="provider.nearby.search-link@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="61 Search St",
+            avg_rating=Decimal("4.90"),
+        )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Manual Search Service",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:providers_nearby"),
+            {
+                "search": "manual",
+                "postal_code": "H7A",
+                "city": "Laval",
+                "province": "QC",
+                "service_type": str(service_type.pk),
+                "service_timing": "emergency",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="search"', html=False)
+        self.assertContains(response, 'value="manual"', html=False)
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("ui:request_create", args=[provider.provider_id])}'
+                f'?service_type_id={service_type.pk}'
+                f'&amp;postal_code=H7A'
+                f'&amp;city=Laval'
+                f'&amp;province=QC'
+                f'&amp;search=manual'
+                f'&amp;service_timing=emergency"'
+            ),
+            html=False,
+        )
+
+    def test_marketplace_to_request_location_contract(self):
+        response = self.client.get(
+            reverse("ui:providers_nearby"),
+            {
+                "postal_code": "H7A",
+                "city": "Laval",
+                "province": "QC",
+                "service_timing": "emergency",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Laval")
+
+    def test_request_create_receives_location_from_nearby(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Nearby Contract",
+            phone_number="5550000141",
+            email="provider.nearby.contract@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="61 Nearby St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Nearby Contract Test",
+            description="Nearby Contract Test",
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Nearby Contract Service",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:request_create", args=[provider.provider_id]),
+            {
+                "service_type_id": str(service_type.pk),
+                "postal_code": "H7A",
+                "city": "Laval",
+                "province": "QC",
+                "search": "manual",
+                "service_timing": "emergency",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form_data"]["postal_code"], "H7A")
+        self.assertEqual(response.context["form_data"]["city"], "Laval")
+        self.assertEqual(response.context["form_data"]["province"], "QC")
+        self.assertEqual(response.context["search"], "manual")
+        self.assertContains(response, 'name="city" required value="Laval"', html=False)
+        self.assertContains(response, 'type="hidden" name="search" value="manual"', html=False)
+
+    def test_request_create_preserves_provider_name_context(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Provider Name",
+            phone_number="5550000142",
+            email="provider.request.provider-name@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="62 Nearby St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Provider Name Context Test",
+            description="Provider Name Context Test",
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Provider Name Context Service",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:request_create", args=[provider.provider_id]),
+            {
+                "service_type_id": str(service_type.pk),
+                "provider_name": "manual",
+                "search": "deep",
+                "postal_code": "H7A",
+                "city": "Laval",
+                "province": "QC",
+                "service_timing": "emergency",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["search"], "deep")
+        self.assertEqual(response.context["provider_name"], "manual")
+        self.assertEqual(response.context["postal_code"], "H7A")
+        self.assertEqual(response.context["city"], "Laval")
+        self.assertEqual(response.context["province"], "QC")
+        self.assertEqual(response.context["service_timing"], "emergency")
+        self.assertContains(
+            response,
+            'type="hidden" name="provider_name" value="manual"',
+            html=False,
         )
 
     def test_providers_nearby_job_orders_covered_providers_by_hybrid_score(self):
@@ -2427,7 +3388,74 @@ class RequestCreateViewTests(TestCase):
         self.assertEqual(job.requested_tax_region_code_snapshot, "QC")
         self.assertEqual(job.requested_total_snapshot, Decimal("114.98"))
 
-    def test_request_create_redirects_to_status_page_without_success_message(self):
+    def test_job_price_snapshot_does_not_change_when_provider_price_changes(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Price Lock",
+            phone_number="5550000006",
+            email="provider.price.lock@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="15 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Price Lock Test",
+            description="Price Lock Test",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Locked Price Service",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Price Lock",
+            phone_number="5550000007",
+            email="client.price.lock@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="16 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "job_mode": "on_demand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        job = client.jobs.get()
+        self.assertEqual(job.requested_unit_price_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_subtotal_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_tax_snapshot, Decimal("14.98"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("114.98"))
+
+        provider_service.price_cents = 20000
+        provider_service.save(update_fields=["price_cents"])
+
+        job.refresh_from_db()
+
+        self.assertEqual(job.requested_unit_price_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_subtotal_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_tax_snapshot, Decimal("14.98"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("114.98"))
+
+    def test_request_create_redirects_to_job_created_page_without_success_message(self):
         provider = Provider.objects.create(
             provider_type="self_employed",
             contact_first_name="Provider",
@@ -2479,11 +3507,168 @@ class RequestCreateViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         job = client.jobs.get()
-        request_status_url = reverse("ui:request_status", args=[job.job_id])
-        self.assertEqual(response.request["PATH_INFO"], request_status_url)
+        job_created_url = reverse("ui:job_created", args=[job.job_id])
+        self.assertEqual(response.request["PATH_INFO"], job_created_url)
+        self.assertEqual(response.request["QUERY_STRING"], "service_timing=urgent")
         self.assertNotContains(response, "Request created")
-        self.assertContains(response, f"<strong>Job ID:</strong> {job.job_id}", html=True)
-        self.assertContains(response, "Waiting for provider reply")
+        self.assertContains(response, "Job created")
+        self.assertContains(response, "Job ID")
+        self.assertContains(response, f">{job.job_id}<", html=False)
+        self.assertContains(response, "Waiting for provider response")
+        self.assertContains(response, "Price snapshot")
+        self.assertContains(response, "Timing")
+        self.assertContains(response, "Urgent")
+        self.assertContains(response, "Next step")
+        self.assertContains(response, "Pending confirmation")
+        self.assertContains(
+            response,
+            f'{reverse("ui:request_status", args=[job.job_id])}?service_timing=urgent',
+        )
+        created_event = job.events.get(event_type=JobEvent.EventType.JOB_CREATED)
+        waiting_event = job.events.get(event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE)
+        self.assertEqual(created_event.actor_role, JobEvent.ActorRole.CLIENT)
+        self.assertEqual(created_event.visible_status, "Waiting for provider response")
+        self.assertEqual(created_event.payload_json.get("service_timing"), "urgent")
+        self.assertEqual(waiting_event.actor_role, JobEvent.ActorRole.SYSTEM)
+        self.assertEqual(waiting_event.visible_status, "Waiting for provider response")
+
+    def test_job_created_view_shows_request_summary(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Created View",
+            phone_number="5550000012",
+            email="provider.created.view@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="21 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Created View Test",
+            description="Created View Test",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Created View Service",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Created View",
+            phone_number="5550000013",
+            email="client.created.view@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="22 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            provider_service=provider_service,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="22 Client St",
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            provider_service_name_snapshot="Created View Service",
+            requested_quantity_snapshot=Decimal("1.00"),
+            requested_base_line_total_snapshot=Decimal("100.00"),
+            requested_subtotal_snapshot=Decimal("100.00"),
+            requested_tax_snapshot=Decimal("14.98"),
+            requested_tax_rate_bps_snapshot=14975,
+            requested_tax_region_code_snapshot="QC",
+            requested_total_snapshot=Decimal("114.98"),
+            requested_billing_unit_snapshot="fixed",
+        )
+
+        response = self.client.get(
+            reverse("ui:job_created", args=[job.job_id]),
+            {"service_timing": "emergency"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Job created")
+        self.assertContains(response, "Created View Service")
+        self.assertContains(response, "Created View Test")
+        self.assertContains(response, "22 Client St")
+        self.assertContains(response, "Laval, QC H7A0A1")
+        self.assertContains(response, "Waiting for provider response")
+        self.assertContains(response, f">{job.job_id}<", html=False)
+        self.assertContains(response, "$100.00")
+        self.assertContains(response, "$14.98")
+        self.assertContains(response, "$114.98")
+        self.assertContains(response, "Emergency")
+        self.assertContains(response, "Waiting for provider response")
+        self.assertEqual(response.context["service_timing"], "emergency")
+        self.assertEqual(response.context["next_step_label"], "Waiting for provider response")
+        self.assertContains(
+            response,
+            f'{reverse("ui:request_status", args=[job.job_id])}?service_timing=emergency',
+        )
+
+    def test_job_created_view_falls_back_to_scheduled_timing_from_job_mode(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Scheduled Created View",
+            phone_number="5550000014",
+            email="provider.created.scheduled@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="23 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Scheduled Created View Test",
+            description="Scheduled Created View Test",
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Scheduled Created View",
+            phone_number="5550000015",
+            email="client.created.scheduled@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="24 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            is_asap=False,
+            scheduled_date=timezone.localdate() + timedelta(days=2),
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="24 Client St",
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+        )
+
+        response = self.client.get(reverse("ui:job_created", args=[job.job_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Scheduled")
+        self.assertContains(response, "Request submitted")
+        self.assertEqual(response.context["service_timing"], "scheduled")
+        self.assertEqual(response.context["next_step_label"], "Request submitted")
 
     def test_request_create_allows_matching_geocoded_province(self):
         provider = Provider.objects.create(
@@ -2625,6 +3810,7 @@ class RequestCreateViewTests(TestCase):
                 "provider_service_id": str(provider_service.pk),
                 "job_mode": "on_demand",
                 "use_other_address": "1",
+                "province": "QC",
                 "city": "Laval",
                 "postal_code": "B6P 1B3",
                 "address_line1": "99 Remote St",
@@ -2699,6 +3885,7 @@ class RequestCreateViewTests(TestCase):
                 "provider_service_id": str(provider_service.pk),
                 "job_mode": "on_demand",
                 "use_other_address": "1",
+                "province": "QC",
                 "city": "Montreal",
                 "postal_code": "H2X1A4",
                 "address_line1": "99 Remote St",
@@ -2707,7 +3894,11 @@ class RequestCreateViewTests(TestCase):
 
         self.assertRedirects(
             response,
-            f"{reverse('ui:providers_nearby')}?fsa=H2X&service_type={service_type.pk}",
+            (
+                f"{reverse('ui:providers_nearby')}"
+                f"?fsa=H2X&postal_code=H2X1A4&city=Montreal&province=QC"
+                f"&service_type={service_type.pk}"
+            ),
         )
         self.assertEqual(Job.objects.count(), 0)
 
@@ -2736,13 +3927,20 @@ class RequestCreateViewTests(TestCase):
             postal_prefix="H2X",
             is_active=True,
         )
-        ProviderService.objects.create(
+        matching_offer = ProviderService.objects.create(
             provider=matching_provider,
             service_type=service_type,
             custom_name="Neighbourhood Coverage Service",
             billing_unit="fixed",
             price_cents=10000,
             is_active=True,
+        )
+        ProviderServiceSubservice.objects.create(
+            provider_service=matching_offer,
+            name="Deep Cleaning",
+            base_price=Decimal("150.00"),
+            is_active=True,
+            sort_order=1,
         )
         low_rating_provider = Provider.objects.create(
             provider_type="company",
@@ -2764,13 +3962,20 @@ class RequestCreateViewTests(TestCase):
             postal_prefix="H2X",
             is_active=True,
         )
-        ProviderService.objects.create(
+        low_rating_offer = ProviderService.objects.create(
             provider=low_rating_provider,
             service_type=service_type,
             custom_name="Budget Coverage Service",
             billing_unit="fixed",
             price_cents=9000,
             is_active=True,
+        )
+        ProviderServiceSubservice.objects.create(
+            provider_service=low_rating_offer,
+            name="Deep Cleaning",
+            base_price=Decimal("140.00"),
+            is_active=True,
+            sort_order=1,
         )
         other_name_provider = Provider.objects.create(
             provider_type="company",
@@ -2792,13 +3997,22 @@ class RequestCreateViewTests(TestCase):
             postal_prefix="H2X",
             is_active=True,
         )
-        ProviderService.objects.create(
+        other_name_offer = ProviderService.objects.create(
             provider=other_name_provider,
             service_type=service_type,
             custom_name="Sparkle Coverage Service",
             billing_unit="fixed",
             price_cents=9500,
             is_active=True,
+        )
+        ProviderServiceExtra.objects.create(
+            provider_service=other_name_offer,
+            name="Inside Fridge",
+            unit_price=Decimal("15.00"),
+            is_active=True,
+            min_qty=1,
+            max_qty=3,
+            sort_order=1,
         )
 
         response = self.client.get(
@@ -2807,7 +4021,7 @@ class RequestCreateViewTests(TestCase):
                 "fsa": "H2X",
                 "service_type": str(service_type.pk),
                 "rating": "4.5",
-                "search": "Neighbour",
+                "search": "deep",
             },
         )
 
@@ -2815,6 +4029,157 @@ class RequestCreateViewTests(TestCase):
         self.assertContains(response, "Neighbourhood Cleaners")
         self.assertNotContains(response, "Budget Clean Team")
         self.assertNotContains(response, "Sparkle Services")
+        self.assertContains(response, "Search provider, service or extra")
+
+    def test_providers_nearby_search_matches_provider_name(self):
+        service_type = ServiceType.objects.create(
+            name="Nearby Provider Name Search Test",
+            description="Nearby Provider Name Search Test",
+        )
+        matching_provider = Provider.objects.create(
+            provider_type="company",
+            company_name="Provider Manual Test",
+            contact_first_name="Provider",
+            contact_last_name="Manual",
+            phone_number="5550000044",
+            email="provider.nearby.name.match@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="44 Provider St",
+            avg_rating=Decimal("4.90"),
+        )
+        ProviderServiceArea.objects.create(
+            provider=matching_provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=matching_provider,
+            service_type=service_type,
+            custom_name="Manual Coverage Service",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+
+        other_provider = Provider.objects.create(
+            provider_type="company",
+            company_name="Other Nearby Team",
+            contact_first_name="Other",
+            contact_last_name="Nearby",
+            phone_number="5550000045",
+            email="provider.nearby.name.other@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="45 Provider St",
+            avg_rating=Decimal("4.80"),
+        )
+        ProviderServiceArea.objects.create(
+            provider=other_provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=other_provider,
+            service_type=service_type,
+            custom_name="Other Coverage Service",
+            billing_unit="fixed",
+            price_cents=9500,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:providers_nearby"),
+            {
+                "search": "manual",
+                "postal_code": "H7A",
+                "service_type": str(service_type.pk),
+                "service_timing": "emergency",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Provider Manual Test")
+        self.assertNotContains(response, "Other Nearby Team")
+        self.assertContains(response, "Search provider, service or extra")
+
+    def test_providers_nearby_deduplicates_matching_offers_per_provider(self):
+        service_type = ServiceType.objects.create(
+            name="Nearby Dedupe Test",
+            description="Nearby Dedupe Test",
+        )
+        provider = Provider.objects.create(
+            provider_type="company",
+            company_name="Single Card Cleaning",
+            contact_first_name="Single",
+            contact_last_name="Card",
+            phone_number="5550000044",
+            email="provider.nearby.dedupe@test.local",
+            province="QC",
+            city="Montreal",
+            postal_code="H2X1A4",
+            address_line1="44 Provider St",
+            avg_rating=Decimal("4.90"),
+        )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Montreal",
+            province="QC",
+            postal_prefix="H2X",
+            is_active=True,
+        )
+        first_offer = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Single Card Base",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        second_offer = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Single Card Premium",
+            billing_unit="fixed",
+            price_cents=11000,
+            is_active=True,
+        )
+        ProviderServiceSubservice.objects.create(
+            provider_service=first_offer,
+            name="Deep Cleaning",
+            base_price=Decimal("140.00"),
+            is_active=True,
+            sort_order=1,
+        )
+        ProviderServiceExtra.objects.create(
+            provider_service=second_offer,
+            name="Deep Sanitizing",
+            unit_price=Decimal("20.00"),
+            is_active=True,
+            min_qty=1,
+            max_qty=3,
+            sort_order=1,
+        )
+
+        response = self.client.get(
+            reverse("ui:providers_nearby"),
+            {
+                "fsa": "H2X",
+                "service_type": str(service_type.pk),
+                "search": "deep",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["providers"]), 1)
+        self.assertEqual(response.context["providers"][0].provider_id, provider.pk)
+        self.assertContains(response, "Single Card Cleaning")
 
     def test_request_create_accepts_authenticated_client_other_address_matching_postal_prefix(self):
         provider = Provider.objects.create(
@@ -2871,6 +4236,7 @@ class RequestCreateViewTests(TestCase):
                 "provider_service_id": str(provider_service.pk),
                 "job_mode": "on_demand",
                 "use_other_address": "1",
+                "province": "QC",
                 "city": "Montreal",
                 "postal_code": "h7a 9z9",
                 "address_line1": "100 FSA Match St",
@@ -2882,6 +4248,132 @@ class RequestCreateViewTests(TestCase):
         job = Job.objects.get()
         self.assertEqual(job.city, "Montreal")
         self.assertEqual(job.postal_code, "h7a 9z9")
+
+    def test_request_create_authenticated_client_other_address_uses_posted_province_for_tax_snapshot(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Tax Province",
+            phone_number="5550000010",
+            email="provider.tax.province@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="19 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Tax Province Test",
+            description="Tax Province Test",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Province-aware pricing",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Tax Province",
+            phone_number="5550000011",
+            email="client.tax.province@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="20 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "job_mode": "on_demand",
+                "use_other_address": "1",
+                "province": "ON",
+                "city": "Toronto",
+                "postal_code": "M5V1E3",
+                "address_line1": "21 Other Province St",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        job = Job.objects.get()
+        self.assertEqual(job.province, "ON")
+        self.assertEqual(job.requested_tax_region_code_snapshot, "ON")
+        self.assertEqual(job.requested_tax_rate_bps_snapshot, 13000)
+        self.assertEqual(job.requested_tax_snapshot, Decimal("13.00"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("113.00"))
+
+    def test_job_snapshot_preserves_request_location(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Location Snapshot",
+            phone_number="5550000012",
+            email="provider.location.snapshot@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="22 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Location Snapshot Test",
+            description="Location Snapshot Test",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Location Snapshot Service",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Location Snapshot",
+            phone_number="5550000013",
+            email="client.location.snapshot@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="23 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            reverse("ui:request_create", args=[provider.provider_id]),
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "postal_code": "H7A",
+                "city": "Laval",
+                "province": "QC",
+                "address_line1": "23 Client St",
+                "service_timing": "scheduled",
+                "job_mode": Job.JobMode.ON_DEMAND,
+                "scheduled_date": str(timezone.localdate() + timedelta(days=7)),
+                "scheduled_time": "14:30",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        job = Job.objects.get()
+        self.assertEqual(job.postal_code, "H7A")
+        self.assertEqual(job.city, "Laval")
+        self.assertEqual(job.province, "QC")
 
     def test_unverified_client_cannot_create_job(self):
         provider = Provider.objects.create(
@@ -3091,7 +4583,7 @@ class RequestCreateViewTests(TestCase):
 
         self.assertRedirects(
             response,
-            reverse("ui:request_status", args=[job.job_id]),
+            reverse("ui:job_created", args=[job.job_id]),
             fetch_redirect_response=False,
         )
         self.assertEqual(job.selected_provider_id, provider.pk)
@@ -3118,6 +4610,73 @@ class RequestCreateViewTests(TestCase):
         self.assertEqual(requested_extras[1].quantity, 1)
         self.assertEqual(requested_extras[1].unit_price_snapshot, Decimal("15.00"))
         self.assertEqual(requested_extras[1].line_total_snapshot, Decimal("15.00"))
+
+    def test_request_create_allows_offer_with_subservices_without_requested_subservice(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="Catalog Optional",
+            phone_number="5550000015",
+            email="provider.catalog.optional@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="24 Provider St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Catalog Optional Service",
+            description="Catalog Optional Service",
+        )
+        provider_service = ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Catalog Optional Offer",
+            billing_unit="fixed",
+            price_cents=12500,
+            is_active=True,
+        )
+        ProviderServiceSubservice.objects.create(
+            provider_service=provider_service,
+            name="Deep Cleaning",
+            base_price=Decimal("150.00"),
+            is_active=True,
+            sort_order=1,
+        )
+        client = Client.objects.create(
+            first_name="Client",
+            last_name="Catalog Optional",
+            phone_number="5550000016",
+            email="client.catalog.optional@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A0A1",
+            address_line1="25 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        session = self.client.session
+        session["client_id"] = client.pk
+        session.save()
+
+        response = self.client.post(
+            f"/request/{provider.provider_id}/",
+            data={
+                "service_type": str(service_type.pk),
+                "provider_service_id": str(provider_service.pk),
+                "requested_quantity": "1",
+                "job_mode": "on_demand",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        job = Job.objects.get()
+        self.assertEqual(job.requested_subservice_name, "")
+        self.assertIsNone(job.requested_subservice_id_snapshot)
+        self.assertEqual(job.requested_unit_price_snapshot, Decimal("125.00"))
+        self.assertEqual(job.requested_subtotal_snapshot, Decimal("125.00"))
+        self.assertEqual(job.requested_tax_snapshot, Decimal("18.72"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("143.72"))
 
     def test_request_create_rejects_zero_quantity(self):
         provider = Provider.objects.create(
@@ -3429,6 +4988,111 @@ class RequestStatusViewTests(TestCase):
         self.assertEqual(job.cancel_reason, Job.CancelReason.CLIENT_CANCELLED)
         self.assertContains(response, "Request cancelled successfully.")
         self.assertContains(response, "Cancelled - Client cancelled the request.")
+        event = job.events.get(event_type=JobEvent.EventType.JOB_CANCELLED)
+        self.assertEqual(event.actor_role, JobEvent.ActorRole.CLIENT)
+        self.assertEqual(event.visible_status, "Cancelled")
+        self.assertEqual(event.payload_json.get("source"), "request_status_cancel")
+
+    def test_request_status_shows_emergency_timing_and_next_step(self):
+        job = self._make_job(status=Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+
+        response = self.client.get(
+            reverse("ui:request_status", args=[job.job_id]),
+            {"service_timing": "emergency"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Timing")
+        self.assertContains(response, "Emergency")
+        self.assertContains(response, "Next step")
+        self.assertContains(response, "Waiting for provider response")
+        self.assertEqual(response.context["service_timing"], "emergency")
+        self.assertEqual(response.context["next_step_label"], "Waiting for provider response")
+
+    def test_request_status_falls_back_to_scheduled_timing_from_job_mode(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Scheduled",
+            contact_last_name="Provider Status",
+            phone_number="555100099201",
+            email="provider.status.scheduled@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="200 Provider St",
+        )
+        client = Client.objects.create(
+            first_name="Luis",
+            last_name="Scheduled Garcia",
+            phone_number="555100099202",
+            email="client.status.scheduled@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="922 100 e avenue",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="Status scheduled",
+            description="Status scheduled",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=False,
+            scheduled_date=timezone.localdate() + timedelta(days=2),
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="922 100 e avenue",
+        )
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Scheduled")
+        self.assertContains(response, "Request submitted")
+        self.assertEqual(response.context["service_timing"], "scheduled")
+        self.assertEqual(response.context["next_step_label"], "Request submitted")
+
+    def test_request_status_shows_assigned_as_accepted(self):
+        job = self._make_job(status=Job.JobStatus.ASSIGNED)
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Status")
+        self.assertContains(response, "Accepted")
+        self.assertEqual(response.context["job_status_label"], "Accepted")
+
+    def test_request_status_shows_job_event_timeline(self):
+        job = self._make_job(status=Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+        JobEvent.objects.create(
+            job=job,
+            event_type=JobEvent.EventType.JOB_CREATED,
+            visible_status="Waiting for provider response",
+            actor_role=JobEvent.ActorRole.CLIENT,
+            payload_json={"source": "test"},
+        )
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Job timeline")
+        self.assertContains(response, "Waiting for provider response")
+        self.assertContains(response, "Job Created")
+        self.assertContains(response, "Client")
+        self.assertEqual(len(response.context["job_events"]), 1)
+        self.assertEqual(
+            response.context["job_events"][0].event_type,
+            JobEvent.EventType.JOB_CREATED,
+        )
 
     def test_request_status_allows_client_cancel_while_assigned(self):
         job = self._make_job(status=Job.JobStatus.ASSIGNED)
@@ -3539,16 +5203,17 @@ class RequestStatusViewTests(TestCase):
         response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Pricing Summary")
-        self.assertContains(response, "Main Offer")
+        self.assertContains(response, "Service details")
+        self.assertContains(response, "Price breakdown")
+        self.assertContains(response, "Main offer")
         self.assertContains(response, "Standard cleaning")
         self.assertContains(response, "Per Hour")
         self.assertContains(response, "$75.00")
         self.assertContains(response, "2.00")
-        self.assertContains(response, "Base Service Total")
+        self.assertContains(response, "Base service total")
         self.assertContains(response, "$150.00")
-        self.assertContains(response, "Requested details")
-        self.assertContains(response, "Subservice: Deep Cleaning")
+        self.assertContains(response, "Subservice")
+        self.assertContains(response, "Deep Cleaning")
         self.assertContains(response, "Extra bathroom x 2")
         self.assertContains(response, "Inside fridge x 1")
         self.assertContains(response, "Subtotal")
@@ -3588,6 +5253,281 @@ class RequestStatusViewTests(TestCase):
             urlencode({"next": next_url}),
         ))
         self.assertContains(response, "Back to Activity")
+
+
+class ProviderFinancialConsistencyTests(TestCase):
+    def _login_provider(self, provider):
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+    def test_job_snapshot_matches_provider_ticket_and_financial_summary(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="Financial Consistency Provider",
+            contact_first_name="Financial",
+            contact_last_name="Consistency",
+            phone_number="+15145551221",
+            email="financial.consistency.provider@test.local",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            billing_profile_completed=True,
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="123 Test St",
+        )
+        client = Client.objects.create(
+            first_name="Financial",
+            last_name="Client",
+            email="financial.consistency.client@test.local",
+            phone_number="+15145551222",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="124 Test St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Financial Consistency Service",
+            description="Financial Consistency Service",
+        )
+        job = Job.objects.create(
+            client=client,
+            selected_provider=provider,
+            service_type=service_type,
+            provider_service_name_snapshot="Financial Consistency Offer",
+            requested_subtotal_snapshot=Decimal("100.00"),
+            requested_tax_snapshot=Decimal("14.98"),
+            requested_total_snapshot=Decimal("114.98"),
+            requested_tax_region_code_snapshot="QC",
+            requested_tax_rate_bps_snapshot=14975,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.COMPLETED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="123 Test St",
+        )
+        ticket = ProviderTicket.objects.create(
+            provider=provider,
+            ref_type="job",
+            ref_id=job.job_id,
+            ticket_no="PT-CONSISTENCY-0001",
+            stage=ProviderTicket.Stage.ESTIMATE,
+            status=ProviderTicket.Status.OPEN,
+            subtotal_cents=10000,
+            tax_cents=1498,
+            total_cents=11498,
+            currency="CAD",
+            tax_region_code="QC",
+        )
+        ProviderTicketLine.objects.create(
+            ticket=ticket,
+            line_no=1,
+            line_type=ProviderTicketLine.LineType.BASE,
+            description="Service",
+            qty=1,
+            unit_price_cents=10000,
+            line_subtotal_cents=10000,
+            tax_rate_bps=14975,
+            tax_cents=1498,
+            line_total_cents=11498,
+            tax_region_code="QC",
+            tax_code="",
+            meta={},
+        )
+        PlatformLedgerEntry.objects.create(
+            job=job,
+            gross_cents=11498,
+            tax_cents=1498,
+            fee_cents=0,
+            net_provider_cents=11498,
+            platform_revenue_cents=0,
+            tax_region_code="QC",
+            is_final=True,
+        )
+
+        self.assertEqual(job.requested_subtotal_snapshot, Decimal("100.00"))
+        self.assertEqual(job.requested_tax_snapshot, Decimal("14.98"))
+        self.assertEqual(job.requested_total_snapshot, Decimal("114.98"))
+
+        self.assertEqual(ticket.subtotal_cents, 10000)
+        self.assertEqual(ticket.tax_cents, 1498)
+        self.assertEqual(ticket.total_cents, 11498)
+        self.assertEqual(ticket.tax_region_code, "QC")
+
+        self.assertEqual(
+            Decimal(ticket.subtotal_cents) / Decimal("100"),
+            job.requested_subtotal_snapshot,
+        )
+        self.assertEqual(
+            Decimal(ticket.tax_cents) / Decimal("100"),
+            job.requested_tax_snapshot,
+        )
+        self.assertEqual(
+            Decimal(ticket.total_cents) / Decimal("100"),
+            job.requested_total_snapshot,
+        )
+
+        self._login_provider(provider)
+        response = self.client.get(reverse("provider_financial_summary"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["activity_analytics"]["total_gross"], Decimal("114.98"))
+        self.assertEqual(
+            response.context["activity_analytics"]["total_provider_earnings"],
+            Decimal("114.98"),
+        )
+        self.assertEqual(
+            response.context["activity_analytics"]["total_platform_fees"],
+            Decimal("0.00"),
+        )
+        self.assertEqual(len(response.context["monthly_revenue"]), 1)
+        self.assertEqual(response.context["monthly_revenue"][0]["gross"], Decimal("114.98"))
+        self.assertContains(response, "Financial Summary")
+        self.assertContains(response, "114.98")
+
+    def test_job_ticket_and_activity_views_stay_financially_aligned(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="Activity Consistency Provider",
+            contact_first_name="Activity",
+            contact_last_name="Consistency",
+            phone_number="+15145551223",
+            email="activity.consistency.provider@test.local",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            billing_profile_completed=True,
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="125 Test St",
+        )
+        client = Client.objects.create(
+            first_name="Activity",
+            last_name="Client",
+            email="activity.consistency.client@test.local",
+            phone_number="+15145551224",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="126 Test St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Activity Consistency Service",
+            description="Activity Consistency Service",
+        )
+        job = Job.objects.create(
+            client=client,
+            selected_provider=provider,
+            service_type=service_type,
+            provider_service_name_snapshot="Activity Consistency Offer",
+            requested_subtotal_snapshot=Decimal("100.00"),
+            requested_tax_snapshot=Decimal("14.98"),
+            requested_total_snapshot=Decimal("114.98"),
+            requested_tax_region_code_snapshot="QC",
+            requested_tax_rate_bps_snapshot=14975,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.COMPLETED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="125 Test St",
+        )
+        ticket = ProviderTicket.objects.create(
+            provider=provider,
+            ref_type="job",
+            ref_id=job.job_id,
+            ticket_no="PT-CONSISTENCY-0002",
+            stage=ProviderTicket.Stage.ESTIMATE,
+            status=ProviderTicket.Status.OPEN,
+            subtotal_cents=10000,
+            tax_cents=1498,
+            total_cents=11498,
+            currency="CAD",
+            tax_region_code="QC",
+        )
+        ProviderTicketLine.objects.create(
+            ticket=ticket,
+            line_no=1,
+            line_type=ProviderTicketLine.LineType.BASE,
+            description="Service",
+            qty=1,
+            unit_price_cents=10000,
+            line_subtotal_cents=10000,
+            tax_rate_bps=14975,
+            tax_cents=1498,
+            line_total_cents=11498,
+            tax_region_code="QC",
+            tax_code="",
+            meta={},
+        )
+        PlatformLedgerEntry.objects.create(
+            job=job,
+            gross_cents=11498,
+            tax_cents=1498,
+            fee_cents=2000,
+            net_provider_cents=9498,
+            platform_revenue_cents=2000,
+            tax_region_code="QC",
+            is_final=True,
+        )
+
+        self._login_provider(provider)
+
+        activity_response = self.client.get(reverse("provider_activity"))
+
+        self.assertEqual(activity_response.status_code, 200)
+        self.assertContains(activity_response, "114.98")
+        self.assertContains(activity_response, "94.98")
+        self.assertContains(activity_response, "20.00")
+        self.assertEqual(
+            activity_response.context["activity_analytics"]["total_gross"],
+            Decimal("114.98"),
+        )
+        self.assertEqual(
+            activity_response.context["activity_analytics"]["total_provider_earnings"],
+            Decimal("94.98"),
+        )
+        self.assertEqual(
+            activity_response.context["activity_analytics"]["total_platform_fees"],
+            Decimal("20.00"),
+        )
+        self.assertEqual(len(activity_response.context["activity_rows"]), 1)
+        row = activity_response.context["activity_rows"][0]
+        self.assertEqual(row.gross_cents, 11498)
+        self.assertEqual(row.provider_net_cents, 9498)
+        self.assertEqual(row.platform_fee_cents, 2000)
+
+        summary_response = self.client.get(reverse("provider_financial_summary"))
+
+        self.assertEqual(summary_response.status_code, 200)
+        self.assertEqual(
+            summary_response.context["activity_analytics"]["total_gross"],
+            Decimal("114.98"),
+        )
+        self.assertEqual(
+            summary_response.context["activity_analytics"]["total_provider_earnings"],
+            Decimal("94.98"),
+        )
+        self.assertEqual(
+            summary_response.context["activity_analytics"]["total_platform_fees"],
+            Decimal("20.00"),
+        )
+        self.assertEqual(len(summary_response.context["monthly_revenue"]), 1)
+        self.assertEqual(summary_response.context["monthly_revenue"][0]["gross"], Decimal("114.98"))
 
 
 class ProviderJobsViewTests(TestCase):
@@ -3994,6 +5934,24 @@ class MarketplaceSearchViewTests(TestCase):
         )
         return provider
 
+    def _create_verified_client(self):
+        client_obj = Client.objects.create(
+            first_name="Marketplace",
+            last_name="Verified",
+            phone_number="5550000411",
+            email="marketplace.verified@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="1 Client St",
+            is_phone_verified=True,
+            accepts_terms=True,
+            profile_completed=True,
+        )
+        self._login_client(client_obj)
+        return client_obj
+
     def test_marketplace_search_shows_client_navigation_links(self):
         client_obj = Client.objects.create(
             first_name="Marketplace",
@@ -4026,6 +5984,65 @@ class MarketplaceSearchViewTests(TestCase):
         )
         self.assertContains(response, "Marketplace Navigation \u2013 Client")
         self.assertNotContains(response, ">Account<", html=False)
+
+    def test_marketplace_search_defaults_to_profile_address_toggle(self):
+        client_obj = self._create_verified_client()
+
+        response = self.client.get(reverse("ui:marketplace_search"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form_data"]["use_profile_address"])
+        self.assertEqual(response.context["form_data"]["province"], client_obj.province)
+        self.assertEqual(response.context["form_data"]["city"], client_obj.city)
+        self.assertEqual(response.context["form_data"]["postal_code"], client_obj.postal_code)
+        response_html = response.content.decode()
+        self.assertRegex(
+            response_html,
+            r'<input[^>]+name="use_profile_address"[^>]+id="use_profile_address"[^>]+value="1"[^>]+checked',
+        )
+        self.assertRegex(
+            response_html,
+            r'<input[^>]+id="city"[^>]+value="Laval"[^>]+readonly',
+        )
+        self.assertRegex(
+            response_html,
+            r'<input[^>]+id="postal_code"[^>]+value="H7A1A1"[^>]+readonly',
+        )
+
+    def test_marketplace_search_allows_manual_location_when_profile_toggle_disabled(self):
+        self._create_verified_client()
+
+        response = self.client.get(
+            reverse("ui:marketplace_search"),
+            {
+                "use_profile_address": "0",
+                "province": "QC",
+                "city": "Montreal",
+                "postal_code": "H2X1A4",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["form_data"]["use_profile_address"])
+        self.assertEqual(response.context["form_data"]["city"], "Montreal")
+        self.assertEqual(response.context["form_data"]["postal_code"], "H2X1A4")
+        response_html = response.content.decode()
+        self.assertRegex(
+            response_html,
+            r'<input[^>]+id="city"[^>]+value="Montreal"',
+        )
+        self.assertRegex(
+            response_html,
+            r'<input[^>]+id="postal_code"[^>]+value="H2X1A4"',
+        )
+        self.assertNotRegex(
+            response_html,
+            r'<input[^>]+id="city"[^>]+readonly',
+        )
+        self.assertNotRegex(
+            response_html,
+            r'<input[^>]+id="postal_code"[^>]+readonly',
+        )
 
     def test_marketplace_results_shows_client_navigation_links(self):
         client_obj = Client.objects.create(
@@ -4672,6 +6689,432 @@ class MarketplaceSearchViewTests(TestCase):
         self.assertContains(response, "Provider Manual Test")
         self.assertNotContains(response, "Other Provider Team")
 
+    def test_marketplace_filters_by_provider_name(self):
+        client_obj = Client.objects.create(
+            first_name="Provider",
+            last_name="Name Filter",
+            phone_number="5550000422",
+            email="marketplace.provider.name@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="8 Client St",
+            is_phone_verified=True,
+            accepts_terms=True,
+            profile_completed=True,
+        )
+        self._login_client(client_obj)
+
+        cleaning = ServiceType.objects.create(
+            name="Provider Name Cleaning",
+            description="Provider Name Cleaning",
+        )
+
+        matching_provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Provider Manual Test",
+            legal_name="Provider Manual Test",
+            business_registration_number="REG-PROVIDER-001",
+            contact_first_name="Provider",
+            contact_last_name="Manual",
+            phone_number="5550000423",
+            email="provider.name.manual@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="9 Provider St",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+            service_area="Laval",
+        )
+        ProviderServiceArea.objects.create(
+            provider=matching_provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=matching_provider,
+            service_type=cleaning,
+            custom_name="Manual Provider Cleaning",
+            billing_unit="fixed",
+            price_cents=12000,
+            is_active=True,
+        )
+
+        other_provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Other Provider Team",
+            legal_name="Other Provider Team",
+            business_registration_number="REG-PROVIDER-002",
+            contact_first_name="Other",
+            contact_last_name="Provider",
+            phone_number="5550000424",
+            email="provider.name.other@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="10 Provider St",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+            service_area="Laval",
+        )
+        ProviderServiceArea.objects.create(
+            provider=other_provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=other_provider,
+            service_type=cleaning,
+            custom_name="Other Provider Cleaning",
+            billing_unit="fixed",
+            price_cents=9000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:marketplace_search"),
+            self._scheduled_marketplace_query(
+                service_type=cleaning.service_type_id,
+                postal_code="H7A1A1",
+                provider_name="manual",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Provider Manual Test")
+        self.assertNotContains(response, "Other Provider Team")
+        self.assertContains(response, 'name="provider_name"', html=False)
+        self.assertContains(response, 'value="manual"', html=False)
+
+    def test_marketplace_provider_name_filter_preserves_limit_and_other_filters(self):
+        client_obj = Client.objects.create(
+            first_name="Provider",
+            last_name="Combined Filter",
+            phone_number="5550000425",
+            email="marketplace.provider.combined@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="11 Client St",
+            is_phone_verified=True,
+            accepts_terms=True,
+            profile_completed=True,
+        )
+        self._login_client(client_obj)
+
+        cleaning = ServiceType.objects.create(
+            name="Provider Combined Cleaning",
+            description="Provider Combined Cleaning",
+        )
+        hvac = ServiceType.objects.create(
+            name="Provider Combined HVAC",
+            description="Provider Combined HVAC",
+        )
+
+        matching_names = []
+        for index in range(22):
+            provider = Provider.objects.create(
+                provider_type=Provider.TYPE_COMPANY,
+                company_name=f"Manual Match {index + 1:02d}",
+                legal_name=f"Manual Match {index + 1:02d}",
+                business_registration_number=f"REG-MATCH-{index + 1:03d}",
+                contact_first_name="Manual",
+                contact_last_name=f"Match{index + 1:02d}",
+                phone_number=f"5551000{index + 1:03d}",
+                email=f"provider.manual.match.{index + 1:02d}@test.local",
+                province="QC",
+                city="Laval",
+                postal_code="H7A1A1",
+                address_line1=f"{100 + index} Match St",
+                is_phone_verified=True,
+                profile_completed=True,
+                billing_profile_completed=True,
+                accepts_terms=True,
+                service_area="Laval",
+            )
+            ProviderServiceArea.objects.create(
+                provider=provider,
+                city="Laval",
+                province="QC",
+                postal_prefix="H7A",
+                is_active=True,
+            )
+            offer = ProviderService.objects.create(
+                provider=provider,
+                service_type=cleaning,
+                custom_name=f"Manual Match Service {index + 1:02d}",
+                billing_unit="fixed",
+                price_cents=10000 + index,
+                is_active=True,
+            )
+            ProviderServiceSubservice.objects.create(
+                provider_service=offer,
+                name="Deep Cleaning",
+                base_price=Decimal("150.00"),
+                is_active=True,
+                sort_order=1,
+            )
+            matching_names.append(provider.company_name)
+
+        no_subservice_provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Manual No Deep",
+            legal_name="Manual No Deep",
+            business_registration_number="REG-NODEEP-001",
+            contact_first_name="Manual",
+            contact_last_name="NoDeep",
+            phone_number="5550000426",
+            email="provider.manual.no.deep@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="12 Provider St",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+            service_area="Laval",
+        )
+        ProviderServiceArea.objects.create(
+            provider=no_subservice_provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=no_subservice_provider,
+            service_type=cleaning,
+            custom_name="Manual No Deep Service",
+            billing_unit="fixed",
+            price_cents=13000,
+            is_active=True,
+        )
+
+        other_service_provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Manual Other Service",
+            legal_name="Manual Other Service",
+            business_registration_number="REG-OTHERSVC-001",
+            contact_first_name="Manual",
+            contact_last_name="OtherService",
+            phone_number="5550000427",
+            email="provider.manual.other.service@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="13 Provider St",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+            service_area="Laval",
+        )
+        ProviderServiceArea.objects.create(
+            provider=other_service_provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        other_offer = ProviderService.objects.create(
+            provider=other_service_provider,
+            service_type=hvac,
+            custom_name="Manual Other HVAC",
+            billing_unit="fixed",
+            price_cents=13500,
+            is_active=True,
+        )
+        ProviderServiceSubservice.objects.create(
+            provider_service=other_offer,
+            name="Deep Cleaning",
+            base_price=Decimal("160.00"),
+            is_active=True,
+            sort_order=1,
+        )
+
+        response = self.client.get(
+            reverse("ui:marketplace_search"),
+            self._scheduled_marketplace_query(
+                service_type=cleaning.service_type_id,
+                postal_code="H7A1A1",
+                provider_name="manual",
+                q="deep cleaning",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        provider_cards = response.context["providers"]
+        self.assertEqual(len(provider_cards), 20)
+        self.assertEqual(response.context["provider_name"], "manual")
+        self.assertTrue(all("manual" in card.card_display_name.lower() for card in provider_cards))
+        self.assertTrue(
+            all(card.provider_id != no_subservice_provider.provider_id for card in provider_cards)
+        )
+        self.assertTrue(
+            all(card.provider_id != other_service_provider.provider_id for card in provider_cards)
+        )
+        self.assertNotContains(response, "Manual No Deep")
+        self.assertNotContains(response, "Manual Other Service")
+        self.assertContains(response, matching_names[0])
+        self.assertContains(response, 'name="provider_name"', html=False)
+        self.assertContains(response, 'value="manual"', html=False)
+
+    def test_marketplace_provider_name_filter_prioritizes_stronger_name_matches(self):
+        client_obj = Client.objects.create(
+            first_name="Provider",
+            last_name="Name Priority",
+            phone_number="5550000428",
+            email="marketplace.provider.priority@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="14 Client St",
+            is_phone_verified=True,
+            accepts_terms=True,
+            profile_completed=True,
+        )
+        self._login_client(client_obj)
+
+        cleaning = ServiceType.objects.create(
+            name="Provider Name Priority Cleaning",
+            description="Provider Name Priority Cleaning",
+        )
+
+        infix_provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Team Manual Experts",
+            legal_name="Team Manual Experts",
+            business_registration_number="REG-PRIORITY-001",
+            contact_first_name="Team",
+            contact_last_name="Manual",
+            phone_number="5550000429",
+            email="provider.priority.infix@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="15 Provider St",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+            service_area="Laval",
+        )
+        ProviderServiceArea.objects.create(
+            provider=infix_provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=infix_provider,
+            service_type=cleaning,
+            custom_name="Infix Manual Cleaning",
+            billing_unit="fixed",
+            price_cents=8000,
+            is_active=True,
+        )
+
+        exact_provider = Provider.objects.create(
+            provider_type=Provider.TYPE_COMPANY,
+            company_name="Manual",
+            legal_name="Manual",
+            business_registration_number="REG-PRIORITY-002",
+            contact_first_name="Manual",
+            contact_last_name="Exact",
+            phone_number="5550000430",
+            email="provider.priority.exact@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="16 Provider St",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+            service_area="Laval",
+        )
+        ProviderServiceArea.objects.create(
+            provider=exact_provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=exact_provider,
+            service_type=cleaning,
+            custom_name="Exact Manual Cleaning",
+            billing_unit="fixed",
+            price_cents=15000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:marketplace_search"),
+            self._scheduled_marketplace_query(
+                service_type=cleaning.service_type_id,
+                postal_code="H7A1A1",
+                provider_name="manual",
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        provider_cards = response.context["providers"]
+        self.assertEqual(provider_cards[0].provider_id, exact_provider.provider_id)
+        self.assertEqual(provider_cards[0].card_display_name, "Manual")
+        self.assertEqual(provider_cards[1].provider_id, infix_provider.provider_id)
+
+    def test_marketplace_services_mode_preserves_provider_name_in_form_and_links(self):
+        self._create_verified_client()
+        service_type = ServiceType.objects.create(
+            name="Provider Name Preserve Service",
+            description="Provider Name Preserve Service",
+            is_active=True,
+        )
+        self._create_provider_with_offer(
+            email="provider.name.preserve@test.local",
+            phone_number="5550000490",
+            city="Laval",
+            service_type=service_type,
+            price_cents=12000,
+            postal_prefix="H7A",
+        )
+
+        response = self.client.get(
+            reverse("ui:marketplace_search"),
+            {
+                "provider_name": "manual",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["mode"], "services")
+        self.assertContains(
+            response,
+            'type="hidden" name="provider_name" value="manual"',
+            html=False,
+        )
+        self.assertContains(
+            response,
+            f'&amp;provider_name=manual"',
+            html=False,
+        )
+        self.assertContains(response, service_type.name)
+
 
 class RequestCreateComplianceTests(TestCase):
     def setUp(self):
@@ -4872,6 +7315,132 @@ class RequestCreateComplianceTests(TestCase):
             html=False,
         )
 
+    def test_marketplace_search_preserves_provider_name_in_provider_link(self):
+        self._create_verified_client()
+        service_type = ServiceType.objects.create(
+            name="Provider Name Link Search",
+            description="Provider Name Link Search",
+        )
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="Manual Provider",
+            contact_first_name="Manual",
+            contact_last_name="Provider",
+            phone_number="5550000522",
+            email="provider.name.link@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="54 Provider St",
+            service_area="Laval",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+        )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Manual Link Service",
+            billing_unit="fixed",
+            price_cents=15000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:marketplace_search"),
+            {
+                "service_type": service_type.service_type_id,
+                "service_timing": "scheduled",
+                "postal_code": "H7A1A1",
+                "city": "Laval",
+                "provider_name": "manual",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("ui:request_create", args=[provider.pk])}'
+                f'?service_type_id={service_type.service_type_id}'
+                f'&amp;service_timing=scheduled'
+                f'&amp;postal_code=H7A1A1'
+                f'&amp;city=Laval'
+                f'&amp;provider_name=manual"'
+            ),
+            html=False,
+        )
+
+    def test_marketplace_search_preserves_profile_address_in_provider_link(self):
+        self._create_verified_client()
+        service_type = ServiceType.objects.create(
+            name="Profile Address Search",
+            description="Profile Address Search",
+        )
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="Profile Address Provider",
+            contact_first_name="Profile",
+            contact_last_name="Provider",
+            phone_number="5550000521",
+            email="profile.address.provider@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="53 Provider St",
+            service_area="Laval",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+        )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7A",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Profile Address Service",
+            billing_unit="fixed",
+            price_cents=15000,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("ui:marketplace_search"),
+            {
+                "service_type": service_type.service_type_id,
+                "service_timing": "scheduled",
+                "use_profile_address": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("ui:request_create", args=[provider.pk])}'
+                f'?service_type_id={service_type.service_type_id}'
+                f'&amp;service_timing=scheduled'
+                f'&amp;province=QC'
+                f'&amp;postal_code=H7A1A1'
+                f'&amp;city=Laval"'
+            ),
+            html=False,
+        )
+
     def test_marketplace_search_requires_service_timing_before_showing_providers(self):
         client_obj = Client.objects.create(
             first_name="Timing",
@@ -4951,6 +7520,19 @@ class RequestCreateComplianceTests(TestCase):
         self.assertEqual(response.context["mode"], "emergency")
         self.assertContains(response, "Emergency request")
         self.assertContains(response, "Continue to emergency request")
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("ui:providers_nearby")}'
+                f'?fsa=H7A'
+                f'&amp;postal_code=H7A1A1'
+                f'&amp;city=Laval'
+                f'&amp;province=QC'
+                f'&amp;service_type={hvac.service_type_id}'
+                f'&amp;service_timing=emergency"'
+            ),
+            html=False,
+        )
         self.assertNotContains(
             response,
             reverse("ui:request_create", args=[provider.pk]),

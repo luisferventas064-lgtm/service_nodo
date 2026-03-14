@@ -118,6 +118,7 @@ INSTALLED_APPS = [
     'workers',
     'assignments.apps.AssignmentsConfig',
     "jobs.apps.JobsConfig",
+    "notifications.apps.NotificationsConfig",
     "portal.apps.PortalConfig",
     "verifications.apps.VerificationsConfig",
     "ui.apps.UiConfig",
@@ -221,3 +222,8 @@ STATIC_URL = 'static/'
 NODO_EVIDENCE_DIR = None
 
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+PUSH_PROVIDER = os.getenv("PUSH_PROVIDER", "stub").strip().lower()
+FCM_PROJECT_ID = os.getenv("FCM_PROJECT_ID", "").strip()
+FCM_CREDENTIALS_FILE = os.getenv("FCM_CREDENTIALS_FILE", "").strip()
+
+os.getenv('jyYU94--rE7vzSfiYtYvDKCBdqK2O26J6miXOgeIFzo')

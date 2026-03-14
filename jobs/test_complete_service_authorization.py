@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from assignments.models import JobAssignment
 from clients.models import Client
-from jobs.models import Job
+from jobs.models import Job, JobEvent
 from jobs.services import complete_service_by_provider
 from providers.models import Provider
 from service_type.models import ServiceType
@@ -101,3 +101,7 @@ class CompleteServiceAuthorizationTests(TestCase):
         self.assertEqual(self.job.job_status, Job.JobStatus.COMPLETED)
         self.assertEqual(assignment.assignment_status, "completed")
         self.assertIsNotNone(assignment.completed_at)
+        event = self.job.events.get(event_type=JobEvent.EventType.JOB_COMPLETED)
+        self.assertEqual(event.actor_role, JobEvent.ActorRole.PROVIDER)
+        self.assertEqual(event.visible_status, "Completed")
+        self.assertEqual(event.assignment_id, assignment.assignment_id)

@@ -57,6 +57,8 @@ urlpatterns = [
     ),
     path("request/status/", views.request_status_lookup_view, name="request_status_lookup"),
     path("request/status/<int:job_id>/", views.request_status_view, name="request_status"),
+    path("jobs/<int:job_id>/created/", views.job_created_view, name="job_created"),
+    path("api/push/devices/register/", views.register_push_device, name="register_push_device"),
     path("provider/jobs/", views.provider_jobs_view, name="provider_jobs"),
     path("provider/job/<int:job_id>/action/", views.provider_job_action_view, name="provider_job_action"),
     path("jobs/", views.jobs_list, name="jobs_list"),

@@ -100,6 +100,12 @@
     font-size: 0.92rem;
   }
 
+  .request-create-location-summary {
+    margin: 0 0 24px;
+    color: #5f7280;
+    font-size: 0.95rem;
+  }
+
   .request-create-options {
     display: grid;
     gap: 12px;
@@ -292,7 +298,7 @@
         <strong>Service Type:</strong> {{ selected_offer.service_type.name }}<br>
         <strong>Main Offer:</strong> {{ selected_offer.custom_name }}<br>
         <strong>Billing Unit:</strong> {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}<br>
-        <strong>Unit Price:</strong> ${{ selected_offer.display_price|floatformat:2 }}<br>
+        <strong>Unit Price:</strong> $<span id="request-summary-unit-price">{{ pricing.base_unit_price|default:selected_offer.display_price|floatformat:2 }}</span><br>
       {% endif %}
       {% if provider.zone %}
         <strong>Zone:</strong> {{ provider.zone.name }}
@@ -316,6 +322,12 @@
           <input type="hidden" name="provider_service_id" value="{{ form_data.provider_service_id|default:locked_provider_service_id }}">
         {% elif service_type_id %}
           <input type="hidden" name="service_type_id" value="{{ service_type_id }}">
+        {% endif %}
+        {% if search %}
+          <input type="hidden" name="search" value="{{ search }}">
+        {% endif %}
+        {% if provider_name %}
+          <input type="hidden" name="provider_name" value="{{ provider_name }}">
         {% endif %}
 
         {% if not client_authenticated %}
@@ -361,51 +373,72 @@
           </div>
         {% else %}
           <p style="margin-top: 0; margin-bottom: 24px;">Logged in as {{ client.first_name }} {{ client.last_name }}</p>
-          <label class="request-create-label" for="use_other_address" style="margin-bottom: 12px;">
-            <input
-              type="checkbox"
-              id="use_other_address"
-              name="use_other_address"
-              value="1"
-              {% if form_data.use_other_address %}checked{% endif %}
-            >
-            Use another service address
-          </label>
-          <div class="request-create-grid" style="margin-bottom: 24px;">
-            <div>
-              <label class="request-create-label" for="city">City</label>
+          {% if form_data.service_timing == "emergency" or form_data.service_timing == "scheduled" or form_data.service_timing == "urgent" %}
+            <p class="request-create-location-summary">
+              Service location: {{ form_data.city }}, {{ form_data.province }} {{ form_data.postal_code }}
+            </p>
+            <input type="hidden" id="province" name="province" value="{{ form_data.province|default:'' }}">
+            <input type="hidden" id="city" name="city" value="{{ form_data.city|default:'' }}">
+            <input type="hidden" id="postal_code" name="postal_code" value="{{ form_data.postal_code|default:'' }}">
+            <input type="hidden" id="address_line1" name="address_line1" value="{{ form_data.address_line1|default:'' }}">
+          {% else %}
+            <label class="request-create-label" for="use_other_address" style="margin-bottom: 12px;">
               <input
-                id="city"
-                class="request-create-input"
-                type="text"
-                name="city"
-                value="{{ form_data.city|default:'' }}"
-                {% if not form_data.use_other_address %}readonly{% endif %}
+                type="checkbox"
+                id="use_other_address"
+                name="use_other_address"
+                value="1"
+                {% if form_data.use_other_address %}checked{% endif %}
               >
+              Use another service address
+            </label>
+            <div class="request-create-grid" style="margin-bottom: 24px;">
+              <div>
+                <label class="request-create-label" for="province">Province</label>
+                <input
+                  id="province"
+                  class="request-create-input"
+                  type="text"
+                  name="province"
+                  value="{{ form_data.province|default:'' }}"
+                  {% if not form_data.use_other_address %}readonly{% endif %}
+                >
+              </div>
+              <div>
+                <label class="request-create-label" for="city">City</label>
+                <input
+                  id="city"
+                  class="request-create-input"
+                  type="text"
+                  name="city"
+                  value="{{ form_data.city|default:'' }}"
+                  {% if not form_data.use_other_address %}readonly{% endif %}
+                >
+              </div>
+              <div>
+                <label class="request-create-label" for="postal_code">Postal code</label>
+                <input
+                  id="postal_code"
+                  class="request-create-input"
+                  type="text"
+                  name="postal_code"
+                  value="{{ form_data.postal_code|default:'' }}"
+                  {% if not form_data.use_other_address %}readonly{% endif %}
+                >
+              </div>
+              <div class="request-create-field-full">
+                <label class="request-create-label" for="address_line1">Address</label>
+                <input
+                  id="address_line1"
+                  class="request-create-input"
+                  type="text"
+                  name="address_line1"
+                  value="{{ form_data.address_line1|default:'' }}"
+                  {% if not form_data.use_other_address %}readonly{% endif %}
+                >
+              </div>
             </div>
-            <div>
-              <label class="request-create-label" for="postal_code">Postal code</label>
-              <input
-                id="postal_code"
-                class="request-create-input"
-                type="text"
-                name="postal_code"
-                value="{{ form_data.postal_code|default:'' }}"
-                {% if not form_data.use_other_address %}readonly{% endif %}
-              >
-            </div>
-            <div class="request-create-field-full">
-              <label class="request-create-label" for="address_line1">Address</label>
-              <input
-                id="address_line1"
-                class="request-create-input"
-                type="text"
-                name="address_line1"
-                value="{{ form_data.address_line1|default:'' }}"
-                {% if not form_data.use_other_address %}readonly{% endif %}
-              >
-            </div>
-          </div>
+          {% endif %}
         {% endif %}
 
         <h3 class="request-create-section-title">Service Details</h3>
@@ -493,7 +526,7 @@
                 data-offer-base-price="{{ selected_offer.display_price|floatformat:2 }}"
               >
                 <strong>Pricing Preview</strong><br>
-                Unit Price: ${{ selected_offer.display_price|floatformat:2 }}<br>
+                Unit Price: $<span id="request-pricing-unit-price">{{ pricing.base_unit_price|default:selected_offer.display_price|floatformat:2 }}</span><br>
                 Quantity: {{ form_data.requested_quantity|default:"1" }}<br>
                 Billing Unit: {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}
                 <div class="request-pricing-preview" id="request-pricing-preview">
@@ -572,29 +605,6 @@
           {% endif %}
         </div>
       {% endwith %}
-
-      <h3 class="request-create-section-title">Additional service detail</h3>
-      {% if request_subservices %}
-        <div class="request-create-options">
-          <div class="request-create-option-card">
-            <label class="request-create-label" for="requested_subservice_id">Choose one subservice</label>
-            <select id="requested_subservice_id" class="request-create-select" name="requested_subservice_id">
-              <option value="">No preference</option>
-              {% for subservice in request_subservices %}
-                <option
-                  value="{{ subservice.id }}"
-                  data-base-price="{{ subservice.base_price|default_if_none:0|floatformat:2 }}"
-                  {% if form_data.requested_subservice_id == subservice.id|stringformat:"s" %}selected{% endif %}
-                >
-                  {{ subservice.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-      {% else %}
-        <p class="request-create-empty">No additional service detail configured for this offer.</p>
-      {% endif %}
 
       <h3 class="request-create-section-title">Extras</h3>
       {% if request_extra_options %}
@@ -867,6 +877,7 @@
     var providerServiceSelect = document.getElementById("provider_service_id");
     var useOtherAddressToggle = document.getElementById("use_other_address");
     var otherAddressFields = [
+      document.getElementById("province"),
       document.getElementById("address_line1"),
       document.getElementById("city"),
       document.getElementById("postal_code")
@@ -885,6 +896,8 @@
     var confirmCancelButton = document.getElementById("request-confirm-cancel");
     var confirmSubmitButton = document.getElementById("request-confirm-submit");
     var pricingCard = document.getElementById("request-pricing-card");
+    var summaryUnitPrice = document.getElementById("request-summary-unit-price");
+    var pricingUnitPrice = document.getElementById("request-pricing-unit-price");
     var pricingBaseService = document.getElementById("request-pricing-base-service");
     var pricingExtras = document.getElementById("request-pricing-extras");
     var pricingSubtotal = document.getElementById("request-pricing-subtotal");
@@ -959,12 +972,13 @@
       var totalCents = subtotalCents + taxCents;
 
       return {
+        baseUnitPriceCents: baseUnitPriceCents,
         baseLineTotalCents: baseLineTotalCents,
         extrasTotalCents: extrasTotalCents,
         subtotalCents: subtotalCents,
         taxCents: taxCents,
         totalCents: totalCents,
-        taxRegionCode: taxRegionCode || "DEFAULT",
+        taxRegionCode: taxRegionCode,
         taxRateBps: taxRateBps
       };
     };
@@ -977,6 +991,12 @@
 
       if (pricingBaseService) {
         pricingBaseService.textContent = formatPricingCents(activePricingSnapshot.baseLineTotalCents);
+      }
+      if (summaryUnitPrice) {
+        summaryUnitPrice.textContent = formatPricingCents(activePricingSnapshot.baseUnitPriceCents).replace("$", "");
+      }
+      if (pricingUnitPrice) {
+        pricingUnitPrice.textContent = formatPricingCents(activePricingSnapshot.baseUnitPriceCents).replace("$", "");
       }
       if (pricingExtras) {
         pricingExtras.textContent = formatPricingCents(activePricingSnapshot.extrasTotalCents);

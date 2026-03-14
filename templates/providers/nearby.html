@@ -35,7 +35,7 @@
 
   .nearby-filters {
     display: grid;
-    grid-template-columns: 180px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 220px) 180px minmax(0, 1fr) auto;
     gap: 12px;
     align-items: end;
     margin-bottom: 20px;
@@ -75,18 +75,32 @@
 
   .nearby-grid {
     display: grid;
-    gap: 14px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
   }
 
   .nearby-provider-card {
+    min-height: 240px;
+    border-radius: 16px;
+    padding: 16px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: space-between;
     gap: 16px;
-    padding: 18px;
     border: 1px solid #e7eef1;
-    border-radius: 14px;
     background: #f8fbfc;
+  }
+
+  .nearby-provider-logo-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+
+  .nearby-provider-logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
   }
 
   .nearby-provider-name {
@@ -116,14 +130,29 @@
     color: #4b6470;
   }
 
-  @media (max-width: 720px) {
+  @media (max-width: 1100px) {
+    .nearby-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 800px) {
+    .nearby-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .nearby-filters {
       grid-template-columns: 1fr;
     }
+  }
 
-    .nearby-provider-card {
-      align-items: flex-start;
-      flex-direction: column;
+  @media (max-width: 520px) {
+    .nearby-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .nearby-filters {
+      grid-template-columns: 1fr;
     }
   }
 </style>
@@ -142,7 +171,7 @@
         Job: <strong>#{{ job.job_id }}</strong>
         <br>Address: <strong>{{ job.city }}, {{ job.province }} {{ job.postal_code }}</strong>
       {% else %}
-        Postal area: <strong>{{ fsa|default:"-" }}</strong>
+        Postal code / area: <strong>{{ postal_code|default:fsa|default:"-" }}</strong>
       {% endif %}
       {% if selected_service_type %}
         <br>Service: <strong>{{ selected_service_type.name }}</strong>
@@ -155,8 +184,28 @@
 
     {% if not job %}
       <form method="get" class="nearby-filters">
-        <input type="hidden" name="fsa" value="{{ fsa }}">
         <input type="hidden" name="service_type" value="{{ service_type_id }}">
+        {% if service_timing %}
+          <input type="hidden" name="service_timing" value="{{ service_timing }}">
+        {% endif %}
+        {% if city %}
+          <input type="hidden" name="city" value="{{ city }}">
+        {% endif %}
+        {% if province %}
+          <input type="hidden" name="province" value="{{ province }}">
+        {% endif %}
+
+        <div>
+          <label class="nearby-label" for="postal_code">Change address</label>
+          <input
+            class="nearby-input"
+            id="postal_code"
+            type="text"
+            name="postal_code"
+            value="{{ postal_code|default:fsa }}"
+            placeholder="Postal code or FSA"
+          >
+        </div>
 
         <div>
           <label class="nearby-label" for="rating">Rating</label>
@@ -168,18 +217,18 @@
         </div>
 
         <div>
-          <label class="nearby-label" for="search">Search provider</label>
+          <label class="nearby-label" for="search">Search provider, service or extra</label>
           <input
             class="nearby-input"
             id="search"
             type="text"
             name="search"
             value="{{ search }}"
-            placeholder="Company or provider name"
+            placeholder="Search provider, service or extra"
           >
         </div>
 
-        <button type="submit" class="nearby-button">Filter</button>
+        <button type="submit" class="nearby-button">Update results</button>
       </form>
     {% endif %}
 
@@ -188,6 +237,15 @@
         {% for provider_offer in providers %}
           <article class="nearby-provider-card">
             <div>
+              {% if provider_offer.card_logo_url %}
+                <div class="nearby-provider-logo-wrap">
+                  <img
+                    src="{{ provider_offer.card_logo_url }}"
+                    alt="{{ provider_offer.provider_display_name }}"
+                    class="nearby-provider-logo"
+                  >
+                </div>
+              {% endif %}
               <h3 class="nearby-provider-name">{{ provider_offer.provider_display_name }}</h3>
               <p class="nearby-provider-meta">Rating: {{ provider_offer.safe_rating|floatformat:1 }}</p>
               <p class="nearby-provider-meta">Service: {{ provider_offer.service_type_name }}</p>
@@ -208,7 +266,7 @@
             {% elif provider_offer.is_compliant %}
               <a
                 class="nearby-link"
-                href="{% url 'ui:request_create' provider_offer.provider_id %}?service_type_id={{ service_type_id }}"
+                href="{% url 'ui:request_create' provider_offer.provider_id %}?service_type_id={{ service_type_id }}{% if postal_code %}&amp;postal_code={{ postal_code|urlencode }}{% endif %}{% if city %}&amp;city={{ city|urlencode }}{% endif %}{% if province %}&amp;province={{ province|urlencode }}{% endif %}{% if search %}&amp;search={{ search|urlencode }}{% endif %}{% if service_timing %}&amp;service_timing={{ service_timing|urlencode }}{% endif %}"
               >
                 View Service
               </a>

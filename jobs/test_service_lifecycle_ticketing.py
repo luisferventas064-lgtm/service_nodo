@@ -354,9 +354,12 @@ class ServiceLifecycleTicketingTests(TestCase):
             "A full refund has been granted.",
         )
 
-        event = self.job.events.latest("created_at")
+        event = self.job.events.filter(event_type=JobEvent.EventType.CANCELLED).latest("created_at")
         self.assertEqual(event.event_type, JobEvent.EventType.CANCELLED)
         self.assertEqual(event.note, "dispute_resolved_client_wins")
+        live_event = self.job.events.get(event_type=JobEvent.EventType.JOB_CANCELLED)
+        self.assertEqual(live_event.actor_role, JobEvent.ActorRole.ADMIN)
+        self.assertEqual(live_event.visible_status, "Cancelled")
         assignment.refresh_from_db()
         self.assertEqual(assignment.assignment_status, "cancelled")
         self.assertFalse(assignment.is_active)

@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Job Created{% endblock %}
+
+{% block content %}
+<style>
+  .job-created-wrap {
+    max-width: 860px;
+    margin: 24px auto;
+    padding: 0 16px 40px;
+  }
+
+  .job-created-card,
+  .job-created-panel {
+    background: #ffffff;
+    border: 1px solid #e7eef1;
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(18, 46, 58, 0.06);
+  }
+
+  .job-created-card {
+    padding: 24px;
+    margin-bottom: 18px;
+  }
+
+  .job-created-kicker {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .job-created-title {
+    margin: 14px 0 10px;
+    color: #16313a;
+    font-size: 1.9rem;
+  }
+
+  .job-created-copy {
+    margin: 0;
+    color: #4b6470;
+    line-height: 1.6;
+  }
+
+  .job-created-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  .job-created-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 11px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .job-created-btn-primary {
+    background: #111827;
+    color: #ffffff;
+  }
+
+  .job-created-btn-secondary {
+    background: #edf3f5;
+    color: #29444d;
+  }
+
+  .job-created-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+
+  .job-created-panel {
+    padding: 18px;
+  }
+
+  .job-created-label {
+    display: block;
+    margin-bottom: 6px;
+    color: #79909b;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .job-created-value {
+    color: #18343d;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .job-created-pricing {
+    margin-top: 18px;
+    padding: 18px;
+  }
+
+  .job-created-pricing h3 {
+    margin: 0 0 12px;
+    color: #16313a;
+  }
+
+  .job-created-pricing-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 0;
+    color: #29444d;
+  }
+
+  .job-created-pricing-line strong {
+    color: #111827;
+  }
+
+  .job-created-pricing-total {
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid #dbe6ea;
+  }
+
+  @media (max-width: 640px) {
+    .job-created-title {
+      font-size: 1.55rem;
+    }
+  }
+</style>
+
+<div class="job-created-wrap">
+  <div class="job-created-card">
+    <span class="job-created-kicker">Confirmed</span>
+    <h1 class="job-created-title">Job created</h1>
+    <p class="job-created-copy">
+      Your request was created successfully. You can review the live status any time while we notify the provider.
+    </p>
+
+    <div class="job-created-actions">
+      <a class="job-created-btn job-created-btn-primary" href="{% url 'ui:request_status' job_id=job.job_id %}{% if service_timing %}?service_timing={{ service_timing|urlencode }}{% endif %}">View status</a>
+      <a class="job-created-btn job-created-btn-secondary" href="{% url 'ui:marketplace_search' %}">Back to marketplace</a>
+    </div>
+  </div>
+
+  <div class="job-created-grid">
+    <div class="job-created-panel">
+      <span class="job-created-label">Job ID</span>
+      <div class="job-created-value">{{ job.job_id }}</div>
+    </div>
+
+    <div class="job-created-panel">
+      <span class="job-created-label">Status</span>
+      <div class="job-created-value">{{ job_status_label }}</div>
+    </div>
+
+    <div class="job-created-panel">
+      <span class="job-created-label">Provider</span>
+      <div class="job-created-value">{{ job.display_provider|default:"Pending assignment" }}</div>
+    </div>
+
+    <div class="job-created-panel">
+      <span class="job-created-label">Service</span>
+      <div class="job-created-value">
+        {{ job.service_type.name }}
+        {% if job.provider_service_name_display %}
+          <br>{{ job.provider_service_name_display }}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="job-created-panel">
+      <span class="job-created-label">Location</span>
+      <div class="job-created-value">
+        {% if job.address_line1 %}{{ job.address_line1 }}<br>{% endif %}
+        {{ job.city }}, {{ job.province }} {{ job.postal_code }}
+      </div>
+    </div>
+
+    <div class="job-created-panel">
+      <span class="job-created-label">Requested time</span>
+      <div class="job-created-value">
+        {% if job.job_mode == "scheduled" %}
+          {{ job.scheduled_date|date:"M j, Y" }}
+          {% if job.scheduled_start_time %}
+            at {{ job.scheduled_start_time|time:"g:i A" }}
+          {% endif %}
+        {% else %}
+          ASAP
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="job-created-panel">
+      <span class="job-created-label">Timing</span>
+      <div class="job-created-value">{{ service_timing_label }}</div>
+    </div>
+
+    <div class="job-created-panel">
+      <span class="job-created-label">Next step</span>
+      <div class="job-created-value">{{ next_step_label }}</div>
+    </div>
+  </div>
+
+  <div class="job-created-card job-created-pricing">
+    <h3>Price snapshot</h3>
+
+    {% if job.has_requested_pricing_snapshot %}
+      <div class="job-created-pricing-line">
+        <span>Base line total</span>
+        <strong>${{ job.requested_base_line_total_snapshot|default:0|floatformat:2 }}</strong>
+      </div>
+      <div class="job-created-pricing-line">
+        <span>Subtotal</span>
+        <strong>${{ job.requested_subtotal_snapshot|default:0|floatformat:2 }}</strong>
+      </div>
+      <div class="job-created-pricing-line">
+        <span>Tax{% if job.requested_tax_region_code_snapshot %} ({{ job.requested_tax_region_code_snapshot }}){% endif %}</span>
+        <strong>${{ job.requested_tax_snapshot|default:0|floatformat:2 }}</strong>
+      </div>
+      <div class="job-created-pricing-line job-created-pricing-total">
+        <span>Total</span>
+        <strong>${{ job.requested_total_snapshot|default:0|floatformat:2 }}</strong>
+      </div>
+    {% else %}
+      <div class="job-created-value">Pricing snapshot is not available for this request.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,5 +1,6 @@
 ﻿asgiref==3.11.1
 Django==5.2.11
+google-auth==2.49.0
 phonenumbers==9.0.25
 python-dotenv==1.2.1
 requests==2.32.5

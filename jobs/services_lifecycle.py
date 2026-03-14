@@ -1,8 +1,9 @@
 from django.db import transaction
 from django.utils import timezone
 
+from jobs.events import create_job_event
 from assignments.models import JobAssignment
-from jobs.models import Job
+from jobs.models import Job, JobEvent
 
 
 @transaction.atomic
@@ -26,6 +27,15 @@ def accept_job_by_provider(job, provider):
     job.job_status = Job.JobStatus.ASSIGNED
     job.save(update_fields=["job_status"])
     provider.__class__.objects.filter(pk=provider.pk).update(last_job_assigned_at=assigned_at)
+    create_job_event(
+        job=job,
+        event_type=JobEvent.EventType.JOB_ACCEPTED,
+        actor_role=JobEvent.ActorRole.PROVIDER,
+        provider_id=provider.provider_id,
+        assignment_id=assignment.assignment_id,
+        payload={"source": "accept_job_by_provider"},
+        unique_per_job=True,
+    )
 
     from providers.services_metrics import increment_accepted
 

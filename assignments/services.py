@@ -7,7 +7,8 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from assignments.models import AssignmentFee, JobAssignment
-from jobs.models import Job, JobDispute, JobStatus
+from jobs.events import create_job_event
+from jobs.models import Job, JobDispute, JobEvent, JobStatus
 
 ACTIVE_VALUE = True
 INACTIVE_VALUE = False
@@ -55,6 +56,16 @@ def activate_assignment_for_job(
     ).first()
     if existing:
         Job.objects.filter(job_id=job_id).update(job_status=JobStatus.ASSIGNED)
+        create_job_event(
+            job=job_id,
+            event_type=JobEvent.EventType.JOB_ACCEPTED,
+            actor_role=JobEvent.ActorRole.PROVIDER,
+            provider_id=provider_id,
+            assignment_id=existing.assignment_id,
+            payload={"source": "activate_assignment_for_job"},
+            unique_per_job=True,
+            job_status=JobStatus.ASSIGNED,
+        )
         return ActivateResult(assignment_id=existing.assignment_id, created=False)
 
     # 4) Another provider already active
@@ -82,13 +93,22 @@ def activate_assignment_for_job(
 
         Provider.objects.filter(provider_id=provider_id).update(last_job_assigned_at=assigned_at)
 
-        from jobs.models import JobEvent
         JobEvent.objects.create(
             job_id=job_id,
             event_type=JobEvent.EventType.ASSIGNED,
             provider_id=provider_id,
             assignment_id=assignment.assignment_id,
             note="provider accepted job",
+        )
+        create_job_event(
+            job=job_id,
+            event_type=JobEvent.EventType.JOB_ACCEPTED,
+            actor_role=JobEvent.ActorRole.PROVIDER,
+            provider_id=provider_id,
+            assignment_id=assignment.assignment_id,
+            payload={"source": "activate_assignment_for_job"},
+            unique_per_job=True,
+            job_status=JobStatus.ASSIGNED,
         )
 
         return ActivateResult(assignment_id=assignment.assignment_id, created=True)
@@ -154,14 +174,14 @@ def start_job(*, job_id: int, worker_id: int) -> None:
         Job.objects.filter(job_id=job_id).update(job_status=JobStatus.IN_PROGRESS)
 
         # 7) Event
-        from jobs.models import JobEvent
-        JobEvent.objects.create(
-            job_id=job_id,
-            event_type="JOB_STARTED",
-            actor_type="worker",
-            worker_id=worker_id,
-            job_status_snapshot=JobStatus.IN_PROGRESS,
-            payload={"assignment_id": assignment.assignment_id},
+        create_job_event(
+            job=job_id,
+            event_type=JobEvent.EventType.JOB_IN_PROGRESS,
+            actor_role=JobEvent.ActorRole.WORKER,
+            payload={"assignment_id": assignment.assignment_id, "worker_id": worker_id},
+            assignment_id=assignment.assignment_id,
+            unique_per_job=True,
+            job_status=JobStatus.IN_PROGRESS,
         )
 
 
@@ -224,14 +244,14 @@ def complete_job(*, job_id: int, worker_id: int) -> None:
         Job.objects.filter(job_id=job_id).update(job_status=JobStatus.COMPLETED)
 
         # 6) Event
-        from jobs.models import JobEvent
-        JobEvent.objects.create(
-            job_id=job_id,
-            event_type="JOB_COMPLETED",
-            actor_type="worker",
-            worker_id=worker_id,
-            job_status_snapshot=JobStatus.COMPLETED,
-            payload={"assignment_id": assignment.assignment_id},
+        create_job_event(
+            job=job_id,
+            event_type=JobEvent.EventType.JOB_COMPLETED,
+            actor_role=JobEvent.ActorRole.WORKER,
+            payload={"assignment_id": assignment.assignment_id, "worker_id": worker_id},
+            assignment_id=assignment.assignment_id,
+            unique_per_job=True,
+            job_status=JobStatus.COMPLETED,
         )
 
 

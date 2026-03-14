@@ -1,10 +1,11 @@
 from django.db import transaction
 from django.utils import timezone
 
+from jobs.events import create_job_event
 from clients.lines import ensure_client_base_line
 from clients.lines_fee import ensure_client_fee_line
 from clients.ticketing import ensure_client_ticket
-from jobs.models import Job
+from jobs.models import Job, JobEvent
 from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
 from jobs.services_pricing_snapshot import job_snapshot_currency, job_snapshot_subtotal_cents
 from assignments.models import JobAssignment
@@ -78,6 +79,15 @@ def confirm_normal_job_by_client(*, job_id: int, client_id: int):
     job.save(update_fields=["job_status", "updated_at"])
 
     assignment = _activate_assignment_for_job(job)
+    create_job_event(
+        job=job,
+        event_type=JobEvent.EventType.JOB_ACCEPTED,
+        actor_role=JobEvent.ActorRole.CLIENT,
+        provider_id=assignment.provider_id,
+        assignment_id=assignment.assignment_id,
+        payload={"source": "confirm_normal_job_by_client"},
+        unique_per_job=True,
+    )
     tax_region_code = _build_tax_region_code(job)
     pt = ensure_provider_ticket(
         provider_id=assignment.provider_id,

@@ -6,6 +6,17 @@
     <h2 class="card-title">Marketplace</h2>
 
   <form method="get" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:end; margin-bottom:24px;">
+    <input
+      type="hidden"
+      id="province"
+      name="province"
+      value="{{ form_data.province|default:'' }}"
+      data-manual-value="{{ selected_province|default:'' }}"
+      data-profile-value="{{ profile_address.province|default:'' }}"
+    >
+    {% if provider_name %}
+      <input type="hidden" name="provider_name" value="{{ provider_name }}">
+    {% endif %}
     <div style="grid-column:1 / -1; padding:14px; border:1px solid #d1d5db; border-radius:10px; background:#f8fafc;">
       <div style="font-weight:700; margin-bottom:10px;">When do you need the service?</div>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
@@ -45,13 +56,39 @@
 
     <div>
       <label for="postal_code" style="display:block; margin-bottom:6px; font-weight:bold;">Postal code</label>
-      <input id="postal_code" type="text" name="postal_code" placeholder="Postal code (example: H2X 1A4)" value="{{ selected_postal_code|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+      <input
+        id="postal_code"
+        type="text"
+        name="postal_code"
+        placeholder="Postal code (example: H2X 1A4)"
+        value="{{ form_data.postal_code|default:'' }}"
+        data-manual-value="{{ selected_postal_code|default:'' }}"
+        data-profile-value="{{ profile_address.postal_code|default:'' }}"
+        {% if form_data.use_profile_address %}readonly{% endif %}
+        style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;"
+      >
     </div>
 
     <div>
       <label for="city" style="display:block; margin-bottom:6px; font-weight:bold;">City</label>
-      <input id="city" type="text" name="city" placeholder="City" value="{{ selected_city|default:'' }}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
+      <input
+        id="city"
+        type="text"
+        name="city"
+        placeholder="City"
+        value="{{ form_data.city|default:'' }}"
+        data-manual-value="{{ selected_city|default:'' }}"
+        data-profile-value="{{ profile_address.city|default:'' }}"
+        {% if form_data.use_profile_address %}readonly{% endif %}
+        style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;"
+      >
     </div>
+
+    <label style="display:flex; align-items:center; gap:8px; font-weight:bold; min-height:42px;">
+      <input type="hidden" name="use_profile_address" value="0">
+      <input type="checkbox" name="use_profile_address" id="use_profile_address" value="1"{% if form_data.use_profile_address %} checked{% endif %}>
+      Use profile address
+    </label>
 
     <div>
       <label for="language" style="display:block; margin-bottom:6px; font-weight:bold;">Language</label>
@@ -83,7 +120,7 @@
 
     <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;">
       {% for service in service_types %}
-        <a href="?service_type={{ service.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}"
+        <a href="?service_type={{ service.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}&amp;use_profile_address={% if form_data.use_profile_address %}1{% else %}0{% endif %}{% if link_province %}&amp;province={{ link_province|urlencode }}{% endif %}{% if link_postal_code %}&amp;postal_code={{ link_postal_code|urlencode }}{% endif %}{% if link_city %}&amp;city={{ link_city|urlencode }}{% endif %}{% if provider_name %}&amp;provider_name={{ provider_name|urlencode }}{% endif %}"
            style="display:block; padding:12px; border:1px solid #ccc; border-radius:10px; text-decoration:none;">
           <div style="font-weight:600;">{{ service.name }}</div>
           <div style="font-size:12px; opacity:.7;">ID: {{ service.service_type_id }}</div>
@@ -279,11 +316,15 @@
       <form method="get" class="marketplace-search">
         <input type="hidden" name="service_type" value="{{ selected_service_type.service_type_id }}">
         <input type="hidden" name="service_timing" value="{{ selected_service_timing }}">
-        {% if selected_postal_code %}
-          <input type="hidden" name="postal_code" value="{{ selected_postal_code }}">
+        <input type="hidden" name="use_profile_address" value="{% if form_data.use_profile_address %}1{% else %}0{% endif %}">
+        {% if link_province %}
+          <input type="hidden" name="province" value="{{ link_province }}">
         {% endif %}
-        {% if selected_city %}
-          <input type="hidden" name="city" value="{{ selected_city }}">
+        {% if link_postal_code %}
+          <input type="hidden" name="postal_code" value="{{ link_postal_code }}">
+        {% endif %}
+        {% if link_city %}
+          <input type="hidden" name="city" value="{{ link_city }}">
         {% endif %}
         {% if selected_language %}
           <input type="hidden" name="language" value="{{ selected_language }}">
@@ -300,6 +341,13 @@
           name="q"
           value="{{ selected_query|default:'' }}"
           placeholder="Search provider, service, skill or extra"
+        >
+        <input
+          class="marketplace-search__input"
+          type="text"
+          name="provider_name"
+          value="{{ provider_name|default:'' }}"
+          placeholder="Search provider name"
         >
         <button type="submit" class="marketplace-search__button">Search</button>
       </form>
@@ -334,7 +382,7 @@
           {% if p.is_compliant %}
             <a
               class="provider-link"
-              href="{% url 'ui:request_create' p.provider_id %}?service_type_id={{ p.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}{% if selected_postal_code %}&amp;postal_code={{ selected_postal_code|urlencode }}{% endif %}{% if selected_city %}&amp;city={{ selected_city|urlencode }}{% endif %}"
+              href="{% url 'ui:request_create' p.provider_id %}?service_type_id={{ p.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}{% if link_province %}&amp;province={{ link_province|urlencode }}{% endif %}{% if link_postal_code %}&amp;postal_code={{ link_postal_code|urlencode }}{% endif %}{% if link_city %}&amp;city={{ link_city|urlencode }}{% endif %}{% if provider_name %}&amp;provider_name={{ provider_name|urlencode }}{% endif %}"
             >
               View
             </a>
@@ -351,4 +399,59 @@
   {% endif %}
   </div>
 </div>
+<script>
+  (function () {
+    var useProfileAddressToggle = document.getElementById("use_profile_address");
+    var cityInput = document.getElementById("city");
+    var postalCodeInput = document.getElementById("postal_code");
+    var provinceInput = document.getElementById("province");
+
+    if (!useProfileAddressToggle || !cityInput || !postalCodeInput || !provinceInput) {
+      return;
+    }
+
+    var manualValues = {
+      province: provinceInput.getAttribute("data-manual-value") || "",
+      city: cityInput.getAttribute("data-manual-value") || "",
+      postalCode: postalCodeInput.getAttribute("data-manual-value") || ""
+    };
+    var profileValues = {
+      province: provinceInput.getAttribute("data-profile-value") || "",
+      city: cityInput.getAttribute("data-profile-value") || "",
+      postalCode: postalCodeInput.getAttribute("data-profile-value") || ""
+    };
+
+    var syncProfileAddressState = function () {
+      if (useProfileAddressToggle.checked) {
+        provinceInput.value = profileValues.province;
+        cityInput.value = profileValues.city;
+        postalCodeInput.value = profileValues.postalCode;
+        cityInput.readOnly = true;
+        postalCodeInput.readOnly = true;
+        return;
+      }
+
+      provinceInput.value = manualValues.province;
+      cityInput.value = manualValues.city;
+      postalCodeInput.value = manualValues.postalCode;
+      cityInput.readOnly = false;
+      postalCodeInput.readOnly = false;
+    };
+
+    cityInput.addEventListener("input", function () {
+      if (!useProfileAddressToggle.checked) {
+        manualValues.city = cityInput.value;
+      }
+    });
+
+    postalCodeInput.addEventListener("input", function () {
+      if (!useProfileAddressToggle.checked) {
+        manualValues.postalCode = postalCodeInput.value;
+      }
+    });
+
+    syncProfileAddressState();
+    useProfileAddressToggle.addEventListener("change", syncProfileAddressState);
+  })();
+</script>
 {% endblock %}

@@ -31,6 +31,7 @@ from clients.lines_fee import ensure_client_fee_line
 from clients.models import ClientTicket
 from clients.ticketing import ensure_client_ticket, finalize_client_ticket
 from clients.totals import recalc_client_ticket_totals
+from jobs.events import create_job_event
 from jobs.evidence import try_write_job_evidence_json
 from jobs.ledger import finalize_platform_ledger_for_job
 from jobs.metrics import log_job_event
@@ -908,6 +909,14 @@ def process_marketplace_job(job_or_id) -> tuple[str, int, int]:
                 event_type=JobEvent.EventType.POSTED,
                 note="job posted",
             )
+            create_job_event(
+                job=job,
+                event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE,
+                actor_role=JobEvent.ActorRole.SYSTEM,
+                payload={"source": "process_marketplace_job", "created_count": created_count},
+                job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                note="marketplace dispatch started waiting provider response",
+            )
 
     return ("dispatched_wave", created_count, skipped_count)
 
@@ -963,6 +972,14 @@ def apply_client_marketplace_decision(
                 marketplace_search_started_at=now,
                 next_marketplace_alert_at=now,
             )
+            create_job_event(
+                job=job,
+                event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE,
+                actor_role=JobEvent.ActorRole.CLIENT,
+                payload={"source": MARKETPLACE_ACTION_EXTEND_SEARCH_24H},
+                job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                note="client extended marketplace search",
+            )
             return "extended_search"
 
         if action == MARKETPLACE_ACTION_EDIT_SCHEDULE_DATE:
@@ -992,6 +1009,17 @@ def apply_client_marketplace_decision(
                 marketplace_search_started_at=now,
                 next_marketplace_alert_at=now,
                 marketplace_expires_at=scheduled_at - timedelta(hours=MARKETPLACE_EXPIRE_BUFFER_HOURS),
+            )
+            create_job_event(
+                job=job,
+                event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE,
+                actor_role=JobEvent.ActorRole.CLIENT,
+                payload={
+                    "source": MARKETPLACE_ACTION_EDIT_SCHEDULE_DATE,
+                    "scheduled_date": new_date.isoformat(),
+                },
+                job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                note="client updated schedule and resumed search",
             )
             return "schedule_updated"
 
@@ -1042,6 +1070,15 @@ def apply_client_marketplace_decision(
                 event_type=JobEvent.EventType.CANCELLED,
                 provider_id=selected_provider_id,
                 note="cancelled",
+            )
+            create_job_event(
+                job=job,
+                event_type=JobEvent.EventType.JOB_CANCELLED,
+                actor_role=JobEvent.ActorRole.CLIENT,
+                provider_id=selected_provider_id,
+                payload={"source": MARKETPLACE_ACTION_CANCEL_JOB},
+                unique_per_job=True,
+                job_status=Job.JobStatus.CANCELLED,
             )
             if provider_id and cancelled_by == Job.CancellationActor.PROVIDER:
                 from providers.services_metrics import increment_cancelled
@@ -1112,6 +1149,15 @@ def accept_marketplace_offer(*, job_id: int, provider_id: int, now=None) -> str:
             provider_id=provider_id,
             note="provider accepted offer",
         )
+        create_job_event(
+            job=job,
+            event_type=JobEvent.EventType.JOB_ACCEPTED,
+            actor_role=JobEvent.ActorRole.PROVIDER,
+            provider_id=provider_id,
+            payload={"source": "accept_marketplace_offer"},
+            unique_per_job=True,
+            job_status=Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
+        )
         JobBroadcastAttempt.objects.filter(pk=attempt.pk).update(
             status=BroadcastAttemptStatus.ACCEPTED,
         )
@@ -1177,6 +1223,15 @@ def process_marketplace_client_confirmation_timeout(job_or_id, *, now=None) -> t
             event_type=JobEvent.EventType.TIMEOUT,
             provider_id=selected_provider_id,
             note="timeout: client_confirm_60m_revert_to_waiting",
+        )
+        create_job_event(
+            job=job,
+            event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE,
+            actor_role=JobEvent.ActorRole.SYSTEM,
+            provider_id=selected_provider_id,
+            payload={"source": "process_marketplace_client_confirmation_timeout"},
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            note="client confirmation timeout returned job to waiting",
         )
     return ("timeout_reopened_marketplace", 1)
 
@@ -1248,6 +1303,16 @@ def confirm_marketplace_provider(*, job_id: int, now=None) -> str:
             assignment_id=assignment_id,
             note="assignment activated",
         )
+        create_job_event(
+            job=job,
+            event_type=JobEvent.EventType.JOB_ACCEPTED,
+            actor_role=JobEvent.ActorRole.CLIENT,
+            provider_id=selected_provider_id,
+            assignment_id=assignment_id,
+            payload={"source": "confirm_marketplace_provider"},
+            unique_per_job=True,
+            job_status=Job.JobStatus.ASSIGNED,
+        )
 
     return "confirmed"
 
@@ -1278,6 +1343,15 @@ def start_service_by_provider(*, job_id: int, provider_id: int) -> str:
 
         job.job_status = Job.JobStatus.IN_PROGRESS
         job.save(update_fields=["job_status"])
+        create_job_event(
+            job=job,
+            event_type=JobEvent.EventType.JOB_IN_PROGRESS,
+            actor_role=JobEvent.ActorRole.PROVIDER,
+            provider_id=provider_id,
+            assignment_id=assignment.assignment_id,
+            payload={"source": "start_service_by_provider"},
+            unique_per_job=True,
+        )
 
     return "started"
 
@@ -1324,6 +1398,15 @@ def complete_service_by_provider(*, job_id: int, provider_id: int) -> str:
             provider_id=provider_id,
             assignment_id=assignment.assignment_id,
             note="Provider marked job as completed",
+        )
+        create_job_event(
+            job=job,
+            event_type=JobEvent.EventType.JOB_COMPLETED,
+            actor_role=JobEvent.ActorRole.PROVIDER,
+            provider_id=provider_id,
+            assignment_id=assignment.assignment_id,
+            payload={"source": "complete_service_by_provider"},
+            unique_per_job=True,
         )
 
     return "completed"
@@ -1474,6 +1557,16 @@ def confirm_service_closed_by_client(
             assignment_id=getattr(assignment, "assignment_id", None),
             note="auto_timeout_72h" if source == "auto_timeout" else "",
         )
+        create_job_event(
+            job=job,
+            event_type=JobEvent.EventType.JOB_COMPLETED,
+            actor_role=JobEvent.ActorRole.CLIENT,
+            provider_id=provider_id,
+            assignment_id=getattr(assignment, "assignment_id", None),
+            payload={"source": "confirm_service_closed_by_client", "close_source": source},
+            unique_per_job=True,
+            job_status=Job.JobStatus.CONFIRMED,
+        )
 
     return "closed_and_confirmed"
 
@@ -1542,6 +1635,14 @@ def resolve_job_dispute_client_wins(
             job=job,
             event_type=JobEvent.EventType.CANCELLED,
             note="dispute_resolved_client_wins",
+        )
+        create_job_event(
+            job=job,
+            event_type=JobEvent.EventType.JOB_CANCELLED,
+            actor_role=JobEvent.ActorRole.ADMIN,
+            provider_id=provider_id,
+            payload={"source": "resolve_job_dispute_client_wins"},
+            unique_per_job=True,
         )
         transaction.on_commit(lambda: send_dispute_resolution_email(job))
         if quality_result and quality_result.warning_activated:

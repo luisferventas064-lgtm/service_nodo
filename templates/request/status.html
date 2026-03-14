@@ -165,6 +165,37 @@
             margin-top: 8px;
             color: #374151;
         }
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .timeline-event {
+            background: #ffffff;
+            border: 1px solid #edf3f5;
+            border-left: 4px solid #cfe0f7;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .timeline-status {
+            color: #18343d;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+        .timeline-type {
+            margin-top: 4px;
+            color: #5b7280;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 700;
+        }
+        .timeline-meta {
+            margin-top: 6px;
+            color: #6b7280;
+            font-size: 0.92rem;
+        }
     </style>
 </head>
 <body>
@@ -186,68 +217,92 @@
         {% endfor %}
     {% endif %}
 
-    <p><strong>Job ID:</strong> {{ job.job_id }}</p>
-    <p><strong>Status:</strong> {{ job.friendly_status_label }}</p>
+    <div class="request-box">
+        <span class="request-meta-label">Request summary</span>
 
-    <p>
-        <strong>Provider:</strong>
-        {% if job.job_status == "posted" and job.cancel_reason == "provider_rejected" %}
-            Pending reassignment
-        {% else %}
-            {{ job.display_provider|default:"Pending assignment" }}
-        {% endif %}
-    </p>
-
-    <div class="summary-grid">
-        <div class="summary-card">
-            <span class="request-meta-label">Created</span>
-            <div class="request-meta-value">{{ job.created_at|date:"M j, Y g:i A" }}</div>
-        </div>
-        <div class="summary-card">
-            <span class="request-meta-label">Requested time</span>
-            <div class="request-meta-value">
-                {% if job.job_mode == "scheduled" %}
-                    {{ job.scheduled_date|date:"M j, Y" }}
-                    {% if job.scheduled_start_time %}
-                        at {{ job.scheduled_start_time|time:"g:i A" }}
-                    {% endif %}
-                {% else %}
-                    ASAP
-                {% endif %}
+        <div class="request-meta-grid">
+            <div class="request-meta-box">
+                <span class="request-meta-label">Job ID</span>
+                <div class="request-meta-value">{{ job.job_id }}</div>
             </div>
-        </div>
-        <div class="summary-card">
-            <span class="request-meta-label">Service Type</span>
-            <div class="request-meta-value">{{ job.service_type.name }}</div>
-        </div>
-        <div class="summary-card">
-            <span class="request-meta-label">Main Offer</span>
-            <div class="request-meta-value">{{ job.provider_service_name_display|default:"-" }}</div>
-        </div>
-        <div class="summary-card">
-            <span class="request-meta-label">Total</span>
-            <div class="request-meta-value">
-                {% if job.requested_total_snapshot != None %}
-                    ${{ job.requested_total_snapshot|floatformat:2 }}
-                {% else %}
-                    -
-                {% endif %}
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Status</span>
+                <div class="request-meta-value">{{ job_status_label }}</div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Provider</span>
+                <div class="request-meta-value">
+                    {% if job.job_status == "posted" and job.cancel_reason == "provider_rejected" %}
+                        Pending reassignment
+                    {% else %}
+                        {{ job.display_provider|default:"Pending assignment" }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Created</span>
+                <div class="request-meta-value">{{ job.created_at|date:"M j, Y g:i A" }}</div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Requested time</span>
+                <div class="request-meta-value">
+                    {% if job.job_mode == "scheduled" %}
+                        {{ job.scheduled_date|date:"M j, Y" }}
+                        {% if job.scheduled_start_time %}
+                            at {{ job.scheduled_start_time|time:"g:i A" }}
+                        {% endif %}
+                    {% else %}
+                        ASAP
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Service type</span>
+                <div class="request-meta-value">{{ job.service_type.name }}</div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Timing</span>
+                <div class="request-meta-value">{{ service_timing_label }}</div>
+            </div>
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Next step</span>
+                <div class="request-meta-value">{{ next_step_label }}</div>
             </div>
         </div>
     </div>
 
     <div class="request-box">
-        <span class="request-meta-label">Pricing Summary</span>
+        <span class="request-meta-label">Service details</span>
+
         <div class="request-meta-grid">
             <div class="request-meta-box">
-                <span class="request-meta-label">Billing Unit</span>
+                <span class="request-meta-label">Main offer</span>
+                <div class="request-meta-value">{{ job.provider_service_name_display|default:"-" }}</div>
+            </div>
+
+            {% if job.requested_subservice_name %}
+                <div class="request-meta-box">
+                    <span class="request-meta-label">Subservice</span>
+                    <div class="request-meta-value">{{ job.requested_subservice_name }}</div>
+                </div>
+            {% endif %}
+
+            <div class="request-meta-box">
+                <span class="request-meta-label">Billing unit</span>
                 <div class="request-meta-value">
                     {{ job.requested_billing_unit_display|default:"-" }}
                 </div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Unit Price</span>
+                <span class="request-meta-label">Unit price</span>
                 <div class="request-meta-value">
                     {% if job.requested_unit_price_snapshot != None %}
                         ${{ job.requested_unit_price_snapshot|floatformat:2 }}
@@ -269,7 +324,41 @@
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Base Service Total</span>
+                <span class="request-meta-label">Service mode</span>
+                <div class="request-meta-value">
+                    {% if job.job_mode == "scheduled" %}
+                        Scheduled
+                    {% else %}
+                        ASAP
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if job.requested_extras_list %}
+            <div style="margin-top: 14px;">
+                <span class="request-meta-label">Extras</span>
+                {% for requested_extra in job.requested_extras_list %}
+                    <div class="request-meta-value" style="margin-top: 6px;">
+                        {{ requested_extra.extra_name_snapshot }} x {{ requested_extra.quantity }}
+                        {% if requested_extra.unit_price_snapshot != None %}
+                            - ${{ requested_extra.unit_price_snapshot|floatformat:2 }}
+                        {% endif %}
+                        {% if requested_extra.line_total_snapshot != None %}
+                            = ${{ requested_extra.line_total_snapshot|floatformat:2 }}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="request-box">
+        <span class="request-meta-label">Price breakdown</span>
+
+        <div class="request-meta-grid">
+            <div class="request-meta-box">
+                <span class="request-meta-label">Base service total</span>
                 <div class="request-meta-value">
                     {% if job.requested_base_line_total_snapshot != None %}
                         ${{ job.requested_base_line_total_snapshot|floatformat:2 }}
@@ -307,7 +396,7 @@
                 <span class="request-meta-label">Total</span>
                 <div class="request-meta-value">
                     {% if job.requested_total_snapshot != None %}
-                        ${{ job.requested_total_snapshot|floatformat:2 }}
+                        <strong>${{ job.requested_total_snapshot|floatformat:2 }}</strong>
                     {% else %}
                         -
                     {% endif %}
@@ -315,50 +404,6 @@
             </div>
         </div>
     </div>
-
-    <div class="lifecycle">
-        <span class="{% if job.job_status == 'assigned' or job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Assigned</span>
-        <span class="{% if job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">In Progress</span>
-        <span class="{% if job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Completed</span>
-        <span class="{% if job.job_status == 'confirmed' %}active{% endif %}">Confirmed</span>
-    </div>
-
-    <div class="timestamps">
-        <p><strong>Started at:</strong> {% if job.local_started_at %}{{ job.local_started_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
-        <p><strong>Completed at:</strong> {% if job.local_completed_at %}{{ job.local_completed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
-        <p><strong>Confirmed at:</strong> {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
-    </div>
-
-    {% if job.job_mode == "scheduled" %}
-        <p><strong>Date:</strong> {{ job.scheduled_date }}</p>
-        <p><strong>Time:</strong> {{ job.scheduled_start_time }}</p>
-    {% else %}
-        <p><strong>Service Mode:</strong> ASAP</p>
-    {% endif %}
-
-    {% if job.requested_subservice_name or job.requested_extras_list or job.has_requested_pricing_snapshot %}
-        <div class="request-box">
-            <span class="request-meta-label">Requested details</span>
-            <div class="request-meta-value">Main Offer: {{ job.provider_service_name_display|default:"-" }}</div>
-            {% if job.requested_subservice_name %}
-                <div class="request-meta-value">Subservice: {{ job.requested_subservice_name }}</div>
-            {% endif %}
-            {% if job.requested_extras_list %}
-                <div class="request-meta-value" style="margin-top: 6px;">Extras:</div>
-                {% for requested_extra in job.requested_extras_list %}
-                    <div class="request-meta-value">
-                        {{ requested_extra.extra_name_snapshot }} x {{ requested_extra.quantity }}
-                        {% if requested_extra.unit_price_snapshot != None %}
-                            - ${{ requested_extra.unit_price_snapshot|floatformat:2 }}
-                        {% endif %}
-                        {% if requested_extra.line_total_snapshot != None %}
-                            = ${{ requested_extra.line_total_snapshot|floatformat:2 }}
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        </div>
-    {% endif %}
 
     <div class="request-box">
         <span class="request-meta-label">Service address</span>
@@ -372,6 +417,41 @@
             </div>
         {% endif %}
     </div>
+
+    <div class="request-box">
+        <span class="request-meta-label">Lifecycle</span>
+
+        <div class="lifecycle">
+            <span class="{% if job.job_status == 'assigned' or job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Accepted</span>
+            <span class="{% if job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">In Progress</span>
+            <span class="{% if job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Completed</span>
+            <span class="{% if job.job_status == 'confirmed' %}active{% endif %}">Confirmed</span>
+        </div>
+
+        <div class="timestamps">
+            <p><strong>Started at:</strong> {% if job.local_started_at %}{{ job.local_started_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+            <p><strong>Completed at:</strong> {% if job.local_completed_at %}{{ job.local_completed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+            <p><strong>Confirmed at:</strong> {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+        </div>
+    </div>
+
+    {% if job_events %}
+        <div class="request-box">
+            <span class="request-meta-label">Job timeline</span>
+
+            <div class="timeline">
+                {% for event in job_events %}
+                    <div class="timeline-event">
+                        <div class="timeline-status">{{ event.visible_status|default:"-" }}</div>
+                        <div class="timeline-type">{{ event.event_type_label }}</div>
+                        <div class="timeline-meta">
+                            {{ event.actor_role_label }} · {{ event.created_at|date:"M j, Y g:i A" }}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
 
     {% if job.job_status == "posted" and job.cancel_reason == "provider_rejected" %}
         <div class="request-box">
@@ -393,6 +473,9 @@
                 {% if next_url %}
                     <input type="hidden" name="next" value="{{ next_url }}">
                 {% endif %}
+                {% if service_timing %}
+                    <input type="hidden" name="service_timing" value="{{ service_timing }}">
+                {% endif %}
                 <button class="btn" name="action" value="confirm_close">Confirm &amp; Close</button>
             </form>
         {% endif %}
@@ -402,6 +485,9 @@
                 {% csrf_token %}
                 {% if next_url %}
                     <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+                {% if service_timing %}
+                    <input type="hidden" name="service_timing" value="{{ service_timing }}">
                 {% endif %}
                 <button class="btn btn-danger" name="action" value="cancel_request">Cancel Request</button>
             </form>

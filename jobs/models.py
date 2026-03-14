@@ -607,6 +607,19 @@ class JobEvent(models.Model):
         ASSIGNED = "assigned", "assigned"
         TIMEOUT = "timeout", "timeout"
         CANCELLED = "cancelled", "cancelled"
+        JOB_CREATED = "job_created", "job_created"
+        WAITING_PROVIDER_RESPONSE = "waiting_provider_response", "waiting_provider_response"
+        JOB_ACCEPTED = "job_accepted", "job_accepted"
+        JOB_IN_PROGRESS = "job_in_progress", "job_in_progress"
+        JOB_COMPLETED = "job_completed", "job_completed"
+        JOB_CANCELLED = "job_cancelled", "job_cancelled"
+
+    class ActorRole(models.TextChoices):
+        SYSTEM = "system", "System"
+        CLIENT = "client", "Client"
+        PROVIDER = "provider", "Provider"
+        WORKER = "worker", "Worker"
+        ADMIN = "admin", "Admin"
 
     job = models.ForeignKey(
         "jobs.Job",
@@ -619,6 +632,14 @@ class JobEvent(models.Model):
 
     provider_id = models.IntegerField(null=True, blank=True, db_index=True)
     assignment_id = models.IntegerField(null=True, blank=True, db_index=True)
+    visible_status = models.CharField(max_length=64, blank=True, default="")
+    actor_role = models.CharField(
+        max_length=20,
+        choices=ActorRole.choices,
+        blank=True,
+        default=ActorRole.SYSTEM,
+    )
+    payload_json = models.JSONField(default=dict, blank=True)
 
     note = models.CharField(max_length=255, blank=True, default="")
 
