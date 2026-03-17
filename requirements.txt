@@ -4,5 +4,6 @@ google-auth==2.49.0
 phonenumbers==9.0.25
 python-dotenv==1.2.1
 requests==2.32.5
+stripe==14.4.0
 sqlparse==0.5.5
 tzdata==2025.3
