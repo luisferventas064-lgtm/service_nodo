@@ -1,7 +1,8 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Solicitud enviada</title>
+    <title>{% trans "Request sent" %}</title>
     <style>
         body { font-family: Arial; background:#f5f7fa; padding:40px; }
         .container {
@@ -24,9 +25,9 @@
 <body>
 
 <div class="container">
-    <h2>Solicitud enviada</h2>
-    <p>Tu solicitud fue registrada y quedo en espera de respuesta del proveedor.</p>
-    <a href="/marketplace/">Volver al marketplace</a>
+    <h2>{% trans "Request sent" %}</h2>
+    <p>{% trans "Your request was registered and is now waiting for the provider response." %}</p>
+    <a href="/marketplace/">{% trans "Return to marketplace" %}</a>
 </div>
 
 </body>

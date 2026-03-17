@@ -1,6 +1,7 @@
 from django.db import transaction
 
 from jobs.models import Job
+from jobs.services_state_transitions import transition_job_status
 from jobs.services_validation import validate_normal_job_provider
 
 
@@ -20,8 +21,13 @@ def accept_normal_job_by_provider(*, job_id: int, provider_id: int):
     if job.selected_provider_id != provider_id:
         return False, "PROVIDER_NOT_ALLOWED_FOR_THIS_JOB"
 
-    job.job_status = "pending_client_confirmation"
-    job.save(update_fields=["job_status", "updated_at"])
+    transition_job_status(
+        job,
+        Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
+        actor="provider",
+        reason="accept_normal_job_by_provider",
+        allow_legacy=True,
+    )
 
     from providers.services_metrics import increment_accepted
 

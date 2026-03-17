@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import connection
@@ -76,6 +77,7 @@ health_business_view = staff_member_required(health_business_view)
 urlpatterns = [
     path("admin/quality/providers/", ui_views.quality_providers_dashboard_view, name="quality_providers_dashboard"),
     path("admin/", admin.site.urls),
+    path("i18n/", include("django.conf.urls.i18n")),
     path("health/", health_view),
     path("dashboard/", dashboard_view),
     path("portal/", include(("portal.urls", "portal"), namespace="portal")),
@@ -95,4 +97,5 @@ if settings.DEBUG:
     urlpatterns += [
         path("health/business/", health_business_view),
     ]
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 

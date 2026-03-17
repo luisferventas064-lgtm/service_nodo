@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt
+from jobs.models import BroadcastAttemptStatus, Job, JobBroadcastAttempt, JobProviderExclusion
 from jobs.services import record_broadcast_attempt
 from providers.models import Provider
 from service_type.models import ServiceType
@@ -60,3 +60,21 @@ class BroadcastAttemptTests(TestCase):
         p.refresh_from_db()
         p.metrics.refresh_from_db()
         self.assertEqual(p.metrics.offers_received_count, 1)
+
+    def test_record_attempt_returns_false_when_provider_is_excluded_for_job(self):
+        j = self._create_job()
+        p = self._create_provider()
+        JobProviderExclusion.objects.create(
+            job=j,
+            provider=p,
+            reason=JobProviderExclusion.Reason.DECLINED,
+        )
+
+        ok = record_broadcast_attempt(
+            job_id=j.job_id,
+            provider_id=p.provider_id,
+            status=BroadcastAttemptStatus.SENT,
+        )
+
+        self.assertFalse(ok)
+        self.assertEqual(JobBroadcastAttempt.objects.count(), 0)

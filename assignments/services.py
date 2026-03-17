@@ -9,6 +9,11 @@ from django.utils import timezone
 from assignments.models import AssignmentFee, JobAssignment
 from jobs.events import create_job_event
 from jobs.models import Job, JobDispute, JobEvent, JobStatus
+from jobs.services_state_transitions import (
+    normalize_job_status,
+    transition_assignment_status,
+    transition_job_status,
+)
 
 ACTIVE_VALUE = True
 INACTIVE_VALUE = False
@@ -45,8 +50,12 @@ def activate_assignment_for_job(
     )
     if not job_row:
         raise AssignmentConflict("Job does not exist.")
-    if job_row["job_status"] != JobStatus.POSTED:
+    if normalize_job_status(job_row["job_status"]) != JobStatus.WAITING_PROVIDER_RESPONSE:
         raise AssignmentConflict(f"Job no disponible (status={job_row['job_status']}).")
+
+    job = Job.objects.select_for_update().filter(job_id=job_id).first()
+    if not job:
+        raise AssignmentConflict("Job does not exist.")
 
     # 3) Idempotency: same provider already active
     existing = JobAssignment.objects.filter(
@@ -55,7 +64,12 @@ def activate_assignment_for_job(
         is_active=ACTIVE_VALUE,
     ).first()
     if existing:
-        Job.objects.filter(job_id=job_id).update(job_status=JobStatus.ASSIGNED)
+        transition_job_status(
+            job,
+            JobStatus.ASSIGNED,
+            actor=JobEvent.ActorRole.PROVIDER,
+            reason="activate_assignment_for_job",
+        )
         create_job_event(
             job=job_id,
             event_type=JobEvent.EventType.JOB_ACCEPTED,
@@ -88,7 +102,12 @@ def activate_assignment_for_job(
             accepted_at=assigned_at,
         )
 
-        Job.objects.filter(job_id=job_id).update(job_status=JobStatus.ASSIGNED)
+        transition_job_status(
+            job,
+            JobStatus.ASSIGNED,
+            actor=JobEvent.ActorRole.PROVIDER,
+            reason="activate_assignment_for_job",
+        )
         from providers.models import Provider
 
         Provider.objects.filter(provider_id=provider_id).update(last_job_assigned_at=assigned_at)
@@ -165,13 +184,26 @@ def start_job(*, job_id: int, worker_id: int) -> None:
             raise AssignmentConflict("Worker not authorized to start this job.")
 
         # 5) Update assignment -> in_progress (+ timestamps)
-        assignment.assignment_status = "in_progress"
+        transition_assignment_status(
+            assignment,
+            "in_progress",
+            actor=JobEvent.ActorRole.WORKER,
+            reason="start_job",
+        )
         if assignment.accepted_at is None:
             assignment.accepted_at = timezone.now()
-        assignment.save(update_fields=["worker_id", "assignment_status", "accepted_at", "updated_at"])
+        assignment.save(update_fields=["worker_id", "accepted_at", "updated_at"])
 
         # 6) Update job -> in_progress
-        Job.objects.filter(job_id=job_id).update(job_status=JobStatus.IN_PROGRESS)
+        locked_job = Job.objects.select_for_update().filter(job_id=job_id).first()
+        if not locked_job:
+            raise AssignmentConflict("Job does not exist.")
+        transition_job_status(
+            locked_job,
+            JobStatus.IN_PROGRESS,
+            actor=JobEvent.ActorRole.WORKER,
+            reason="start_job",
+        )
 
         # 7) Event
         create_job_event(
@@ -236,12 +268,25 @@ def complete_job(*, job_id: int, worker_id: int) -> None:
             raise AssignmentConflict("Worker not authorized to complete this job.")
 
         # 4) Update assignment -> completed (+ timestamps)
-        assignment.assignment_status = "completed"
+        transition_assignment_status(
+            assignment,
+            "completed",
+            actor=JobEvent.ActorRole.WORKER,
+            reason="complete_job",
+        )
         assignment.completed_at = timezone.now()
-        assignment.save(update_fields=["assignment_status", "completed_at", "updated_at"])
+        assignment.save(update_fields=["completed_at", "updated_at"])
 
         # 5) Update job -> completed
-        Job.objects.filter(job_id=job_id).update(job_status=JobStatus.COMPLETED)
+        locked_job = Job.objects.select_for_update().filter(job_id=job_id).first()
+        if not locked_job:
+            raise AssignmentConflict("Job does not exist.")
+        transition_job_status(
+            locked_job,
+            JobStatus.COMPLETED,
+            actor=JobEvent.ActorRole.WORKER,
+            reason="complete_job",
+        )
 
         # 6) Event
         create_job_event(

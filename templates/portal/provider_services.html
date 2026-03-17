@@ -1,6 +1,10 @@
 {% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "My Services" %}{% endblock %}
 
 {% block content %}
+{% trans "Fixed price" as fixed_price_label %}
 <style>
 .provider-services-wrap{
     max-width: 1100px;
@@ -185,14 +189,14 @@
 <div class="container py-4 provider-services-wrap">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <h1 class="h3 mb-1">My Services</h1>
+            <h1 class="h3 mb-1">{% trans "My Services" %}</h1>
             <p class="text-muted mb-0">
-                Manage your services, pricing, and availability.
+                {% trans "Manage your services, pricing, and availability." %}
             </p>
         </div>
 
         <a href="{% url 'portal:provider_service_categories' %}" class="btn btn-outline-primary btn-sm">
-            Categories
+            {% trans "Categories" %}
         </a>
     </div>
 
@@ -200,11 +204,11 @@
         <div class="mb-3">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div class="small text-muted">
-                    Filtered by category: <strong>{{ selected_service_type.name }}</strong>
+                    {% trans "Filtered by category:" %} <strong>{{ selected_service_type.name }}</strong>
                 </div>
 
                 <a href="{% url 'portal:provider_services' %}" class="btn btn-outline-secondary btn-sm">
-                    Back to all services
+                    {% trans "Back to all services" %}
                 </a>
             </div>
         </div>
@@ -218,21 +222,21 @@
                         <div>
                             <h2 class="h4 mb-1">{{ service_type_name }}</h2>
                             <p class="text-muted mb-0 small">
-                                {{ group.main_offers|length }} main offer{{ group.main_offers|length|pluralize }}
-                                ·
-                                {{ group.addons|length }} add-on{{ group.addons|length|pluralize }}
+                                {% blocktrans count count=group.main_offers|length %}{{ count }} main offer{% plural %}{{ count }} main offers{% endblocktrans %}
+                                &middot;
+                                {% blocktrans count count=group.addons|length %}{{ count }} add-on{% plural %}{{ count }} add-ons{% endblocktrans %}
                             </p>
                         </div>
 
                         <a href="{% url 'portal:provider_service_add' group.service_type.service_type_id %}"
                            class="btn btn-primary btn-sm">
-                            Add service
+                            {% trans "Add service" %}
                         </a>
                     </div>
 
                     <div class="provider-service-section">
-                    <h3 class="h5 mb-3">Main Offers</h3>
-                    <p class="text-muted small mb-3">Your standard services visible to clients.</p>
+                    <h3 class="h5 mb-3">{% trans "Main Offers" %}</h3>
+                    <p class="text-muted small mb-3">{% trans "Your standard services visible to clients." %}</p>
 
                         {% if group.main_offers %}
                             <div class="provider-service-list">
@@ -243,7 +247,7 @@
 
                                             <div class="provider-service-meta">
                                                 <p>
-                                                  {{ s.get_billing_unit_display|default:s.billing_unit|default:"Fixed price" }}
+                                                  {{ s.get_billing_unit_display|default:s.billing_unit|default:fixed_price_label }}
                                                 </p>
                                             </div>
 
@@ -251,9 +255,9 @@
                                                 <span class="provider-service-price">${{ s.display_price|floatformat:2 }}</span>
 
                                                 {% if s.is_active %}
-                                                    <span class="provider-status-badge active">Active</span>
+                                                    <span class="provider-status-badge active">{% trans "Active" %}</span>
                                                 {% else %}
-                                                    <span class="provider-status-badge inactive">Inactive</span>
+                                                    <span class="provider-status-badge inactive">{% trans "Inactive" %}</span>
                                                 {% endif %}
                                             </div>
 
@@ -263,18 +267,18 @@
                                         <div class="provider-service-actions">
                                             <a href="{% url 'portal:provider_service_edit' s.id %}"
                                                class="provider-action-btn edit">
-                                                Edit
+                                                {% trans "Edit" %}
                                             </a>
 
                                             <form method="post" action="{% url 'portal:provider_service_toggle' s.id %}">
                                                 {% csrf_token %}
                                                 {% if s.is_active %}
                                                     <button type="submit" class="provider-action-btn deactivate">
-                                                        Deactivate
+                                                        {% trans "Deactivate" %}
                                                     </button>
                                                 {% else %}
                                                     <button type="submit" class="provider-action-btn activate">
-                                                        Activate
+                                                        {% trans "Activate" %}
                                                     </button>
                                                 {% endif %}
                                             </form>
@@ -283,13 +287,13 @@
                                 {% endfor %}
                             </div>
                         {% else %}
-                            <div class="text-muted">No main offers yet.</div>
+                            <div class="text-muted">{% trans "No main offers yet." %}</div>
                         {% endif %}
                     </div>
 
                     <div class="provider-service-section">
-                    <h3 class="h5 mb-3">Add-ons</h3>
-                    <p class="text-muted small mb-3">Optional extras you can attach to a service.</p>
+                    <h3 class="h5 mb-3">{% trans "Add-ons" %}</h3>
+                    <p class="text-muted small mb-3">{% trans "Optional extras you can attach to a service." %}</p>
 
                         {% if group.addons %}
                             <div class="provider-service-list">
@@ -300,7 +304,7 @@
 
                                             <div class="provider-service-meta">
                                                 <p>
-                                                  {{ s.get_billing_unit_display|default:s.billing_unit|default:"Fixed price" }}
+                                                  {{ s.get_billing_unit_display|default:s.billing_unit|default:fixed_price_label }}
                                                 </p>
                                             </div>
 
@@ -308,9 +312,9 @@
                                                 <span class="provider-service-price">${{ s.display_price|floatformat:2 }}</span>
 
                                                 {% if s.is_active %}
-                                                    <span class="provider-status-badge active">Active</span>
+                                                    <span class="provider-status-badge active">{% trans "Active" %}</span>
                                                 {% else %}
-                                                    <span class="provider-status-badge inactive">Inactive</span>
+                                                    <span class="provider-status-badge inactive">{% trans "Inactive" %}</span>
                                                 {% endif %}
                                             </div>
 
@@ -320,18 +324,18 @@
                                         <div class="provider-service-actions">
                                             <a href="{% url 'portal:provider_service_edit' s.id %}"
                                                class="provider-action-btn edit">
-                                                Edit
+                                                {% trans "Edit" %}
                                             </a>
 
                                             <form method="post" action="{% url 'portal:provider_service_toggle' s.id %}">
                                                 {% csrf_token %}
                                                 {% if s.is_active %}
                                                     <button type="submit" class="provider-action-btn deactivate">
-                                                        Deactivate
+                                                        {% trans "Deactivate" %}
                                                     </button>
                                                 {% else %}
                                                     <button type="submit" class="provider-action-btn activate">
-                                                        Activate
+                                                        {% trans "Activate" %}
                                                     </button>
                                                 {% endif %}
                                             </form>
@@ -340,7 +344,7 @@
                                 {% endfor %}
                             </div>
                         {% else %}
-                            <div class="text-muted">No add-ons yet.</div>
+                            <div class="text-muted">{% trans "No add-ons yet." %}</div>
                         {% endif %}
                     </div>
                 </div>
@@ -349,13 +353,13 @@
     {% else %}
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <h2 class="h5 mb-2">No services yet</h2>
+                <h2 class="h5 mb-2">{% trans "No services yet" %}</h2>
                 <p class="text-muted mb-3">
-                    Start by adding a service in a category.
+                    {% trans "Start by adding a service in a category." %}
                 </p>
 
                 <a href="{% url 'portal:provider_service_categories' %}" class="btn btn-outline-primary btn-sm">
-                    Add your first service
+                    {% trans "Add your first service" %}
                 </a>
             </div>
         </div>

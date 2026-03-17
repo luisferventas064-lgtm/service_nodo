@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, render
+from django.utils.translation import gettext as _
 
 from .services import verify_phone_code
 
@@ -20,7 +21,7 @@ def verify_phone_page(request):
             return render(
                 request,
                 "verifications/verify.html",
-                {"error": "Invalid or expired code."},
+                {"error": _("Invalid or expired code.")},
             )
 
         if actor_type == "provider":

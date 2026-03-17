@@ -44,9 +44,16 @@ class JobNormalizationTests(TestCase):
         job.full_clean()
         self.assertIsNone(job.scheduled_date)
 
-    def test_past_or_today_scheduled_date_normalizes_to_on_demand(self):
+    def test_today_scheduled_date_remains_scheduled(self):
         today = timezone.localdate()
         job = self._mk(job_mode=KIND_SCHEDULED, scheduled_date=today)
+        job.full_clean()
+        self.assertEqual(job.job_mode, KIND_SCHEDULED)
+        self.assertEqual(job.scheduled_date, today)
+
+    def test_past_scheduled_date_normalizes_to_on_demand(self):
+        yesterday = timezone.localdate() - timedelta(days=1)
+        job = self._mk(job_mode=KIND_SCHEDULED, scheduled_date=yesterday)
         job.full_clean()
         self.assertEqual(job.job_mode, KIND_ON_DEMAND)
         self.assertIsNone(job.scheduled_date)

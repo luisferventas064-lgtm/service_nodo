@@ -5,6 +5,7 @@ import random
 from types import SimpleNamespace
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import logout as auth_logout
@@ -28,8 +29,11 @@ from django.db.models import (
 from django.db.models.functions import Cast, Coalesce, Greatest, Least
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.dateparse import parse_date, parse_time
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 from django.views.decorators.http import require_POST
 
 from clients.models import ClientTicket
@@ -39,10 +43,21 @@ from core.legal_disclaimers import build_financial_disclaimer_context
 from core.utils.phone import best_effort_normalize_phone, phone_lookup_candidates
 from jobs import services as job_services
 from jobs.events import create_job_event, get_visible_job_status_label
-from jobs.models import Job, JobDispute, JobEvent, JobLocation, JobRequestedExtra, PlatformLedgerEntry
+from jobs.models import (
+    Job,
+    JobDispute,
+    JobEvent,
+    JobLocation,
+    JobProviderExclusion,
+    JobRequestedExtra,
+    PlatformLedgerEntry,
+)
 from jobs.services_pricing_snapshot import apply_provider_service_snapshot_to_job
-from jobs.services_lifecycle import accept_job_by_provider
-from notifications.models import PushDevice
+from jobs.services_state_transitions import (
+    transition_assignment_status,
+    transition_job_status,
+)
+from notifications.models import PushDevice, PushDispatchAttempt
 from notifications.services import register_push_device_for_user
 from jobs.taxes import TAX_RULES_BY_REGION, compute_tax_cents, get_tax_rule_for_region
 from providers.models import Provider, ProviderLocation, ProviderMetrics, ProviderService, ProviderServiceArea, ProviderServiceExtra
@@ -77,18 +92,18 @@ MARKETPLACE_ORDER_MAP = {
 MARKETPLACE_SERVICE_TIMING_CHOICES = (
     (
         "emergency",
-        "Emergency",
-        "less than 2 hours",
+        _lazy("Emergency"),
+        _lazy("less than 2 hours"),
     ),
     (
         "urgent",
-        "Urgent",
-        "2 to 24 hours",
+        _lazy("Urgent"),
+        _lazy("2 to 24 hours"),
     ),
     (
         "scheduled",
-        "Scheduled",
-        "more than 24 hours",
+        _lazy("Scheduled"),
+        _lazy("more than 24 hours"),
     ),
 )
 MARKETPLACE_SERVICE_TIMING_VALUES = {
@@ -104,38 +119,41 @@ REQUEST_SERVICE_TIMING_TO_JOB_MODE = {
     "scheduled": Job.JobMode.SCHEDULED,
 }
 JOB_CREATED_NEXT_STEP_LABELS = {
-    "emergency": "Waiting for provider response",
-    "scheduled": "Request submitted",
-    "urgent": "Pending confirmation",
+    "emergency": _lazy("Waiting for provider response"),
+    "scheduled": _lazy("Request submitted"),
+    "urgent": _lazy("Pending confirmation"),
 }
 MARKETPLACE_LANGUAGE_CHOICES = (
-    "English",
-    "French",
-    "Spanish",
-    "Arabic",
-    "Mandarin",
-    "Italian",
-    "Portuguese",
-    "Russian",
-    "Punjabi",
-    "Vietnamese",
+    _lazy("English"),
+    _lazy("French"),
+    _lazy("Spanish"),
+    _lazy("Arabic"),
+    _lazy("Mandarin"),
+    _lazy("Italian"),
+    _lazy("Portuguese"),
+    _lazy("Russian"),
+    _lazy("Punjabi"),
+    _lazy("Vietnamese"),
 )
 REQUEST_MONEY_Q = Decimal("0.01")
-REQUEST_AREA_UNAVAILABLE_ERROR = "Service not available in this area. Please choose another address."
+REQUEST_AREA_UNAVAILABLE_ERROR = _lazy(
+    "Service not available in this area. Please choose another address."
+)
 FRIENDLY_JOB_STATUS_LABELS = {
-    Job.JobStatus.DRAFT: "Draft",
-    Job.JobStatus.POSTED: "Looking for a provider",
-    Job.JobStatus.WAITING_PROVIDER_RESPONSE: "Waiting for provider reply",
-    Job.JobStatus.PENDING_CLIENT_DECISION: "Waiting for your decision",
-    Job.JobStatus.HOLD: "Temporarily on hold",
-    Job.JobStatus.PENDING_PROVIDER_CONFIRMATION: "Waiting for provider confirmation",
-    Job.JobStatus.PENDING_CLIENT_CONFIRMATION: "Waiting for your confirmation",
-    Job.JobStatus.ASSIGNED: "Provider assigned",
-    Job.JobStatus.IN_PROGRESS: "Service in progress",
-    Job.JobStatus.COMPLETED: "Completed by provider",
-    Job.JobStatus.CONFIRMED: "Service closed",
-    Job.JobStatus.CANCELLED: "Cancelled",
-    Job.JobStatus.EXPIRED: "Expired",
+    Job.JobStatus.DRAFT: _lazy("Draft"),
+    Job.JobStatus.POSTED: _lazy("Looking for a provider"),
+    Job.JobStatus.SCHEDULED_PENDING_ACTIVATION: _lazy("Request submitted"),
+    Job.JobStatus.WAITING_PROVIDER_RESPONSE: _lazy("Waiting for provider reply"),
+    Job.JobStatus.PENDING_CLIENT_DECISION: _lazy("Waiting for your decision"),
+    Job.JobStatus.HOLD: _lazy("Temporarily on hold"),
+    Job.JobStatus.PENDING_PROVIDER_CONFIRMATION: _lazy("Waiting for provider confirmation"),
+    Job.JobStatus.PENDING_CLIENT_CONFIRMATION: _lazy("Waiting for your confirmation"),
+    Job.JobStatus.ASSIGNED: _lazy("Provider assigned"),
+    Job.JobStatus.IN_PROGRESS: _lazy("Service in progress"),
+    Job.JobStatus.COMPLETED: _lazy("Completed by provider"),
+    Job.JobStatus.CONFIRMED: _lazy("Service closed"),
+    Job.JobStatus.CANCELLED: _lazy("Cancelled"),
+    Job.JobStatus.EXPIRED: _lazy("Expired"),
 }
 
 
@@ -162,11 +180,11 @@ def home(request):
         {
             "service_types": service_types,
             "nav_identity": (
-                "Client"
+                _("Client")
                 if role == "client"
-                else "Provider"
+                else _("Provider")
                 if role == "provider"
-                else "Worker"
+                else _("Worker")
                 if role == "worker"
                 else None
             ),
@@ -262,9 +280,9 @@ def _get_recent_password_code_counts(*, phone, ip):
 def _password_code_rate_limit_error(*, phone, ip):
     recent_phone, recent_ip = _get_recent_password_code_counts(phone=phone, ip=ip)
     if recent_phone >= PASSWORD_CODE_PHONE_LIMIT:
-        return "Too many attempts. Try later."
+        return _("Too many attempts. Try later.")
     if ip and recent_ip >= PASSWORD_CODE_IP_LIMIT:
-        return "Too many attempts from this network."
+        return _("Too many attempts from this network.")
     return None
 
 
@@ -317,7 +335,7 @@ def _issue_verify_code(*, phone, ip=None, allow_existing_active=False):
         created_at__gte=verify_window_start,
     ).count()
     if recent_phone >= PASSWORD_CODE_PHONE_LIMIT:
-        return "Too many attempts. Try later."
+        return _("Too many attempts. Try later.")
 
     recent_ip = 0
     if ip:
@@ -327,7 +345,7 @@ def _issue_verify_code(*, phone, ip=None, allow_existing_active=False):
             created_at__gte=verify_window_start,
         ).count()
     if ip and recent_ip >= PASSWORD_CODE_IP_LIMIT:
-        return "Too many attempts from this network."
+        return _("Too many attempts from this network.")
 
     code = str(random.randint(100000, 999999))
     PasswordResetCode.objects.filter(
@@ -341,7 +359,10 @@ def _issue_verify_code(*, phone, ip=None, allow_existing_active=False):
         purpose="verify",
         ip_address=ip,
     )
-    send_sms(phone, f"Your NODO verification code is: {code}")
+    send_sms(
+        phone,
+        _("Your NODO verification code is: %(code)s") % {"code": code},
+    )
     return None
 
 
@@ -604,7 +625,7 @@ def _login_for_role(request, *, model, template_name, role_label):
             set_session(request, role=role_key, profile_id=actor.pk)
             return redirect(_redirect_after_role_login(actor, role=role_key))
 
-        form.add_error(None, "Invalid credentials.")
+        form.add_error(None, _("Invalid credentials."))
 
     form.apply_error_styles()
 
@@ -682,20 +703,20 @@ def verify_phone(request):
         )
 
         if not record:
-            error = "Verification code not found."
+            error = _("Verification code not found.")
         elif not record.is_valid():
             record.used = True
             record.save(update_fields=["used"])
-            error = "Code expired."
+            error = _("Code expired.")
         elif record.code != code_input:
             record.attempts += 1
             if record.attempts >= PASSWORD_CODE_MAX_ATTEMPTS:
                 record.used = True
                 record.save(update_fields=["attempts", "used"])
-                error = "Code expired."
+                error = _("Code expired.")
             else:
                 record.save(update_fields=["attempts"])
-                error = "Invalid verification code."
+                error = _("Invalid verification code.")
         else:
             model_map = {
                 "client": Client,
@@ -709,7 +730,7 @@ def verify_phone(request):
             model = model_info
             user = model.objects.filter(phone_number=phone).order_by("pk").first()
             if user is None:
-                error = "No account is linked to this phone number."
+                error = _("No account is linked to this phone number.")
             else:
                 update_fields = []
                 if hasattr(user, "is_phone_verified"):
@@ -745,13 +766,13 @@ def verify_phone(request):
 
 def resend_code(request):
     if request.method != "POST":
-        return JsonResponse({"error": "Invalid request"}, status=400)
+        return JsonResponse({"error": _("Invalid request")}, status=400)
 
     phone = request.session.get("verify_phone")
     role = request.session.get("verify_role")
 
     if not phone or not role:
-        return JsonResponse({"error": "Session expired"}, status=400)
+        return JsonResponse({"error": _("Session expired")}, status=400)
 
     ip = get_client_ip(request)
     recent_verify = PasswordResetCode.objects.filter(
@@ -760,7 +781,10 @@ def resend_code(request):
         created_at__gte=timezone.now() - VERIFY_RESEND_COOLDOWN,
     ).exists()
     if recent_verify:
-        return JsonResponse({"error": "Please wait before requesting again"}, status=429)
+        return JsonResponse(
+            {"error": _("Please wait before requesting again.")},
+            status=429,
+        )
 
     verify_window_start = timezone.now() - PASSWORD_CODE_WINDOW
     recent_phone = PasswordResetCode.objects.filter(
@@ -769,7 +793,7 @@ def resend_code(request):
         created_at__gte=verify_window_start,
     ).count()
     if recent_phone >= PASSWORD_CODE_PHONE_LIMIT:
-        return JsonResponse({"error": "Too many attempts. Try later."}, status=429)
+        return JsonResponse({"error": _("Too many attempts. Try later.")}, status=429)
 
     recent_ip = 0
     if ip:
@@ -779,7 +803,10 @@ def resend_code(request):
             created_at__gte=verify_window_start,
         ).count()
     if ip and recent_ip >= PASSWORD_CODE_IP_LIMIT:
-        return JsonResponse({"error": "Too many attempts from this network."}, status=429)
+        return JsonResponse(
+            {"error": _("Too many attempts from this network.")},
+            status=429,
+        )
 
     error = _issue_verify_code(phone=phone, ip=ip)
     if error:
@@ -823,7 +850,7 @@ def forgot_password(request):
         print("PHONE:", phone)
         send_sms(
             phone,
-            f"Your NODO reset code is: {code}",
+            _("Your NODO reset code is: %(code)s") % {"code": code},
         )
 
         request.session["reset_phone"] = phone
@@ -858,20 +885,20 @@ def reset_password_confirm(request):
         )
 
         if not reset_code:
-            form.add_error("code", "Reset code expired.")
+            form.add_error("code", _("Reset code expired."))
         elif not reset_code.is_valid():
             reset_code.used = True
             reset_code.save(update_fields=["used"])
-            form.add_error("code", "Reset code expired.")
+            form.add_error("code", _("Reset code expired."))
         elif reset_code.code != form.cleaned_data["code"].strip():
             reset_code.attempts += 1
             if reset_code.attempts >= PASSWORD_CODE_MAX_ATTEMPTS:
                 reset_code.used = True
                 reset_code.save(update_fields=["attempts", "used"])
-                form.add_error("code", "Reset code expired.")
+                form.add_error("code", _("Reset code expired."))
             else:
                 reset_code.save(update_fields=["attempts"])
-                form.add_error("code", "Invalid reset code.")
+                form.add_error("code", _("Invalid reset code."))
         else:
             password_hash = make_password(form.cleaned_data["new_password"])
             updated = 0
@@ -888,12 +915,12 @@ def reset_password_confirm(request):
             if not updated:
                 messages.warning(
                     request,
-                    "No account is linked to that phone number.",
+                    _("No account is linked to that phone number."),
                 )
             else:
                 messages.success(
                     request,
-                    "Password updated. You can log in now.",
+                    _("Password updated. You can log in now."),
                 )
 
             return redirect("ui:login")
@@ -1150,12 +1177,18 @@ def providers_nearby_view(request, job_id=None):
         search = ""
 
         if job_location is None:
-            error = "Job has no location."
+            error = _("Job has no location.")
         elif selected_service_type is None:
-            error = "Job has no service type."
+            error = _("Job has no service type.")
         else:
             provider_offers = (
                 marketplace_ranked_queryset(service_type_id=job.service_type_id)
+                .exclude(
+                    provider_id__in=JobProviderExclusion.objects.filter(job=job).values_list(
+                        "provider_id",
+                        flat=True,
+                    )
+                )
                 .filter(provider__location__isnull=False)
                 .select_related("provider", "provider__location", "provider__metrics", "service_type")
                 .order_by("provider_id", "price_cents")
@@ -1248,10 +1281,10 @@ def providers_nearby_view(request, job_id=None):
         parsed_service_type_id = int(service_type_id)
     except (TypeError, ValueError):
         parsed_service_type_id = None
-        error = "Invalid service type."
+        error = _("Invalid service type.")
 
     if error is None and not fsa:
-        error = "Postal area is required."
+        error = _("Postal area is required.")
 
     if error is None:
         selected_service_type = ServiceType.objects.filter(
@@ -1259,7 +1292,7 @@ def providers_nearby_view(request, job_id=None):
             is_active=True,
         ).first()
         if selected_service_type is None:
-            error = "Invalid service type."
+            error = _("Invalid service type.")
 
     if error is None:
         providers_qs = (
@@ -1276,7 +1309,7 @@ def providers_nearby_view(request, job_id=None):
             try:
                 minimum_rating = Decimal(rating)
             except (TypeError, ValueError, InvalidOperation):
-                error = "Invalid rating filter."
+                error = _("Invalid rating filter.")
             else:
                 providers_qs = providers_qs.filter(safe_rating__gte=float(minimum_rating))
 
@@ -1577,6 +1610,7 @@ def _normalize_request_service_timing(raw_value: str, *, fallback_job_mode: str 
 
 def _request_create_search_context(
     *,
+    service_type_id="",
     postal_code="",
     city="",
     province="",
@@ -1585,6 +1619,7 @@ def _request_create_search_context(
     provider_name="",
 ):
     return {
+        "service_type_id": str(service_type_id or "").strip(),
         "search": search,
         "provider_name": provider_name,
         "postal_code": postal_code,
@@ -1592,6 +1627,80 @@ def _request_create_search_context(
         "province": province,
         "service_timing": service_timing,
     }
+
+
+def _request_flow_query_params(
+    *,
+    service_type_id="",
+    postal_code="",
+    city="",
+    province="",
+    service_timing="",
+    search="",
+    provider_name="",
+):
+    params = {}
+    if service_timing:
+        params["service_timing"] = str(service_timing).strip()
+    if service_type_id:
+        params["service_type"] = str(service_type_id).strip()
+    if postal_code:
+        params["postal_code"] = str(postal_code).strip()
+    if city:
+        params["city"] = str(city).strip()
+    if province:
+        params["province"] = str(province).strip()
+    if search:
+        params["search"] = str(search).strip()
+    if provider_name:
+        params["provider_name"] = str(provider_name).strip()
+    return params
+
+
+def _job_created_query_params(
+    *,
+    service_timing="",
+    search="",
+    provider_name="",
+):
+    params = {}
+    if service_timing:
+        params["service_timing"] = str(service_timing).strip()
+    if search:
+        params["search"] = str(search).strip()
+    if provider_name:
+        params["provider_name"] = str(provider_name).strip()
+    return params
+
+
+def _marketplace_query_params_from_request_context(request_context):
+    params = {}
+    if request_context.get("service_timing"):
+        params["service_timing"] = request_context["service_timing"]
+    if request_context.get("service_type_id"):
+        params["service_type"] = request_context["service_type_id"]
+    if request_context.get("postal_code"):
+        params["postal_code"] = request_context["postal_code"]
+    if request_context.get("city"):
+        params["city"] = request_context["city"]
+    if request_context.get("province"):
+        params["province"] = request_context["province"]
+    if request_context.get("search"):
+        params["q"] = request_context["search"]
+    if request_context.get("provider_name"):
+        params["provider_name"] = request_context["provider_name"]
+    return params
+
+
+def _url_with_query(base_url: str, params: dict) -> str:
+    filtered_params = {
+        key: value
+        for key, value in (params or {}).items()
+        if str(value or "").strip()
+    }
+    if not filtered_params:
+        return base_url
+    return f"{base_url}?{urlencode(filtered_params)}"
 
 
 def _job_timing_context(*, job, raw_service_timing=""):
@@ -1724,7 +1833,7 @@ def request_create_view(request, provider_id):
 
     compliance_blocked = bool(selected_offer and not selected_offer.is_compliant)
     compliance_error = (
-        "This service cannot be requested until provider compliance is complete."
+        _("This service cannot be requested until provider compliance is complete.")
         if compliance_blocked
         else None
     )
@@ -1765,6 +1874,8 @@ def request_create_view(request, provider_id):
         postal_code=default_form_data["postal_code"],
     ):
         request_area_error = REQUEST_AREA_UNAVAILABLE_ERROR
+        if session_client is not None:
+            default_form_data["use_other_address"] = True
 
     default_pricing_snapshot = None
     default_selected_subservice = None
@@ -1809,6 +1920,9 @@ def request_create_view(request, provider_id):
             "provider_postal_prefixes": provider_postal_prefixes,
             "pricing": default_pricing_snapshot,
             "request_tax_rates": request_tax_rates,
+            "show_service_address_editor": bool(
+                client_authenticated and default_form_data["use_other_address"]
+            ),
         }
         context.update(
             _request_create_search_context(
@@ -1931,26 +2045,36 @@ def request_create_view(request, provider_id):
 
     error = None
     if missing_required:
-        error = "Complete all required fields."
+        error = _("Complete all required fields.")
     elif form_data["service_timing"] not in REQUEST_SERVICE_TIMING_VALUES:
-        error = "Invalid service timing."
+        error = _("Invalid service timing.")
     elif form_data["service_timing"] == "scheduled" and (
         not form_data["scheduled_date"] or not form_data["scheduled_start_time"]
     ):
-        error = "Scheduled mode requires date and time."
+        error = _("Scheduled mode requires date and time.")
+
+    scheduled_date_value = None
+    scheduled_start_time_value = None
+    if error is None and form_data["service_timing"] == "scheduled":
+        scheduled_date_value = parse_date(form_data["scheduled_date"])
+        scheduled_start_time_value = parse_time(form_data["scheduled_start_time"])
+        if scheduled_date_value is None or scheduled_start_time_value is None:
+            error = _("Scheduled mode requires a valid date and time.")
+        elif scheduled_date_value <= timezone.localdate():
+            error = _("Scheduled mode requires a future date.")
 
     requested_quantity_decimal = None
     if error is None:
         if not form_data["requested_quantity"]:
-            error = "Quantity is required."
+            error = _("Quantity is required.")
         else:
             try:
                 requested_quantity_decimal = Decimal(form_data["requested_quantity"])
             except (TypeError, ValueError, InvalidOperation):
-                error = "Invalid quantity."
+                error = _("Invalid quantity.")
 
     if error is None and requested_quantity_decimal <= Decimal("0"):
-        error = "Quantity must be greater than zero."
+        error = _("Quantity must be greater than zero.")
 
     if error is None:
         requested_quantity_decimal = _request_money(requested_quantity_decimal)
@@ -1962,7 +2086,7 @@ def request_create_view(request, provider_id):
             is_active=True,
         ).first()
         if service_type is None:
-            error = "Invalid service type."
+            error = _("Invalid service type.")
 
     if error is None:
         if form_data["provider_service_id"]:
@@ -1971,9 +2095,9 @@ def request_create_view(request, provider_id):
                 provider_service_id=form_data["provider_service_id"],
             )
             if selected_offer is None:
-                error = "Invalid provider service."
+                error = _("Invalid provider service.")
             elif str(selected_offer.service_type_id) != form_data["service_type"]:
-                error = "Invalid provider service for this service type."
+                error = _("Invalid provider service for this service type.")
         else:
             selected_offer = _resolve_request_offer(
                 provider=provider,
@@ -1982,12 +2106,12 @@ def request_create_view(request, provider_id):
 
         if error is None:
             if selected_offer is None:
-                error = "Provider must have an active priced service for this service type."
-            elif not selected_offer.is_compliant:
-                error = "This service cannot be requested until provider compliance is complete."
+                error = _("Provider must have an active priced service for this service type.")
             else:
                 selected_offer.display_price = selected_offer.price_cents / 100
                 form_data["provider_service_id"] = str(selected_offer.pk)
+            if error is None and not selected_offer.is_compliant:
+                error = _("This service cannot be requested until provider compliance is complete.")
 
     geo = None
     if error is None:
@@ -2000,7 +2124,7 @@ def request_create_view(request, provider_id):
             real_province = (extract_province(geo["components"]) or "").strip().upper()
             requested_province = (form_data["province"] or "").strip().upper()
             if real_province and real_province != requested_province:
-                error = "The postal code does not belong to the selected province."
+                error = _("The postal code does not belong to the selected province.")
 
     if error is None and not _provider_services_request_area(
         provider=provider,
@@ -2036,7 +2160,7 @@ def request_create_view(request, provider_id):
         if form_data["requested_subservice_id"]:
             selected_subservice = subservices_by_id.get(form_data["requested_subservice_id"])
             if selected_subservice is None:
-                error = "Invalid subservice."
+                error = _("Invalid subservice.")
 
         if error is None:
             seen_extra_ids = set()
@@ -2047,7 +2171,7 @@ def request_create_view(request, provider_id):
 
                 extra = extras_by_id.get(extra_id)
                 if extra is None:
-                    error = "Invalid extra selection."
+                    error = _("Invalid extra selection.")
                     break
 
                 quantity_raw = form_data["selected_extra_quantities"].get(extra_id, "")
@@ -2058,11 +2182,11 @@ def request_create_view(request, provider_id):
                         try:
                             quantity = int(quantity_raw)
                         except (TypeError, ValueError):
-                            error = f"Invalid quantity for {extra.name}."
+                            error = _("Invalid quantity for %(name)s.") % {"name": extra.name}
                             break
 
                     if quantity < 0:
-                        error = f"Invalid quantity for {extra.name}."
+                        error = _("Invalid quantity for %(name)s.") % {"name": extra.name}
                         break
                 else:
                     quantity = 1
@@ -2104,23 +2228,28 @@ def request_create_view(request, provider_id):
             if not client.profile_completed:
                 messages.warning(
                     request,
-                    "You must complete your profile before creating a job.",
+                    _("You must complete your profile before creating a job."),
                 )
                 request.session["client_id"] = client.pk
                 return redirect("client_complete_profile")
             with transaction.atomic():
+                created_job_status = (
+                    Job.JobStatus.SCHEDULED_PENDING_ACTIVATION
+                    if form_data["job_mode"] == Job.JobMode.SCHEDULED
+                    else Job.JobStatus.WAITING_PROVIDER_RESPONSE
+                )
                 created_job = Job.objects.create(
                     selected_provider=provider,
                     client=client,
                     service_type=service_type,
                     job_mode=form_data["job_mode"],
                     scheduled_date=(
-                        form_data["scheduled_date"]
+                        scheduled_date_value
                         if form_data["job_mode"] == Job.JobMode.SCHEDULED
                         else None
                     ),
                     scheduled_start_time=(
-                        form_data["scheduled_start_time"]
+                        scheduled_start_time_value
                         if form_data["job_mode"] == Job.JobMode.SCHEDULED
                         else None
                     ),
@@ -2130,7 +2259,7 @@ def request_create_view(request, provider_id):
                     city=form_data["city"],
                     postal_code=form_data["postal_code"],
                     address_line1=form_data["address_line1"],
-                    job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                    job_status=created_job_status,
                     provider_service_name_snapshot=(
                         selected_offer.custom_name if selected_offer else ""
                     ),
@@ -2214,23 +2343,30 @@ def request_create_view(request, provider_id):
                     provider_id=provider.provider_id,
                     unique_per_job=True,
                 )
-                create_job_event(
-                    job=created_job,
-                    event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE,
-                    actor_role=JobEvent.ActorRole.SYSTEM,
-                    payload={
-                        "source": "request_create",
-                        "service_timing": form_data["service_timing"],
-                    },
-                    provider_id=provider.provider_id,
-                    note="request created and waiting for provider response",
-                )
+                if created_job_status == Job.JobStatus.WAITING_PROVIDER_RESPONSE:
+                    create_job_event(
+                        job=created_job,
+                        event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE,
+                        actor_role=JobEvent.ActorRole.SYSTEM,
+                        payload={
+                            "source": "request_create",
+                            "service_timing": form_data["service_timing"],
+                        },
+                        provider_id=provider.provider_id,
+                        note="request created and waiting for provider response",
+                    )
         except PermissionError as exc:
+            if str(exc) == "PHONE_NOT_VERIFIED":
+                return HttpResponseForbidden(
+                    _("Phone verification is required before creating a request.")
+                )
             return HttpResponseForbidden(str(exc))
         except ValidationError as exc:
-            error = "; ".join(exc.messages) or "No se pudo crear la solicitud."
+            error = "; ".join(exc.messages) or _("The request could not be created.")
 
     if error is not None:
+        if session_client is not None and error == REQUEST_AREA_UNAVAILABLE_ERROR:
+            form_data["use_other_address"] = True
         context = {
             "provider": provider,
             "service_options": service_options,
@@ -2246,6 +2382,9 @@ def request_create_view(request, provider_id):
             "provider_postal_prefixes": provider_postal_prefixes,
             "pricing": request_pricing_snapshot,
             "request_tax_rates": request_tax_rates,
+            "show_service_address_editor": bool(
+                client_authenticated and form_data["use_other_address"]
+            ),
         }
         context.update(
             _request_create_search_context(
@@ -2253,6 +2392,7 @@ def request_create_view(request, provider_id):
                 city=form_data["city"],
                 province=form_data["province"],
                 service_timing=form_data["service_timing"],
+                service_type_id=form_data["service_type"],
                 search=search_term,
                 provider_name=provider_name,
             )
@@ -2260,8 +2400,14 @@ def request_create_view(request, provider_id):
         return render(request, "request/create.html", context)
 
     return redirect(
-        f"{reverse('ui:job_created', args=[created_job.job_id])}"
-        f"?{urlencode({'service_timing': form_data['service_timing']})}"
+        _url_with_query(
+            reverse("ui:job_created", args=[created_job.job_id]),
+            _job_created_query_params(
+                service_timing=form_data["service_timing"],
+                search=search_term,
+                provider_name=provider_name,
+            ),
+        )
     )
 
 
@@ -2280,12 +2426,26 @@ def job_created_view(request, job_id):
         job=job,
         raw_service_timing=(request.GET.get("service_timing") or "").strip(),
     )
+    request_context = _request_create_search_context(
+        service_type_id=(request.GET.get("service_type") or job.service_type_id or ""),
+        postal_code=(request.GET.get("postal_code") or job.postal_code or ""),
+        city=(request.GET.get("city") or job.city or ""),
+        province=(request.GET.get("province") or job.province or ""),
+        service_timing=timing_context["service_timing"],
+        search=(request.GET.get("search") or "").strip(),
+        provider_name=(request.GET.get("provider_name") or "").strip(),
+    )
     return render(
         request,
         "jobs/created.html",
         {
             "job": job,
             "job_status_label": _job_status_label(job),
+            "request_status_url": _url_with_query(
+                reverse("ui:request_status", args=[job.job_id]),
+                _request_flow_query_params(**request_context),
+            ),
+            **request_context,
             **timing_context,
         },
     )
@@ -2407,12 +2567,17 @@ def _attach_job_lifecycle_details(job):
 
 
 def request_status_view(request, job_id):
+    request_source = request.POST if request.method == "POST" else request.GET
     raw_service_timing = (
-        request.POST.get("service_timing")
-        if request.method == "POST"
-        else request.GET.get("service_timing")
+        request_source.get("service_timing")
     ) or ""
     raw_service_timing = raw_service_timing.strip()
+    raw_service_type_id = (request_source.get("service_type") or "").strip()
+    raw_postal_code = (request_source.get("postal_code") or "").strip()
+    raw_city = (request_source.get("city") or "").strip()
+    raw_province = (request_source.get("province") or "").strip()
+    raw_search = (request_source.get("search") or "").strip()
+    raw_provider_name = (request_source.get("provider_name") or "").strip()
     next_url = (
         request.POST.get("next")
         if request.method == "POST"
@@ -2426,13 +2591,22 @@ def request_status_view(request, job_id):
     ):
         next_url = ""
 
+    def request_status_query_params():
+        return _request_flow_query_params(
+            service_type_id=raw_service_type_id,
+            postal_code=raw_postal_code,
+            city=raw_city,
+            province=raw_province,
+            service_timing=raw_service_timing,
+            search=raw_search,
+            provider_name=raw_provider_name,
+        )
+
     def redirect_to_request_status():
         request_status_url = reverse("ui:request_status", args=[job.job_id])
-        query_params = {}
+        query_params = request_status_query_params()
         if next_url:
             query_params["next"] = next_url
-        if raw_service_timing:
-            query_params["service_timing"] = raw_service_timing
         if query_params:
             request_status_url = f"{request_status_url}?{urlencode(query_params)}"
         return redirect(request_status_url)
@@ -2441,13 +2615,62 @@ def request_status_view(request, job_id):
         job = get_object_or_404(Job, pk=job_id)
         action = request.POST.get("action")
 
+        if action == "confirm_provider":
+            try:
+                result = job_services.confirm_marketplace_provider(job_id=job.job_id)
+            except job_services.MarketplaceDecisionConflict as exc:
+                messages.error(
+                    request,
+                    _("Unable to confirm provider: %(error)s") % {"error": exc},
+                )
+            else:
+                messages.success(
+                    request,
+                    _("Provider confirmed: %(result)s") % {"result": result},
+                )
+            return redirect_to_request_status()
+
+        if action == "reject_provider":
+            try:
+                result = job_services.reject_marketplace_provider(job_id=job.job_id)
+            except job_services.MarketplaceDecisionConflict as exc:
+                messages.error(
+                    request,
+                    _("Unable to reject provider: %(error)s") % {"error": exc},
+                )
+            else:
+                messages.success(
+                    request,
+                    _("Provider rejected: %(result)s") % {"result": result},
+                )
+            return redirect_to_request_status()
+
         if action == "cancel_request":
+            if job.job_status == Job.JobStatus.PENDING_CLIENT_CONFIRMATION:
+                try:
+                    result = job_services.apply_client_marketplace_decision(
+                        job_id=job.job_id,
+                        action=job_services.MARKETPLACE_ACTION_CANCEL_JOB,
+                    )
+                except job_services.MarketplaceDecisionConflict as exc:
+                    messages.error(
+                        request,
+                        _("Unable to cancel request: %(error)s") % {"error": exc},
+                    )
+                else:
+                    messages.success(
+                        request,
+                        _("Request cancelled successfully: %(result)s") % {"result": result},
+                    )
+                return redirect_to_request_status()
+
             if job.job_status not in {
                 Job.JobStatus.POSTED,
+                Job.JobStatus.SCHEDULED_PENDING_ACTIVATION,
                 Job.JobStatus.WAITING_PROVIDER_RESPONSE,
                 Job.JobStatus.ASSIGNED,
             }:
-                messages.error(request, "This request can no longer be cancelled.")
+                messages.error(request, _("This request can no longer be cancelled."))
                 return redirect_to_request_status()
 
             with transaction.atomic():
@@ -2459,17 +2682,24 @@ def request_status_view(request, job_id):
                 )
 
                 if active_assignment:
-                    active_assignment.assignment_status = "cancelled"
-                    active_assignment.is_active = False
-                    active_assignment.save(
-                        update_fields=["assignment_status", "is_active", "updated_at"]
+                    transition_assignment_status(
+                        active_assignment,
+                        "cancelled",
+                        actor=JobEvent.ActorRole.CLIENT,
+                        reason="request_status_cancel",
                     )
 
-                job.job_status = Job.JobStatus.CANCELLED
+                transition_job_status(
+                    job,
+                    Job.JobStatus.CANCELLED,
+                    actor=JobEvent.ActorRole.CLIENT,
+                    reason="request_status_cancel",
+                    allow_legacy=True,
+                )
                 job.cancelled_by = Job.CancellationActor.CLIENT
                 job.cancel_reason = Job.CancelReason.CLIENT_CANCELLED
                 job.save(
-                    update_fields=["job_status", "cancelled_by", "cancel_reason", "updated_at"]
+                    update_fields=["cancelled_by", "cancel_reason", "updated_at"]
                 )
                 create_job_event(
                     job=job,
@@ -2480,14 +2710,14 @@ def request_status_view(request, job_id):
                     unique_per_job=True,
                 )
 
-            messages.success(request, "Request cancelled successfully.")
+            messages.success(request, _("Request cancelled successfully."))
             return redirect_to_request_status()
 
         if action != "confirm_close":
-            return HttpResponseBadRequest("Accion invalida.")
+            return HttpResponseBadRequest(_("Invalid action."))
 
         if not job.client_id:
-            messages.error(request, "This job has no client assigned.")
+            messages.error(request, _("This job has no client assigned."))
             return redirect_to_request_status()
 
         try:
@@ -2496,11 +2726,20 @@ def request_status_view(request, job_id):
                 client_id=job.client_id,
             )
         except job_services.MarketplaceDecisionConflict as exc:
-            messages.error(request, f"Unable to close service: {exc}")
+            messages.error(
+                request,
+                _("Unable to close service: %(error)s") % {"error": exc},
+            )
         except PermissionError as exc:
-            messages.error(request, f"Permission denied: {exc}")
+            messages.error(
+                request,
+                _("Permission denied: %(error)s") % {"error": exc},
+            )
         else:
-            messages.success(request, f"Closure processed: {result}")
+            messages.success(
+                request,
+                _("Closure processed: %(result)s") % {"result": result},
+            )
 
         return redirect_to_request_status()
 
@@ -2519,6 +2758,36 @@ def request_status_view(request, job_id):
         raw_service_timing=raw_service_timing,
     )
     job_events = _build_job_event_timeline(job)
+    request_context = _request_create_search_context(
+        service_type_id=raw_service_type_id or job.service_type_id or "",
+        postal_code=raw_postal_code or job.postal_code or "",
+        city=raw_city or job.city or "",
+        province=raw_province or job.province or "",
+        service_timing=timing_context["service_timing"],
+        search=raw_search,
+        provider_name=raw_provider_name,
+    )
+    request_status_params = _request_flow_query_params(**request_context)
+    marketplace_retry_url = _url_with_query(
+        reverse("ui:marketplace_search"),
+        _marketplace_query_params_from_request_context(request_context),
+    )
+    refresh_status_params = dict(request_status_params)
+    if next_url:
+        refresh_status_params["next"] = next_url
+    refresh_status_url = _url_with_query(
+        reverse("ui:request_status", args=[job.job_id]),
+        refresh_status_params,
+    )
+    show_push_debug = settings.DEBUG or bool(getattr(request.user, "is_staff", False))
+    last_push_attempt = None
+    if show_push_debug:
+        last_push_attempt = (
+            PushDispatchAttempt.objects.filter(job_event__job=job)
+            .select_related("job_event", "device")
+            .order_by("-created_at")
+            .first()
+        )
 
     return render(
         request,
@@ -2528,6 +2797,12 @@ def request_status_view(request, job_id):
             "job_events": job_events,
             "job_status_label": _job_status_label(job),
             "next_url": next_url,
+            "last_push_attempt": last_push_attempt,
+            "marketplace_retry_url": marketplace_retry_url,
+            "refresh_status_url": refresh_status_url,
+            "search_again_url": marketplace_retry_url,
+            "show_push_debug": show_push_debug,
+            **request_context,
             **timing_context,
         },
     )
@@ -2597,65 +2872,40 @@ def provider_job_action_view(request, job_id):
         except ValueError as exc:
             return HttpResponseBadRequest(str(exc))
         except (PermissionError, PermissionDenied):
-            return HttpResponseForbidden("Not authorized.")
+            return HttpResponseForbidden(_("Not authorized."))
         except job_services.MarketplaceDecisionConflict as exc:
             return HttpResponseBadRequest(str(exc))
         else:
             return redirect("ui:provider_jobs")
 
     if job.selected_provider_id != provider_id:
-        return HttpResponseForbidden("Not authorized.")
+        return HttpResponseForbidden(_("Not authorized."))
+
+    provider = Provider.objects.filter(pk=provider_id).first()
+    if provider is None:
+        request.session.pop("provider_id", None)
+        return redirect("provider_register")
 
     if action == "accept":
-        provider = Provider.objects.get(pk=job.selected_provider_id)
-        if not provider.is_operational:
-            messages.warning(
-                request,
-                "Complete your profile and add a service to accept jobs.",
-            )
-            request.session["provider_id"] = provider.pk
-            return redirect("provider_dashboard")
-        try:
-            accept_job_by_provider(job, provider)
-        except ValueError as e:
-            return HttpResponseBadRequest(str(e))
+        from .views_provider import handle_provider_accept_action
+
+        return handle_provider_accept_action(
+            request=request,
+            job=job,
+            provider=provider,
+            redirect_name="ui:provider_jobs",
+        )
     elif action == "reject":
-        if job.job_status != Job.JobStatus.WAITING_PROVIDER_RESPONSE:
-            return HttpResponseForbidden("Invalid status.")
-        provider = Provider.objects.get(pk=provider_id)
-        with transaction.atomic():
-            active_assignment = (
-                job.assignments
-                .filter(provider=provider, is_active=True)
-                .order_by("-created_at")
-                .first()
-            )
+        from .views_provider import handle_provider_decline_action
 
-            if active_assignment:
-                active_assignment.assignment_status = "cancelled"
-                active_assignment.is_active = False
-                active_assignment.save(
-                    update_fields=["assignment_status", "is_active", "updated_at"]
-                )
-
-            job.job_status = Job.JobStatus.POSTED
-            job.selected_provider = None
-            job.cancelled_by = Job.CancellationActor.PROVIDER
-            job.cancel_reason = Job.CancelReason.PROVIDER_REJECTED
-            job.save(
-                update_fields=[
-                    "job_status",
-                    "selected_provider",
-                    "cancelled_by",
-                    "cancel_reason",
-                    "updated_at",
-                ]
-            )
-
-        messages.success(request, "Request declined.")
-        return redirect("ui:provider_jobs")
+        return handle_provider_decline_action(
+            request=request,
+            job=job,
+            provider=provider,
+            redirect_name="ui:provider_jobs",
+        )
     else:
-        return HttpResponseBadRequest("Accion invalida.")
+        return HttpResponseBadRequest(_("Invalid action."))
 
     return redirect("ui:provider_jobs")
 
@@ -2856,7 +3106,7 @@ def confirm_closed(request, job_id: int):
     job = get_object_or_404(Job, pk=job_id)
 
     if not job.client_id:
-        messages.error(request, "No se puede confirmar: el job no tiene client_id.")
+        messages.error(request, _("Cannot confirm: the job has no client_id."))
         return redirect("ui:job_detail", job_id=job.job_id)
 
     try:
@@ -2865,10 +3115,19 @@ def confirm_closed(request, job_id: int):
             client_id=job.client_id,
         )
     except job_services.MarketplaceDecisionConflict as exc:
-        messages.error(request, f"No se pudo cerrar: {exc}")
+        messages.error(
+            request,
+            _("Unable to close service: %(error)s") % {"error": exc},
+        )
     except PermissionError as exc:
-        messages.error(request, f"Permiso denegado: {exc}")
+        messages.error(
+            request,
+            _("Permission denied: %(error)s") % {"error": exc},
+        )
     else:
-        messages.success(request, f"Cierre procesado: {result}")
+        messages.success(
+            request,
+            _("Closure processed: %(result)s") % {"result": result},
+        )
 
     return redirect("ui:job_detail", job_id=job.job_id)

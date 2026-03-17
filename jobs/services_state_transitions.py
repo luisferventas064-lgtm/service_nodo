@@ -1,0 +1,176 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from jobs.models import Job
+
+
+class InvalidStateTransition(ValueError):
+    pass
+
+
+_CANONICAL_JOB_TRANSITIONS = {
+    Job.JobStatus.SCHEDULED_PENDING_ACTIVATION: {Job.JobStatus.WAITING_PROVIDER_RESPONSE},
+    Job.JobStatus.WAITING_PROVIDER_RESPONSE: {
+        Job.JobStatus.ASSIGNED,
+        Job.JobStatus.EXPIRED,
+        Job.JobStatus.CANCELLED,
+    },
+    Job.JobStatus.ASSIGNED: {
+        Job.JobStatus.IN_PROGRESS,
+        Job.JobStatus.CANCELLED,
+    },
+    Job.JobStatus.IN_PROGRESS: {
+        Job.JobStatus.COMPLETED,
+        Job.JobStatus.CANCELLED,
+    },
+    Job.JobStatus.COMPLETED: {Job.JobStatus.CONFIRMED},
+    Job.JobStatus.CONFIRMED: set(),
+    Job.JobStatus.EXPIRED: set(),
+    Job.JobStatus.CANCELLED: set(),
+}
+
+# Allowed temporarily while legacy flows are being deprecated.
+_LEGACY_JOB_TRANSITIONS = {
+    Job.JobStatus.WAITING_PROVIDER_RESPONSE: {
+        Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
+        Job.JobStatus.PENDING_CLIENT_DECISION,
+    },
+    Job.JobStatus.PENDING_CLIENT_CONFIRMATION: {
+        Job.JobStatus.ASSIGNED,
+        Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+        Job.JobStatus.PENDING_CLIENT_DECISION,
+        Job.JobStatus.CANCELLED,
+    },
+    Job.JobStatus.PENDING_CLIENT_DECISION: {
+        Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+        Job.JobStatus.POSTED,
+        Job.JobStatus.CANCELLED,
+        Job.JobStatus.EXPIRED,
+    },
+    Job.JobStatus.PENDING_PROVIDER_CONFIRMATION: {Job.JobStatus.PENDING_CLIENT_CONFIRMATION},
+    Job.JobStatus.POSTED: {Job.JobStatus.ASSIGNED, Job.JobStatus.EXPIRED},
+}
+
+_CANONICAL_ASSIGNMENT_TRANSITIONS = {
+    "assigned": {"in_progress", "cancelled"},
+    "in_progress": {"completed", "cancelled"},
+    "completed": set(),
+    "cancelled": set(),
+    "accepted": {"in_progress", "cancelled", "completed"},
+    "expired": set(),
+}
+
+
+@dataclass(frozen=True)
+class TransitionMeta:
+    previous: str
+    normalized_previous: str
+    target: str
+    classification: str
+
+
+def normalize_job_status(status: str | None) -> str:
+    value = str(status or "").strip()
+    if value == Job.JobStatus.POSTED:
+        return Job.JobStatus.WAITING_PROVIDER_RESPONSE
+    return value
+
+
+def transition_job_status(
+    job: Job,
+    to_status: str,
+    *,
+    actor: str | None = None,
+    reason: str = "",
+    allow_legacy: bool = True,
+) -> TransitionMeta:
+    _ = actor
+    _ = reason
+
+    previous = str(job.job_status or "").strip()
+    normalized_previous = normalize_job_status(previous)
+    target = str(to_status or "").strip()
+
+    if target == previous:
+        return TransitionMeta(previous, normalized_previous, target, "no-op")
+
+    if previous == Job.JobStatus.POSTED and target == Job.JobStatus.WAITING_PROVIDER_RESPONSE:
+        job.job_status = target
+        job.save(update_fields=["job_status", "updated_at"])
+        return TransitionMeta(previous, normalized_previous, target, "legacy-normalization")
+
+    if target in _CANONICAL_JOB_TRANSITIONS.get(normalized_previous, set()):
+        classification = "canonical"
+    elif allow_legacy and target in _LEGACY_JOB_TRANSITIONS.get(normalized_previous, set()):
+        classification = "legacy"
+    else:
+        raise InvalidStateTransition(
+            f"Invalid Job transition: {normalized_previous} -> {target}"
+        )
+
+    job.job_status = target
+    job.save(update_fields=["job_status", "updated_at"])
+    return TransitionMeta(previous, normalized_previous, target, classification)
+
+
+def transition_assignment_status(
+    assignment,
+    to_status: str,
+    *,
+    actor: str | None = None,
+    reason: str = "",
+) -> TransitionMeta:
+    _ = actor
+    _ = reason
+
+    previous = str(getattr(assignment, "assignment_status", "") or "").strip()
+    target = str(to_status or "").strip()
+
+    if target == previous:
+        return TransitionMeta(previous, previous, target, "no-op")
+
+    allowed_targets = _CANONICAL_ASSIGNMENT_TRANSITIONS.get(previous)
+    if allowed_targets is None or target not in allowed_targets:
+        raise InvalidStateTransition(
+            f"Invalid JobAssignment transition: {previous} -> {target}"
+        )
+
+    assignment.assignment_status = target
+    update_fields = ["assignment_status", "updated_at"]
+    if target == "cancelled" and getattr(assignment, "is_active", False):
+        assignment.is_active = False
+        update_fields.append("is_active")
+    assignment.save(update_fields=update_fields)
+    return TransitionMeta(previous, previous, target, "canonical")
+
+
+def reactivate_assignment_legacy(
+    assignment,
+    *,
+    actor: str | None = None,
+    reason: str = "legacy reactivation",
+) -> TransitionMeta:
+    _ = actor
+    _ = reason
+
+    previous = str(getattr(assignment, "assignment_status", "") or "").strip()
+    target = "assigned"
+
+    # Legacy reactivation path used while historical data still contains
+    # cancelled/inactive assignment rows that must be reused.
+    if previous not in {"cancelled", "accepted", "assigned"}:
+        raise InvalidStateTransition(
+            f"Legacy assignment reactivation not allowed: {previous} -> {target}"
+        )
+
+    update_fields = ["updated_at"]
+    if previous != target:
+        assignment.assignment_status = target
+        update_fields.append("assignment_status")
+    if not getattr(assignment, "is_active", False):
+        assignment.is_active = True
+        update_fields.append("is_active")
+
+    assignment.save(update_fields=update_fields)
+    return TransitionMeta(previous, previous, target, "legacy-reactivation")

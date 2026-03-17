@@ -1,22 +1,16 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}Worker Register{% endblock %}
 
 {% block content %}
 <div class="card">
-  <h2>Create your Worker account</h2>
-
-  <p style="color:#64748B;">
-    Fill the information below to continue.
-  </p>
-
-  <p style="color:#64748B;">
-    Join providers and complete jobs.
-  </p>
-
+  <h2>{% trans "Create your Worker account" %}</h2>
+  <p style="color:#64748B;">{% trans "Fill the information below to continue." %}</p>
+  <p style="color:#64748B;">{% trans "Join providers and complete jobs." %}</p>
   {% if form.errors %}
     <div class="form-alert form-alert-error" style="margin-bottom:16px; padding:12px 14px; border:1px solid #d9a3a3; border-radius:10px; background:#fff5f5; color:#7a1f1f;">
-      <strong>There was a problem with your submission.</strong>
+      <strong>{% trans "There was a problem with your submission." %}</strong>
       <ul style="margin:8px 0 0 18px;">
         {% for field in form %}
           {% for error in field.errors %}
@@ -29,46 +23,35 @@
       </ul>
     </div>
   {% endif %}
-
   <form method="post" novalidate>
     {% csrf_token %}
-
-    <label for="{{ form.full_name.id_for_label }}">Full name</label>
+    <label for="{{ form.full_name.id_for_label }}">{% trans "Full name" %}</label>
     {{ form.full_name }}
     {% if form.full_name.errors %}
       <p style="color:#991B1B;">{{ form.full_name.errors }}</p>
     {% endif %}
-
-    <label for="{{ form.email.id_for_label }}">Email</label>
+    <label for="{{ form.email.id_for_label }}">{% trans "Email" %}</label>
     {{ form.email }}
     {% if form.email.errors %}
       <p style="color:#991B1B;">{{ form.email.errors }}</p>
     {% endif %}
-
-    <label for="{{ form.country.id_for_label }}">Country</label>
+    <label for="{{ form.country.id_for_label }}">{% trans "Country" %}</label>
     {{ form.country }}
     {% if form.country.errors %}
       <p style="color:#991B1B;">{{ form.country.errors }}</p>
     {% endif %}
-
-    <label for="{{ form.phone_local.id_for_label }}">Phone number</label>
+    <label for="{{ form.phone_local.id_for_label }}">{% trans "Phone number" %}</label>
     {{ form.phone_local }}
     {% if form.phone_local.errors %}
       <p style="color:#991B1B;">{{ form.phone_local.errors }}</p>
     {% endif %}
-
     <div style="margin-bottom:25px;text-align:left;">
-      <label>Languages spoken</label>
+      <label>{% trans "Languages spoken" %}</label>
       {% with selected_languages=form.languages_spoken.value %}
         <div class="language-grid">
           {% for value, label in form.fields.languages_spoken.choices %}
             <label>
-              <input
-                type="checkbox"
-                name="languages_spoken"
-                value="{{ value }}"
-                {% if selected_languages and value in selected_languages %}checked{% endif %}
-              >
+              <input type="checkbox" name="languages_spoken" value="{{ value }}" {% if selected_languages and value in selected_languages %}checked{% endif %}>
               {{ label }}
             </label>
           {% endfor %}
@@ -78,27 +61,18 @@
         <p style="color:#991B1B;">{{ form.languages_spoken.errors }}</p>
       {% endif %}
     </div>
-
-    <label for="{{ form.password.id_for_label }}">Password</label>
+    <label for="{{ form.password.id_for_label }}">{% trans "Password" %}</label>
     {{ form.password }}
     {% if form.password.errors %}
       <p style="color:#991B1B;">{{ form.password.errors }}</p>
     {% endif %}
-
-    <label for="{{ form.confirm_password.id_for_label }}">Confirm password</label>
+    <label for="{{ form.confirm_password.id_for_label }}">{% trans "Confirm password" %}</label>
     {{ form.confirm_password }}
     {% if form.confirm_password.errors %}
       <p style="color:#991B1B;">{{ form.confirm_password.errors }}</p>
     {% endif %}
-
-    <button class="btn primary" type="submit">
-      Create account
-    </button>
+    <button class="btn primary" type="submit">{% trans "Create account" %}</button>
   </form>
-
-  <p style="margin-top:15px;color:#64748B;">
-    Already have an account?
-    <a href="{% url 'ui:login_choice' %}">Login</a>
-  </p>
+  <p style="margin-top:15px;color:#64748B;">{% trans "Already have an account?" %} <a href="{% url 'ui:login_choice' %}">{% trans "Login" %}</a></p>
 </div>
 {% endblock %}

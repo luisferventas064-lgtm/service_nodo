@@ -1,4 +1,5 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from core.utils.phone import PHONE_COUNTRY_CHOICES, PHONE_COUNTRY_NAMES, normalize_phone
 from service_type.models import ServiceType
@@ -13,21 +14,21 @@ from .models import (
 
 
 PROVIDER_ONBOARDING_TYPE_CHOICES = [
-    ("individual", "Individual"),
-    ("company", "Company"),
+    ("individual", _("Individual")),
+    ("company", _("Company")),
 ]
 
 LANGUAGE_CHOICES = [
-    ("English", "English"),
-    ("French", "French"),
-    ("Spanish", "Spanish"),
-    ("Arabic", "Arabic"),
-    ("Mandarin", "Mandarin"),
-    ("Italian", "Italian"),
-    ("Portuguese", "Portuguese"),
-    ("Russian", "Russian"),
-    ("Punjabi", "Punjabi"),
-    ("Vietnamese", "Vietnamese"),
+    ("English", _("English")),
+    ("French", _("French")),
+    ("Spanish", _("Spanish")),
+    ("Arabic", _("Arabic")),
+    ("Mandarin", _("Mandarin")),
+    ("Italian", _("Italian")),
+    ("Portuguese", _("Portuguese")),
+    ("Russian", _("Russian")),
+    ("Punjabi", _("Punjabi")),
+    ("Vietnamese", _("Vietnamese")),
 ]
 
 
@@ -43,23 +44,37 @@ def _split_contact_name(full_name: str) -> tuple[str, str]:
 
 
 class ProviderRegisterForm(forms.Form):
-    business_name = forms.CharField(max_length=255)
-    email = forms.EmailField()
-    country = forms.ChoiceField(choices=PHONE_COUNTRY_CHOICES, initial="CA")
-    phone_local = forms.CharField(max_length=20, label="Phone")
+    business_name = forms.CharField(max_length=255, label=_("Business name"))
+    email = forms.EmailField(label=_("Email"))
+    country = forms.ChoiceField(
+        choices=PHONE_COUNTRY_CHOICES,
+        initial="CA",
+        label=_("Country"),
+    )
+    phone_local = forms.CharField(max_length=20, label=_("Phone"))
     languages_spoken = forms.MultipleChoiceField(
         choices=LANGUAGE_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         required=False,
+        label=_("Languages spoken"),
     )
-    password = forms.CharField(widget=forms.PasswordInput())
-    confirm_password = forms.CharField(widget=forms.PasswordInput())
-    provider_type = forms.ChoiceField(choices=PROVIDER_ONBOARDING_TYPE_CHOICES)
+    password = forms.CharField(
+        widget=forms.PasswordInput(),
+        label=_("Password"),
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(),
+        label=_("Confirm password"),
+    )
+    provider_type = forms.ChoiceField(
+        choices=PROVIDER_ONBOARDING_TYPE_CHOICES,
+        label=_("Provider type"),
+    )
 
     def clean_email(self):
         email = self.cleaned_data["email"]
         if Provider.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError("A provider with this email already exists.")
+            raise forms.ValidationError(_("A provider with this email already exists."))
         return email
 
     def clean(self):
@@ -73,15 +88,21 @@ class ProviderRegisterForm(forms.Form):
                 self.add_error("phone_local", str(exc))
             else:
                 if Provider.objects.filter(phone_number=phone_number).exists():
-                    self.add_error("phone_local", "A provider with this phone number already exists.")
+                    self.add_error(
+                        "phone_local",
+                        _("A provider with this phone number already exists."),
+                    )
                 else:
                     cleaned_data["phone_number"] = phone_number
-                    cleaned_data["country_name"] = PHONE_COUNTRY_NAMES.get(country, "Canada")
+                    cleaned_data["country_name"] = PHONE_COUNTRY_NAMES.get(
+                        country,
+                        _("Canada"),
+                    )
 
         p1 = cleaned_data.get("password")
         p2 = cleaned_data.get("confirm_password")
         if p1 and p2 and p1 != p2:
-            raise forms.ValidationError("Passwords do not match.")
+            raise forms.ValidationError(_("Passwords do not match."))
 
         cleaned_data["languages_spoken"] = ", ".join(cleaned_data.get("languages_spoken", []))
 
@@ -89,18 +110,18 @@ class ProviderRegisterForm(forms.Form):
 
 
 class ProviderBillingForm(forms.ModelForm):
-    address_line1 = forms.CharField(max_length=255, label="Address Line")
+    address_line1 = forms.CharField(max_length=255, label=_("Address Line"))
     entity_type = forms.ChoiceField(
         choices=ProviderBillingProfile._meta.get_field("entity_type").choices,
         required=True,
-        label="Entity Type",
+        label=_("Entity Type"),
     )
-    legal_name = forms.CharField(max_length=255, required=True, label="Legal Name")
-    business_name = forms.CharField(max_length=255, required=False, label="Business Name")
-    gst_hst_number = forms.CharField(max_length=64, required=False, label="GST/HST Number")
-    qst_tvq_number = forms.CharField(max_length=64, required=False, label="QST/TVQ Number")
-    neq_number = forms.CharField(max_length=64, required=False, label="NEQ Number")
-    bn_number = forms.CharField(max_length=64, required=False, label="BN Number")
+    legal_name = forms.CharField(max_length=255, required=True, label=_("Legal Name"))
+    business_name = forms.CharField(max_length=255, required=False, label=_("Business Name"))
+    gst_hst_number = forms.CharField(max_length=64, required=False, label=_("GST/HST Number"))
+    qst_tvq_number = forms.CharField(max_length=64, required=False, label=_("QST/TVQ Number"))
+    neq_number = forms.CharField(max_length=64, required=False, label=_("NEQ Number"))
+    bn_number = forms.CharField(max_length=64, required=False, label=_("BN Number"))
 
     class Meta:
         model = Provider
@@ -182,8 +203,9 @@ class ProviderIndividualProfileForm(forms.ModelForm):
         choices=LANGUAGE_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         required=False,
+        label=_("Languages spoken"),
     )
-    accepts_terms = forms.BooleanField(required=True)
+    accepts_terms = forms.BooleanField(required=True, label=_("Accept terms"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -209,13 +231,14 @@ class ProviderIndividualProfileForm(forms.ModelForm):
 
 
 class ProviderCompanyProfileForm(forms.ModelForm):
-    contact_person_name = forms.CharField(max_length=255)
+    contact_person_name = forms.CharField(max_length=255, label=_("Contact person name"))
     languages_spoken = forms.MultipleChoiceField(
         choices=LANGUAGE_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         required=False,
+        label=_("Languages spoken"),
     )
-    accepts_terms = forms.BooleanField(required=True)
+    accepts_terms = forms.BooleanField(required=True, label=_("Accept terms"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -272,19 +295,19 @@ class ProviderInsuranceForm(forms.ModelForm):
             "insurance_company": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Insurance company",
+                    "placeholder": _("Insurance company"),
                 }
             ),
             "policy_number": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Policy number",
+                    "placeholder": _("Policy number"),
                 }
             ),
             "coverage_amount": forms.NumberInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Coverage amount",
+                    "placeholder": _("Coverage amount"),
                     "step": "0.01",
                     "min": "0",
                 }
@@ -316,37 +339,37 @@ class ProviderCertificateForm(forms.ModelForm):
             "cert_type": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Certificate type (example: RBQ)",
+                    "placeholder": _("Certificate type (example: RBQ)"),
                 }
             ),
             "cert_name": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Certificate name",
+                    "placeholder": _("Certificate name"),
                 }
             ),
             "taken_at": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Taken at / reference",
+                    "placeholder": _("Taken at / reference"),
                 }
             ),
             "issued_by": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Issued by",
+                    "placeholder": _("Issued by"),
                 }
             ),
             "issued_country": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Issued country",
+                    "placeholder": _("Issued country"),
                 }
             ),
             "issued_city": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "Issued city",
+                    "placeholder": _("Issued city"),
                 }
             ),
             "issued_date": forms.DateInput(
@@ -365,7 +388,7 @@ class ProviderCertificateForm(forms.ModelForm):
                 attrs={
                     "class": "form-control",
                     "rows": 3,
-                    "placeholder": "Notes",
+                    "placeholder": _("Notes"),
                 }
             ),
         }

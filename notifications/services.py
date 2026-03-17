@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from assignments.models import JobAssignment
-from jobs.models import JobEvent
+from jobs.models import JobEvent, JobProviderExclusion
 from providers.models import Provider, ProviderUser
 from .models import PushDevice, PushDispatchAttempt
 from .providers.fcm import send_fcm_push
@@ -220,7 +220,16 @@ def _resolve_job_event_recipients(job_event):
         for user in users:
             recipients[(user.pk, role)] = (user, role)
 
-    if job_event.event_type == JobEvent.EventType.WAITING_PROVIDER_RESPONSE:
+    if job_event.event_type == JobEvent.EventType.JOB_CREATED:
+        add(_resolve_client_users(client), PushDevice.Role.CLIENT)
+    elif job_event.event_type == JobEvent.EventType.WAITING_PROVIDER_RESPONSE:
+        if provider is not None and not JobProviderExclusion.objects.filter(
+            job_id=job_event.job_id,
+            provider_id=provider.provider_id,
+        ).exists():
+            add(_resolve_provider_users(provider), PushDevice.Role.PROVIDER)
+    elif job_event.event_type == JobEvent.EventType.JOB_EXPIRED:
+        add(_resolve_client_users(client), PushDevice.Role.CLIENT)
         add(_resolve_provider_users(provider), PushDevice.Role.PROVIDER)
     elif job_event.event_type == JobEvent.EventType.JOB_ACCEPTED:
         if job_event.actor_role == JobEvent.ActorRole.CLIENT:

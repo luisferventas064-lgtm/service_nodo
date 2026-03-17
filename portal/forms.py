@@ -2,6 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import re
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from providers.models import ProviderService
 
@@ -209,11 +210,23 @@ def _normalize_name(s: str) -> str:
 
 class ProviderServiceCreateForm(forms.ModelForm):
     # UI fields (not DB)
-    preset = forms.ChoiceField(choices=[], required=False)
-    is_addon = forms.BooleanField(required=False, initial=False)
+    preset = forms.ChoiceField(
+        choices=[],
+        required=False,
+        label=_("Service option"),
+    )
+    is_addon = forms.BooleanField(
+        required=False,
+        initial=False,
+        label=_("This is an add-on (extra)"),
+    )
 
     # Keep custom_name editable (DB field), but not required because preset can fill it.
-    custom_name = forms.CharField(max_length=150, required=False)
+    custom_name = forms.CharField(
+        max_length=150,
+        required=False,
+        label=_("Service name"),
+    )
 
     # Dollars in UI, cents in DB
     price = forms.DecimalField(
@@ -221,7 +234,8 @@ class ProviderServiceCreateForm(forms.ModelForm):
         decimal_places=2,
         min_value=Decimal("0.00"),
         required=True,
-        help_text="Enter the regular price in CAD (e.g., 120.00).",
+        label=_("Price (CAD)"),
+        help_text=_("Enter the regular price in CAD (e.g., 120.00)."),
     )
 
     class Meta:
@@ -233,10 +247,17 @@ class ProviderServiceCreateForm(forms.ModelForm):
 
         options = SERVICE_PRESETS_BY_TYPE_NAME.get(service_type_name, [])
         # Always offer Other (type)
-        preset_choices = [("", "Select an option")] + [(o, o) for o in options] + [("OTHER", "Other (type)")]
+        preset_choices = [("", _("Select an option"))] + [
+            (o, _(o)) for o in options
+        ] + [("OTHER", _("Other (type)"))]
         self.fields["preset"].choices = preset_choices
 
-        self.fields["custom_name"].widget.attrs.update({"placeholder": "Type a name (or choose an option above)"})
+        self.fields["custom_name"].label = _("Service name")
+        self.fields["custom_name"].widget.attrs.update(
+            {"placeholder": _("Type a name (or choose an option above)")}
+        )
+        self.fields["description"].label = _("Description")
+        self.fields["billing_unit"].label = _("Billing unit")
         self.fields["description"].widget.attrs.update({"rows": 4})
 
         # If editing an existing ADDON, pre-check the box and show name without prefix in the input
@@ -255,14 +276,17 @@ class ProviderServiceCreateForm(forms.ModelForm):
 
         # If preset selected (and not OTHER), use it as the base name unless user typed a name.
         if preset and preset not in ("OTHER",) and not name:
-            name = preset
+            name = str(dict(self.fields["preset"].choices).get(preset, preset))
 
         if preset == "OTHER" and not name:
-            self.add_error("custom_name", "Please enter a custom service name.")
+            self.add_error("custom_name", _("Please enter a custom service name."))
             return cleaned
 
         if not preset and not name:
-            self.add_error("custom_name", "Please select an option or enter a service name.")
+            self.add_error(
+                "custom_name",
+                _("Please select an option or enter a service name."),
+            )
             return cleaned
 
         # Apply ADDON prefix if needed

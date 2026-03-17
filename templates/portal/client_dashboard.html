@@ -1,8 +1,10 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Client Dashboard{% endblock %}
+{% block title %}{% trans "Client Dashboard" %}{% endblock %}
 
 {% block content %}
+{% url 'client_activity' as activity_url %}
 <style>
 .portal-actions {
   display: flex;
@@ -130,58 +132,58 @@
 </style>
 
 <div class="card">
-  <h1 class="card-title">Client Dashboard</h1>
+  <h1 class="card-title">{% trans "Client Dashboard" %}</h1>
   <p class="muted">
-    Welcome back, {{ client.first_name }}.
+    {% blocktrans with first_name=client.first_name %}Welcome back, {{ first_name }}.{% endblocktrans %}
   </p>
   <p class="muted">
-    {{ client.city }}, {{ client.province }}{% if languages %} | Languages: {{ languages|join:" • " }}{% endif %}
+    {{ client.city }}, {{ client.province }}{% if languages %} &middot; {% trans "Languages:" %} {{ languages|join:", " }}{% endif %}
   </p>
 
   <div class="portal-actions">
-    <a class="btn primary" href="{% url 'ui:marketplace_search' %}">Search Marketplace</a>
-    <a class="btn" href="{% url 'client_activity' %}">View Activity</a>
-    <a class="btn" href="{% url 'client_profile' %}">Profile</a>
-    <a class="btn" href="{% url 'client_billing' %}">Billing</a>
+    <a class="btn primary" href="{% url 'ui:marketplace_search' %}">{% trans "Search Marketplace" %}</a>
+    <a class="btn" href="{% url 'client_activity' %}">{% trans "View Activity" %}</a>
+    <a class="btn" href="{% url 'client_profile' %}">{% trans "Profile" %}</a>
+    <a class="btn" href="{% url 'client_billing' %}">{% trans "Billing" %}</a>
   </div>
 
   {% if not client.profile_completed %}
     <div class="portal-alert">
-      Your profile is incomplete.
-      <a href="{% url 'client_complete_profile' %}">Complete it here</a>.
+      {% trans "Your profile is incomplete." %}
+      <a href="{% url 'client_complete_profile' %}">{% trans "Complete it here" %}</a>.
     </div>
   {% endif %}
 </div>
 
 <div class="portal-stats">
   <div class="portal-stat">
-    <div class="k">Total Jobs</div>
+    <div class="k">{% trans "Total Jobs" %}</div>
     <div class="v">{{ stats.total_jobs|default:0 }}</div>
   </div>
   <div class="portal-stat">
-    <div class="k">Open Jobs</div>
+    <div class="k">{% trans "Open Jobs" %}</div>
     <div class="v">{{ stats.open_jobs|default:0 }}</div>
   </div>
   <div class="portal-stat">
-    <div class="k">Pending Your Action</div>
+    <div class="k">{% trans "Pending Your Action" %}</div>
     <div class="v">{{ stats.pending_client_action_jobs|default:0 }}</div>
   </div>
   <div class="portal-stat">
-    <div class="k">Completed</div>
+    <div class="k">{% trans "Completed" %}</div>
     <div class="v">{{ stats.completed_jobs|default:0 }}</div>
   </div>
   <div class="portal-stat">
-    <div class="k">Cancelled</div>
+    <div class="k">{% trans "Cancelled" %}</div>
     <div class="v">{{ stats.cancelled_jobs|default:0 }}</div>
   </div>
   <div class="portal-stat">
-    <div class="k">Total Finalized Billing</div>
+    <div class="k">{% trans "Total Finalized Billing" %}</div>
     <div class="v">${{ billed_total_amount|floatformat:2 }}</div>
   </div>
 </div>
 
 <div class="card">
-  <h2 style="margin-top:0;">Recent Active Jobs</h2>
+  <h2 style="margin-top:0;">{% trans "Recent Active Jobs" %}</h2>
 
   {% if recent_jobs %}
     <div class="portal-job-list">
@@ -199,27 +201,29 @@
               <div class="portal-job-meta">
                 <span class="portal-job-status">{{ job.get_job_status_display }}</span>
                 <span>
-                  Provider:
+                  {% trans "Provider:" %}
                   {% if job.selected_provider %}
                     {{ job.selected_provider }}
                   {% else %}
-                    Not assigned yet
+                    {% trans "Not assigned yet" %}
                   {% endif %}
                 </span>
-                <span>Created {{ job.created_at|date:"M d, Y H:i" }}</span>
+                <span>{% blocktrans with created_at=job.created_at|date:"M d, Y H:i" %}Created {{ created_at }}{% endblocktrans %}</span>
               </div>
             </div>
-            <a class="btn portal-job-action" href="{% url 'ui:request_status' job_id=job.job_id %}">View Status</a>
+            <a class="btn portal-job-action" href="{% url 'ui:request_status' job_id=job.job_id %}">{% trans "View Status" %}</a>
           </div>
         </div>
       {% endfor %}
     </div>
   {% else %}
     <p class="muted">
-      No active jobs right now. Review past requests in <a href="{% url 'client_activity' %}">Activity</a>
+      {% blocktrans trimmed with activity_url=activity_url %}
+      No active jobs right now. Review past requests in <a href="{{ activity_url }}">Activity</a>
       or explore the marketplace.
+      {% endblocktrans %}
     </p>
-    <a class="btn primary" href="{% url 'ui:marketplace_search' %}">Explore Marketplace</a>
+    <a class="btn primary" href="{% url 'ui:marketplace_search' %}">{% trans "Explore Marketplace" %}</a>
   {% endif %}
 </div>
 {% endblock %}

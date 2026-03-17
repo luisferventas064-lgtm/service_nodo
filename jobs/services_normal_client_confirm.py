@@ -7,6 +7,8 @@ from clients.lines_fee import ensure_client_fee_line
 from clients.ticketing import ensure_client_ticket
 from jobs.models import Job, JobEvent
 from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
+from jobs.services_state_transitions import transition_job_status
+from jobs.services_state_transitions import reactivate_assignment_legacy
 from jobs.services_pricing_snapshot import job_snapshot_currency, job_snapshot_subtotal_cents
 from assignments.models import JobAssignment
 from providers.lines import ensure_provider_base_line
@@ -49,8 +51,11 @@ def _activate_assignment_for_job(job: Job):
     )
 
     if not created and not assignment.is_active:
-        assignment.is_active = True
-        assignment.save(update_fields=["is_active"])
+        reactivate_assignment_legacy(
+            assignment,
+            actor=JobEvent.ActorRole.CLIENT,
+            reason="confirm_normal_job_by_client",
+        )
 
     if job.selected_provider_id:
         from providers.models import Provider
@@ -75,8 +80,13 @@ def confirm_normal_job_by_client(*, job_id: int, client_id: int):
     base_cents = job_snapshot_subtotal_cents(job)
     currency = job_snapshot_currency(job)
 
-    job.job_status = "assigned"
-    job.save(update_fields=["job_status", "updated_at"])
+    transition_job_status(
+        job,
+        Job.JobStatus.ASSIGNED,
+        actor=JobEvent.ActorRole.CLIENT,
+        reason="confirm_normal_job_by_client",
+        allow_legacy=True,
+    )
 
     assignment = _activate_assignment_for_job(job)
     create_job_event(

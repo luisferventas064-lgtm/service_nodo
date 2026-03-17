@@ -1,29 +1,30 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}NODO Internal Portal{% endblock %}
+{% block title %}{% trans "NODO Internal Portal" %}{% endblock %}
 
 {% block content %}
 <div style="max-width:760px; margin:24px auto; background:white; padding:24px; border-radius:10px; box-shadow:0 3px 10px rgba(0,0,0,0.06);">
-  <h1 style="margin-top:0;">NODO Internal Portal</h1>
+  <h1 style="margin-top:0;">{% trans "NODO Internal Portal" %}</h1>
 
   <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
 
-  <h2 style="margin-bottom:8px;">Requests</h2>
+  <h2 style="margin-bottom:8px;">{% trans "Requests" %}</h2>
   <ul style="margin:0; padding-left:20px;">
     <li style="margin:8px 0;">
-      Open Job by ID:
+      {% trans "Open Job by ID:" %}
       <form method="get" action="{% url 'ui:request_status_lookup' %}" style="display:inline-flex; gap:8px; align-items:center; margin-left:8px;">
         <input
           type="number"
           name="job_id"
-          placeholder="Job ID"
+          placeholder="{% trans 'Job ID' %}"
           style="width:120px; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px;"
         >
         <button
           type="submit"
           style="padding:8px 12px; border:none; border-radius:6px; background:#111827; color:white; cursor:pointer;"
         >
-          Open
+          {% trans "Open" %}
         </button>
       </form>
     </li>
@@ -31,24 +32,24 @@
 
   <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
 
-  <h2 style="margin-bottom:8px;">Provider</h2>
+  <h2 style="margin-bottom:8px;">{% trans "Provider" %}</h2>
   <ul style="margin:0; padding-left:20px;">
-    <li style="margin:8px 0;"><a href="/provider/jobs/" style="color:#0b5cab;">Provider Jobs</a></li>
+    <li style="margin:8px 0;"><a href="/provider/jobs/" style="color:#0b5cab;">{% trans "Provider Jobs" %}</a></li>
   </ul>
 
   <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
 
-  <h2 style="margin-bottom:8px;">Analytics</h2>
+  <h2 style="margin-bottom:8px;">{% trans "Analytics" %}</h2>
   <ul style="margin:0; padding-left:20px;">
-    <li style="margin:8px 0;"><a href="/dashboard/marketplace/" style="color:#0b5cab;">Marketplace Dashboard</a></li>
-    <li style="margin:8px 0;"><a href="/internal/analytics/marketplace/" style="color:#0b5cab;">Analytics JSON</a></li>
+    <li style="margin:8px 0;"><a href="/dashboard/marketplace/" style="color:#0b5cab;">{% trans "Marketplace Dashboard" %}</a></li>
+    <li style="margin:8px 0;"><a href="/internal/analytics/marketplace/" style="color:#0b5cab;">{% trans "Analytics JSON" %}</a></li>
   </ul>
 
   <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
 
-  <h2 style="margin-bottom:8px;">Admin</h2>
+  <h2 style="margin-bottom:8px;">{% trans "Admin" %}</h2>
   <ul style="margin:0; padding-left:20px;">
-    <li style="margin:8px 0;"><a href="/admin/" style="color:#0b5cab;">Django Admin</a></li>
+    <li style="margin:8px 0;"><a href="/admin/" style="color:#0b5cab;">{% trans "Django Admin" %}</a></li>
   </ul>
 </div>
 {% endblock %}

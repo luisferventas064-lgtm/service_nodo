@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Provider Dashboard" %}{% endblock %}
 
 {% block content %}
 <style>
@@ -26,32 +29,32 @@
 
 <div class="nodo-page">
   <div class="nodo-card">
-    <h1 class="nodo-title">Provider Dashboard</h1>
-    <p class="nodo-subtitle">Track your jobs and recent activity.</p>
+    <h1 class="nodo-title">{% trans "Provider Dashboard" %}</h1>
+    <p class="nodo-subtitle">{% trans "Track your jobs and recent activity." %}</p>
 
     <div class="nodo-grid kpi-grid">
       <div class="kpi">
-        <div class="kpi-label">Total jobs</div>
+        <div class="kpi-label">{% trans "Total jobs" %}</div>
         <div class="kpi-value">{{ counts.total }}</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Open</div>
+        <div class="kpi-label">{% trans "Open" %}</div>
         <div class="kpi-value">{{ counts.open }}</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Pending</div>
+        <div class="kpi-label">{% trans "Pending" %}</div>
         <div class="kpi-value">{{ counts.pending }}</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Completed</div>
+        <div class="kpi-label">{% trans "Completed" %}</div>
         <div class="kpi-value">{{ counts.completed }}</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Cancelled</div>
+        <div class="kpi-label">{% trans "Cancelled" %}</div>
         <div class="kpi-value">{{ counts.cancelled }}</div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Completed revenue</div>
+        <div class="kpi-label">{% trans "Completed revenue" %}</div>
         <div class="kpi-value">
           {% if revenue_cents %}
             ${{ revenue_amount|floatformat:2 }}
@@ -59,18 +62,18 @@
             $0
           {% endif %}
         </div>
-        <div class="kpi-hint">Based on quoted totals</div>
+        <div class="kpi-hint">{% trans "Based on quoted totals" %}</div>
       </div>
     </div>
 
     <div class="nodo-section">
-      <h2 class="nodo-h2">Recent jobs</h2>
+      <h2 class="nodo-h2">{% trans "Recent jobs" %}</h2>
       {% if recent_jobs %}
         <div class="table">
           <div class="table-head">
-            <div>ID</div>
-            <div>Status</div>
-            <div>Quoted total</div>
+            <div>{% trans "ID" %}</div>
+            <div>{% trans "Status" %}</div>
+            <div>{% trans "Quoted total" %}</div>
             <div></div>
           </div>
           {% for j in recent_jobs %}
@@ -85,13 +88,13 @@
                 {% endif %}
               </div>
               <div class="right">
-            <a class="link" href="{% url 'ui:provider_jobs' %}">View</a>
+                <a class="link" href="{% url 'ui:provider_jobs' %}">{% trans "View" %}</a>
               </div>
             </div>
           {% endfor %}
         </div>
       {% else %}
-        <p class="muted">No jobs yet.</p>
+        <p class="muted">{% trans "No jobs yet." %}</p>
       {% endif %}
     </div>
   </div>

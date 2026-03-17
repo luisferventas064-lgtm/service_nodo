@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Providers Nearby{% endblock %}
+{% block title %}{% trans "Providers Nearby" %}{% endblock %}
 
 {% block content %}
 <style>
@@ -161,20 +162,20 @@
   <div class="nearby-card">
     <h2 style="margin-top: 0;">
       {% if job %}
-        Providers near this job
+        {% trans "Providers near this job" %}
       {% else %}
-        Providers available in your area
+        {% trans "Providers available in your area" %}
       {% endif %}
     </h2>
     <p class="nearby-summary">
       {% if job %}
-        Job: <strong>#{{ job.job_id }}</strong>
-        <br>Address: <strong>{{ job.city }}, {{ job.province }} {{ job.postal_code }}</strong>
+        {% trans "Job:" %} <strong>#{{ job.job_id }}</strong>
+        <br>{% trans "Address:" %} <strong>{{ job.city }}, {{ job.province }} {{ job.postal_code }}</strong>
       {% else %}
-        Postal code / area: <strong>{{ postal_code|default:fsa|default:"-" }}</strong>
+        {% trans "Postal code / area:" %} <strong>{{ postal_code|default:fsa|default:"-" }}</strong>
       {% endif %}
       {% if selected_service_type %}
-        <br>Service: <strong>{{ selected_service_type.name }}</strong>
+        <br>{% trans "Service:" %} <strong>{{ selected_service_type.name }}</strong>
       {% endif %}
     </p>
 
@@ -196,39 +197,39 @@
         {% endif %}
 
         <div>
-          <label class="nearby-label" for="postal_code">Change address</label>
+          <label class="nearby-label" for="postal_code">{% trans "Change address" %}</label>
           <input
             class="nearby-input"
             id="postal_code"
             type="text"
             name="postal_code"
             value="{{ postal_code|default:fsa }}"
-            placeholder="Postal code or FSA"
+            placeholder="{% trans 'Postal code or FSA' %}"
           >
         </div>
 
         <div>
-          <label class="nearby-label" for="rating">Rating</label>
+          <label class="nearby-label" for="rating">{% trans "Rating" %}</label>
           <select class="nearby-select" id="rating" name="rating">
-            <option value="" {% if not rating %}selected{% endif %}>Any</option>
-            <option value="4" {% if rating == "4" %}selected{% endif %}>4+ stars</option>
-            <option value="4.5" {% if rating == "4.5" %}selected{% endif %}>4.5+ stars</option>
+            <option value="" {% if not rating %}selected{% endif %}>{% trans "Any" %}</option>
+            <option value="4" {% if rating == "4" %}selected{% endif %}>{% trans "4+ stars" %}</option>
+            <option value="4.5" {% if rating == "4.5" %}selected{% endif %}>{% trans "4.5+ stars" %}</option>
           </select>
         </div>
 
         <div>
-          <label class="nearby-label" for="search">Search provider, service or extra</label>
+          <label class="nearby-label" for="search">{% trans "Search provider, service or extra" %}</label>
           <input
             class="nearby-input"
             id="search"
             type="text"
             name="search"
             value="{{ search }}"
-            placeholder="Search provider, service or extra"
+            placeholder="{% trans 'Search provider, service or extra' %}"
           >
         </div>
 
-        <button type="submit" class="nearby-button">Update results</button>
+        <button type="submit" class="nearby-button">{% trans "Update results" %}</button>
       </form>
     {% endif %}
 
@@ -247,37 +248,50 @@
                 </div>
               {% endif %}
               <h3 class="nearby-provider-name">{{ provider_offer.provider_display_name }}</h3>
-              <p class="nearby-provider-meta">Rating: {{ provider_offer.safe_rating|floatformat:1 }}</p>
-              <p class="nearby-provider-meta">Service: {{ provider_offer.service_type_name }}</p>
+              <p class="nearby-provider-meta">{% trans "Rating:" %} {{ provider_offer.safe_rating|floatformat:1 }}</p>
+              <p class="nearby-provider-meta">{% trans "Service:" %} {{ provider_offer.service_type_name }}</p>
               {% if provider_offer.distance_km is not None %}
-                <p class="nearby-provider-meta">Distance: {{ provider_offer.distance_km|floatformat:2 }} km</p>
+                <p class="nearby-provider-meta">{% trans "Distance:" %} {{ provider_offer.distance_km|floatformat:2 }} km</p>
               {% endif %}
               {% if provider_offer.score is not None %}
-                <p class="nearby-provider-meta">Score: {{ provider_offer.score|floatformat:2 }}</p>
+                <p class="nearby-provider-meta">{% trans "Score:" %} {{ provider_offer.score|floatformat:2 }}</p>
               {% endif %}
               <p class="nearby-provider-meta">
-                Price from ${{ provider_offer.display_price|floatformat:2 }}
-                / {{ provider_offer.get_billing_unit_display|default:provider_offer.billing_unit }}
+                {% trans "Price from" %} ${{ provider_offer.display_price|floatformat:2 }}
+                /
+                {% if provider_offer.billing_unit == "hour" %}
+                  {% trans "Per Hour" %}
+                {% elif provider_offer.billing_unit == "fixed" %}
+                  {% trans "Fixed Price" %}
+                {% elif provider_offer.billing_unit == "sqm" %}
+                  {% trans "Per Square Meter" %}
+                {% elif provider_offer.billing_unit == "km" %}
+                  {% trans "Per Kilometer" %}
+                {% elif provider_offer.billing_unit == "day" %}
+                  {% trans "Per Day" %}
+                {% else %}
+                  {{ provider_offer.billing_unit }}
+                {% endif %}
               </p>
             </div>
 
             {% if job %}
-              <span class="nearby-disabled">Distance candidate</span>
+              <span class="nearby-disabled">{% trans "Distance candidate" %}</span>
             {% elif provider_offer.is_compliant %}
               <a
                 class="nearby-link"
                 href="{% url 'ui:request_create' provider_offer.provider_id %}?service_type_id={{ service_type_id }}{% if postal_code %}&amp;postal_code={{ postal_code|urlencode }}{% endif %}{% if city %}&amp;city={{ city|urlencode }}{% endif %}{% if province %}&amp;province={{ province|urlencode }}{% endif %}{% if search %}&amp;search={{ search|urlencode }}{% endif %}{% if service_timing %}&amp;service_timing={{ service_timing|urlencode }}{% endif %}"
               >
-                View Service
+                {% trans "View Service" %}
               </a>
             {% else %}
-              <span class="nearby-disabled">Compliance required</span>
+              <span class="nearby-disabled">{% trans "Compliance required" %}</span>
             {% endif %}
           </article>
         {% endfor %}
       </div>
     {% elif not error %}
-      <p class="nearby-empty">No providers found in this area.</p>
+      <p class="nearby-empty">{% trans "No providers found in this area." %}</p>
     {% endif %}
   </div>
 </div>

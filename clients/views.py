@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from core.auth_session import require_role
 from core.services.sms_service import send_sms
@@ -248,7 +249,7 @@ def client_activity(request):
         "clients/activity.html",
         {
             "client": client,
-            "activity_page_title": "Activity History",
+            "activity_page_title": _("Activity History"),
             **build_activity_view_context(
                 "client",
                 client,

@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Incoming Jobs" %}{% endblock %}
+
+{% block content %}
+<style>
+  .incoming-jobs-wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
+
+  .incoming-jobs-title {
+    margin: 0 0 6px;
+    font-size: 1.9rem;
+    color: #16313a;
+  }
+
+  .incoming-jobs-subtitle {
+    margin: 0 0 22px;
+    color: #5f7280;
+  }
+
+  .incoming-jobs-count {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 18px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #eef8f7;
+    color: #0f8f8a;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .incoming-jobs-grid {
+    display: grid;
+    gap: 18px;
+  }
+
+  .incoming-job-card {
+    background: #ffffff;
+    border: 1px solid #e7eef1;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(18, 46, 58, 0.06);
+  }
+
+  .incoming-job-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .incoming-job-title {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    color: #16313a;
+  }
+
+  .incoming-job-reference {
+    color: #6a7f89;
+    font-size: 0.95rem;
+  }
+
+  .incoming-job-subtitle {
+    margin-top: 4px;
+    color: #607480;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .incoming-job-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .incoming-job-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .incoming-job-box {
+    background: #f8fbfc;
+    border: 1px solid #edf3f5;
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .incoming-job-label {
+    display: block;
+    margin-bottom: 4px;
+    color: #79909b;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .incoming-job-value {
+    color: #18343d;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .incoming-job-value--soft {
+    font-weight: 500;
+    color: #49606b;
+  }
+
+  .incoming-job-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .incoming-job-actions form {
+    margin: 0;
+  }
+
+  .incoming-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 11px 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .incoming-btn-primary {
+    background: #0fb9b1;
+    color: #ffffff;
+  }
+
+  .incoming-btn-secondary {
+    background: #f9d9de;
+    color: #a14b5b;
+  }
+
+  .incoming-empty {
+    background: #ffffff;
+    border: 1px dashed #cfe1e6;
+    border-radius: 18px;
+    padding: 30px;
+    text-align: center;
+    color: #5f7280;
+  }
+
+  .incoming-flash {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+
+  .incoming-flash.success {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .incoming-flash.warning,
+  .incoming-flash.error {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  @media (max-width: 720px) {
+    .incoming-job-top {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="incoming-jobs-wrap">
+  <h1 class="incoming-jobs-title">{% trans "Incoming Jobs" %}</h1>
+  <p class="incoming-jobs-subtitle">{% trans "Review new service requests and respond quickly." %}</p>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="incoming-flash {% if message.tags == 'success' %}success{% else %}{{ message.tags|default:'warning' }}{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="incoming-jobs-count">
+    {% blocktrans count counter=incoming_jobs_count %}
+    {{ counter }} incoming request
+    {% plural %}
+    {{ counter }} incoming requests
+    {% endblocktrans %}
+  </div>
+
+  {% if jobs %}
+    <div class="incoming-jobs-grid">
+      {% for job in jobs %}
+        <div class="incoming-job-card">
+          <div class="incoming-job-top">
+            <div>
+              <h2 class="incoming-job-title">{{ job.incoming_service_name }}</h2>
+              {% if job.incoming_main_offer_name and job.incoming_main_offer_name != job.incoming_service_name %}
+                <div class="incoming-job-subtitle">{{ job.incoming_main_offer_name }}</div>
+              {% endif %}
+              <div class="incoming-job-reference">
+                {% trans "Request" %} #{{ job.job_id }}
+                {% if job.public_reference %}
+                  &middot; {{ job.public_reference }}
+                {% endif %}
+              </div>
+            </div>
+
+            <span class="incoming-job-badge">{% trans "New service request" %}</span>
+          </div>
+
+          <div class="incoming-job-grid">
+            <div class="incoming-job-box">
+              <span class="incoming-job-label">{% trans "Service" %}</span>
+              <div class="incoming-job-value">{{ job.service_type.name }}</div>
+            </div>
+
+            <div class="incoming-job-box">
+              <span class="incoming-job-label">{% trans "Location" %}</span>
+              <div class="incoming-job-value">{{ job.incoming_location_label }}</div>
+            </div>
+
+            <div class="incoming-job-box">
+              <span class="incoming-job-label">{% trans "Timing" %}</span>
+              <div class="incoming-job-value">{{ job.incoming_timing_label }}</div>
+            </div>
+
+            <div class="incoming-job-box">
+              <span class="incoming-job-label">{% trans "Scheduled For" %}</span>
+              <div class="incoming-job-value">{{ job.incoming_schedule_display }}</div>
+            </div>
+
+            <div class="incoming-job-box">
+              <span class="incoming-job-label">{% trans "Estimated Total" %}</span>
+              <div class="incoming-job-value">
+                {% if job.incoming_price_value != None %}
+                  ${{ job.incoming_price_value|floatformat:2 }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="incoming-job-box">
+              <span class="incoming-job-label">{% trans "Billing Unit" %}</span>
+              <div class="incoming-job-value">
+                {{ job.incoming_billing_unit_display|default:"-" }}
+              </div>
+            </div>
+
+            <div class="incoming-job-box">
+              <span class="incoming-job-label">{% trans "Address" %}</span>
+              <div class="incoming-job-value incoming-job-value--soft">
+                {{ job.incoming_address_detail|default:"-" }}
+              </div>
+            </div>
+
+            {% if job.incoming_unit_display %}
+              <div class="incoming-job-box">
+                <span class="incoming-job-label">{% trans "Unit / Suite" %}</span>
+                <div class="incoming-job-value">{{ job.incoming_unit_display }}</div>
+              </div>
+            {% endif %}
+
+            {% if job.incoming_access_notes %}
+              <div class="incoming-job-box">
+                <span class="incoming-job-label">{% trans "Access Notes" %}</span>
+                <div class="incoming-job-value incoming-job-value--soft">{{ job.incoming_access_notes }}</div>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="incoming-job-actions">
+            <form method="post" action="{% url 'ui:provider_accept_job' job.job_id %}">
+              {% csrf_token %}
+              <button class="incoming-btn incoming-btn-primary" type="submit">{% trans "Accept" %}</button>
+            </form>
+
+            <form method="post" action="{% url 'ui:provider_decline_job' job.job_id %}">
+              {% csrf_token %}
+              <button class="incoming-btn incoming-btn-secondary" type="submit">{% trans "Decline" %}</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="incoming-empty">
+      {% trans "No incoming jobs right now." %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

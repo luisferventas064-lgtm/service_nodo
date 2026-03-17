@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Client Activity{% endblock %}
+{% block title %}{% trans "Client Activity" %}{% endblock %}
 
 {% block content %}
 {% include "jobs/_activity_content.html" %}

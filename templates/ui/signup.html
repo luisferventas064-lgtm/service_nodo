@@ -1,27 +1,30 @@
 {% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign Up" %}{% endblock %}
 
 {% block content %}
 
 <div class="card">
 
-<h2 style="text-align:center;">Create an account</h2>
+<h2 style="text-align:center;">{% trans "Create an account" %}</h2>
 
 <p style="text-align:center;color:#64748B;">
-Choose how you want to sign up
+{% trans "Choose how you want to sign up" %}
 </p>
 
 <div class="role-grid">
 
 <a class="role-card client" href="{% url 'client_register' %}">
 
-<div class="role-title">Client</div>
+<div class="role-title">{% trans "Client" %}</div>
 
 <div class="role-desc">
-Find and request trusted local services
+{% trans "Find and request trusted local services" %}
 </div>
 
 <div class="role-action">
-Sign up as Client →
+{% trans "Sign up as Client" %} &rarr;
 </div>
 
 </a>
@@ -29,14 +32,14 @@ Sign up as Client →
 
 <a class="role-card provider" href="{% url 'provider_register' %}">
 
-<div class="role-title">Provider</div>
+<div class="role-title">{% trans "Provider" %}</div>
 
 <div class="role-desc">
-Offer services and manage service requests
+{% trans "Offer services and manage service requests" %}
 </div>
 
 <div class="role-action">
-Sign up as Provider →
+{% trans "Sign up as Provider" %} &rarr;
 </div>
 
 </a>
@@ -44,14 +47,14 @@ Sign up as Provider →
 
 <a class="role-card worker" href="{% url 'worker_register' %}">
 
-<div class="role-title">Worker</div>
+<div class="role-title">{% trans "Worker" %}</div>
 
 <div class="role-desc">
-Work with providers and complete service jobs
+{% trans "Work with providers and complete service jobs" %}
 </div>
 
 <div class="role-action">
-Sign up as Worker →
+{% trans "Sign up as Worker" %} &rarr;
 </div>
 
 </a>

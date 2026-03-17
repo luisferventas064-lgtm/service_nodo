@@ -1,24 +1,35 @@
+{% load i18n %}
+{% trans "this service" as default_service_name %}
+
 {% if compliance_result %}
   {% if compliance_result.is_compliant %}
     <div class="compliance-box compliance-ok">
-      Compliant{% if service_type_name or compliance_province_code %} for {{ service_type_name|default:"this service" }}{% if compliance_province_code %} in {{ compliance_province_code }}{% endif %}{% endif %}.
+      {% if service_type_name or compliance_province_code %}
+        {% if compliance_province_code %}
+          {% blocktrans with service_name=service_type_name|default:default_service_name province=compliance_province_code %}Compliant for {{ service_name }} in {{ province }}.{% endblocktrans %}
+        {% else %}
+          {% blocktrans with service_name=service_type_name|default:default_service_name %}Compliant for {{ service_name }}.{% endblocktrans %}
+        {% endif %}
+      {% else %}
+        {% trans "Compliant." %}
+      {% endif %}
     </div>
   {% else %}
     {% if compliance_result.missing_certificates %}
       <div class="compliance-box compliance-warning">
-        Missing certificates: {{ compliance_result.missing_certificates|join:", " }}
+        {% blocktrans with certificates=compliance_result.missing_certificates|join:", " %}Missing certificates: {{ certificates }}{% endblocktrans %}
       </div>
     {% endif %}
     {% if compliance_result.missing_insurance %}
       <div class="compliance-box compliance-warning">
-        Insurance is required for this service and province. Verified insurance is still missing.
+        {% trans "Insurance is required for this service and province. Verified insurance is still missing." %}
       </div>
     {% endif %}
   {% endif %}
 
   {% if compliance_result.insurance_required and not compliance_result.missing_insurance %}
     <div class="compliance-box compliance-info">
-      Insurance is required for this service and province.
+      {% trans "Insurance is required for this service and province." %}
     </div>
   {% endif %}
 {% endif %}

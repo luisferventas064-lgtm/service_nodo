@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block content %}
 <div class="container page">
   <div class="card">
-    <h2 class="card-title">Marketplace</h2>
+    <h2 class="card-title">{% trans "Marketplace" %}</h2>
 
   <form method="get" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:end; margin-bottom:24px;">
     <input
@@ -18,7 +19,7 @@
       <input type="hidden" name="provider_name" value="{{ provider_name }}">
     {% endif %}
     <div style="grid-column:1 / -1; padding:14px; border:1px solid #d1d5db; border-radius:10px; background:#f8fafc;">
-      <div style="font-weight:700; margin-bottom:10px;">When do you need the service?</div>
+      <div style="font-weight:700; margin-bottom:10px;">{% trans "When do you need the service?" %}</div>
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
         {% for value, label, help_text in service_timing_choices %}
           <label style="display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid #d1d5db; border-radius:8px; background:#fff;">
@@ -31,23 +32,25 @@
         {% endfor %}
       </div>
       <div style="margin-top:10px; font-size:12px; color:#4b5563;">
+        {% blocktrans trimmed %}
         Emergency sends your request to immediate dispatch. Urgent prioritizes fast available options. Scheduled lets you browse and choose providers normally.
+        {% endblocktrans %}
       </div>
       {% if timing_required %}
         <div style="margin-top:10px; color:#991b1b; font-size:13px; font-weight:600;">
-          Choose when you need the service before searching providers.
+          {% trans "Choose when you need the service before searching providers." %}
         </div>
       {% endif %}
     </div>
 
     <div>
-      <label for="service_type" style="display:block; margin-bottom:6px; font-weight:bold;">Service</label>
+      <label for="service_type" style="display:block; margin-bottom:6px; font-weight:bold;">{% trans "Service" %}</label>
       <select id="service_type" name="service_type" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        <option value="">Select service</option>
+        <option value="">{% trans "Select service" %}</option>
         {% for st in service_types %}
           {% if st.service_type_id %}
             <option value="{{ st.service_type_id }}"{% if selected_service_type and selected_service_type.service_type_id == st.service_type_id %} selected{% endif %}>
-              {{ st.name }}
+              {{ st.localized_name }}
             </option>
           {% endif %}
         {% endfor %}
@@ -55,12 +58,12 @@
     </div>
 
     <div>
-      <label for="postal_code" style="display:block; margin-bottom:6px; font-weight:bold;">Postal code</label>
+      <label for="postal_code" style="display:block; margin-bottom:6px; font-weight:bold;">{% trans "Postal code" %}</label>
       <input
         id="postal_code"
         type="text"
         name="postal_code"
-        placeholder="Postal code (example: H2X 1A4)"
+        placeholder="{% trans 'Postal code (example: H2X 1A4)' %}"
         value="{{ form_data.postal_code|default:'' }}"
         data-manual-value="{{ selected_postal_code|default:'' }}"
         data-profile-value="{{ profile_address.postal_code|default:'' }}"
@@ -70,12 +73,12 @@
     </div>
 
     <div>
-      <label for="city" style="display:block; margin-bottom:6px; font-weight:bold;">City</label>
+      <label for="city" style="display:block; margin-bottom:6px; font-weight:bold;">{% trans "City" %}</label>
       <input
         id="city"
         type="text"
         name="city"
-        placeholder="City"
+        placeholder="{% trans 'City' %}"
         value="{{ form_data.city|default:'' }}"
         data-manual-value="{{ selected_city|default:'' }}"
         data-profile-value="{{ profile_address.city|default:'' }}"
@@ -87,13 +90,13 @@
     <label style="display:flex; align-items:center; gap:8px; font-weight:bold; min-height:42px;">
       <input type="hidden" name="use_profile_address" value="0">
       <input type="checkbox" name="use_profile_address" id="use_profile_address" value="1"{% if form_data.use_profile_address %} checked{% endif %}>
-      Use profile address
+      {% trans "Use profile address" %}
     </label>
 
     <div>
-      <label for="language" style="display:block; margin-bottom:6px; font-weight:bold;">Language</label>
+      <label for="language" style="display:block; margin-bottom:6px; font-weight:bold;">{% trans "Language" %}</label>
       <select id="language" name="language" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
-        <option value="">Any language</option>
+        <option value="">{% trans "Any language" %}</option>
         {% for language in language_options %}
           <option value="{{ language }}"{% if selected_language == language %} selected{% endif %}>
             {{ language }}
@@ -104,46 +107,50 @@
 
     <label style="display:flex; align-items:center; gap:8px; font-weight:bold; min-height:42px;">
       <input type="checkbox" name="only_certified" value="1"{% if only_certified %} checked{% endif %}>
-      Only certified
+      {% trans "Only certified" %}
     </label>
 
     <label style="display:flex; align-items:center; gap:8px; font-weight:bold; min-height:42px;">
       <input type="checkbox" name="only_insured" value="1"{% if only_insured %} checked{% endif %}>
-      Only insured
+      {% trans "Only insured" %}
     </label>
 
-    <button type="submit" style="background:#111827; color:white; border:none; border-radius:6px; padding:10px 16px; cursor:pointer;">Search</button>
+    <button type="submit" style="background:#111827; color:white; border:none; border-radius:6px; padding:10px 16px; cursor:pointer;">{% trans "Search" %}</button>
   </form>
 
   {% if mode == "services" %}
-    <h2>Popular Services</h2>
+    <h2>{% trans "Popular Services" %}</h2>
 
     <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;">
       {% for service in service_types %}
         <a href="?service_type={{ service.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}&amp;use_profile_address={% if form_data.use_profile_address %}1{% else %}0{% endif %}{% if link_province %}&amp;province={{ link_province|urlencode }}{% endif %}{% if link_postal_code %}&amp;postal_code={{ link_postal_code|urlencode }}{% endif %}{% if link_city %}&amp;city={{ link_city|urlencode }}{% endif %}{% if provider_name %}&amp;provider_name={{ provider_name|urlencode }}{% endif %}"
            style="display:block; padding:12px; border:1px solid #ccc; border-radius:10px; text-decoration:none;">
           <div style="font-weight:600;">{{ service.name }}</div>
-          <div style="font-size:12px; opacity:.7;">ID: {{ service.service_type_id }}</div>
+          <div style="font-size:12px; opacity:.7;">
+            {% blocktrans trimmed with service_type_id=service.service_type_id %}ID: {{ service_type_id }}{% endblocktrans %}
+          </div>
         </a>
       {% empty %}
-        <p>No services available.</p>
+        <p>{% trans "No services available." %}</p>
       {% endfor %}
     </div>
   {% endif %}
 
   {% if mode == "emergency" %}
     <div style="padding:18px; border:1px solid #fecaca; border-radius:12px; background:#fff7ed;">
-      <h2 style="margin:0 0 10px;">Emergency request</h2>
+      <h2 style="margin:0 0 10px;">{% trans "Emergency request" %}</h2>
       <p style="margin:0 0 14px; color:#7c2d12;">
+        {% blocktrans trimmed %}
         Emergency requests are handled through immediate dispatch and do not use the normal provider marketplace list.
+        {% endblocktrans %}
       </p>
       {% if emergency_cta_url %}
         <a href="{{ emergency_cta_url }}" style="display:inline-flex; align-items:center; justify-content:center; padding:10px 16px; border-radius:8px; background:#111827; color:#fff; text-decoration:none; font-weight:600;">
-          Continue to emergency request
+          {% trans "Continue to emergency request" %}
         </a>
       {% else %}
         <div style="font-size:13px; color:#7c2d12;">
-          Add a postal code to continue to the emergency request flow.
+          {% trans "Add a postal code to continue to the emergency request flow." %}
         </div>
       {% endif %}
     </div>
@@ -306,9 +313,9 @@
 
     <h2>
       {% if selected_service_timing == "urgent" %}
-        Fast options for the next 24 hours
+        {% trans "Fast options for the next 24 hours" %}
       {% else %}
-        {{ selected_service_type.name }} Providers
+        {% blocktrans trimmed with service_name=selected_service_type.name %}{{ service_name }} Providers{% endblocktrans %}
       {% endif %}
     </h2>
 
@@ -340,16 +347,16 @@
           type="text"
           name="q"
           value="{{ selected_query|default:'' }}"
-          placeholder="Search provider, service, skill or extra"
+          placeholder="{% trans 'Search provider, service, skill or extra' %}"
         >
         <input
           class="marketplace-search__input"
           type="text"
           name="provider_name"
           value="{{ provider_name|default:'' }}"
-          placeholder="Search provider name"
+          placeholder="{% trans 'Search provider name' %}"
         >
-        <button type="submit" class="marketplace-search__button">Search</button>
+        <button type="submit" class="marketplace-search__button">{% trans "Search" %}</button>
       </form>
     </div>
 
@@ -367,7 +374,9 @@
         <div class="provider-info">
           <div class="provider-name-row">
             <strong>{{ p.card_display_name }}</strong>
-            <span class="provider-line provider-line--meta">Rating {{ p.provider.avg_rating|default:"0.0" }}</span>
+            <span class="provider-line provider-line--meta">
+              {% blocktrans trimmed with rating=p.provider.avg_rating|default:"0.0" %}Rating {{ rating }}{% endblocktrans %}
+            </span>
           </div>
 
           <div class="provider-line provider-line--service">
@@ -375,7 +384,7 @@
           </div>
 
           <div class="provider-line provider-line--price">
-            From ${{ p.display_price|floatformat:2 }}
+            {% blocktrans trimmed with price=p.display_price|floatformat:2 %}From ${{ price }}{% endblocktrans %}
           </div>
 
           <div class="provider-actions">
@@ -384,16 +393,16 @@
               class="provider-link"
               href="{% url 'ui:request_create' p.provider_id %}?service_type_id={{ p.service_type_id }}{% if selected_service_timing %}&amp;service_timing={{ selected_service_timing }}{% endif %}{% if link_province %}&amp;province={{ link_province|urlencode }}{% endif %}{% if link_postal_code %}&amp;postal_code={{ link_postal_code|urlencode }}{% endif %}{% if link_city %}&amp;city={{ link_city|urlencode }}{% endif %}{% if provider_name %}&amp;provider_name={{ provider_name|urlencode }}{% endif %}"
             >
-              View
+              {% trans "View" %}
             </a>
           {% else %}
-            <span class="provider-status">Compliance required</span>
+            <span class="provider-status">{% trans "Compliance required" %}</span>
           {% endif %}
           </div>
         </div>
       </div>
     {% empty %}
-      <p>No providers found.</p>
+      <p>{% trans "No providers found." %}</p>
     {% endfor %}
     </div>
   {% endif %}

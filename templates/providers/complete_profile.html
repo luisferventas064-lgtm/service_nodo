@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Complete Provider Profile{% endblock %}
+{% block title %}{% trans "Complete Provider Profile" %}{% endblock %}
 
 {% block content %}
 <style>
@@ -347,8 +348,12 @@
 
 <div class="page">
   <div class="page-header">
-    <h1>Complete Your Profile</h1>
-    <p>Finish the remaining requirements to activate your provider account and unlock the provider dashboard.</p>
+    <h1>{% trans "Complete Your Profile" %}</h1>
+    <p>
+      {% blocktrans trimmed %}
+      Finish the remaining requirements to activate your provider account and unlock the provider dashboard.
+      {% endblocktrans %}
+    </p>
   </div>
 
   {% if messages %}
@@ -358,34 +363,44 @@
   {% endif %}
 
   <div class="card">
-    <h2>Completion Status</h2>
-    <p class="muted">This page is now a checklist only. Profile details, service areas, and insurance are managed in their own pages.</p>
+    <h2>{% trans "Completion Status" %}</h2>
+    <p class="muted">
+      {% blocktrans trimmed %}
+      This page is now a checklist only. Profile details, service areas, and insurance are managed in their own pages.
+      {% endblocktrans %}
+    </p>
 
     <div class="status-grid">
       <div class="status-item">
-        <div class="status-label">Required steps completed</div>
+        <div class="status-label">{% trans "Required steps completed" %}</div>
         <div class="status-value">{{ completed_required_steps }}/{{ required_steps_total }}</div>
       </div>
 
       <div class="status-item">
-        <div class="status-label">Phone verification</div>
-        <div class="status-value">{% if provider.is_phone_verified %}Verified{% else %}Pending{% endif %}</div>
+        <div class="status-label">{% trans "Phone verification" %}</div>
+        <div class="status-value">
+          {% if provider.is_phone_verified %}
+            {% trans "Verified" %}
+          {% else %}
+            {% trans "Pending" %}
+          {% endif %}
+        </div>
       </div>
 
       <div class="status-item">
-        <div class="status-label">Insurance</div>
+        <div class="status-label">{% trans "Insurance" %}</div>
         <div class="status-value">{{ insurance_status }}</div>
       </div>
 
       <div class="status-item">
-        <div class="status-label">Certificates</div>
+        <div class="status-label">{% trans "Certificates" %}</div>
         <div class="status-value">{{ certificates_status }}</div>
       </div>
     </div>
 
     {% if missing_required_steps %}
       <div class="notice notice-warning">
-        <strong>Still missing:</strong>
+        <strong>{% trans "Still missing:" %}</strong>
         <ul class="missing-list">
           {% for item in missing_required_steps %}
             <li>{{ item }}</li>
@@ -396,8 +411,12 @@
   </div>
 
   <div class="card">
-    <h2>Required Steps</h2>
-    <p class="muted">These are the actual requirements currently used to mark your provider profile as complete.</p>
+    <h2>{% trans "Required Steps" %}</h2>
+    <p class="muted">
+      {% blocktrans trimmed %}
+      These are the actual requirements currently used to mark your provider profile as complete.
+      {% endblocktrans %}
+    </p>
 
     <div class="checklist">
       <div class="check-item">
@@ -408,16 +427,22 @@
 
         <div class="check-actions">
           <span class="badge {% if profile_details_complete %}badge-complete{% else %}badge-missing{% endif %}">
-            {% if profile_details_complete %}Complete{% else %}Missing{% endif %}
+            {% if profile_details_complete %}
+              {% trans "Complete" %}
+            {% else %}
+              {% trans "Missing" %}
+            {% endif %}
           </span>
-          <a href="{% url 'provider_edit' %}" class="btn btn-secondary">Edit Profile</a>
+          <a href="{% url 'provider_edit' %}" class="btn btn-secondary">{% trans "Edit Profile" %}</a>
         </div>
       </div>
 
       <div class="check-item">
         <div class="check-copy">
-          <div class="check-title">Active service areas</div>
-          <div class="check-description">At least one active service area is required for profile completion.</div>
+          <div class="check-title">{% trans "Active service areas" %}</div>
+          <div class="check-description">
+            {% trans "At least one active service area is required for profile completion." %}
+          </div>
           {% if active_areas %}
             <div class="check-detail">
               {% for area in active_areas %}
@@ -429,16 +454,24 @@
 
         <div class="check-actions">
           <span class="badge {% if has_active_area %}badge-complete{% else %}badge-missing{% endif %}">
-            {% if has_active_area %}Complete{% else %}Missing{% endif %}
+            {% if has_active_area %}
+              {% trans "Complete" %}
+            {% else %}
+              {% trans "Missing" %}
+            {% endif %}
           </span>
-          <a href="{% url 'provider_service_areas' %}" class="btn btn-secondary">Manage Service Areas</a>
+          <a href="{% url 'provider_service_areas' %}" class="btn btn-secondary">{% trans "Manage Service Areas" %}</a>
         </div>
       </div>
 
       <div class="check-item">
         <div class="check-copy">
-          <div class="check-title">Terms and Conditions</div>
-          <div class="check-description">You must review and accept the Terms and Conditions before completing your provider profile.</div>
+          <div class="check-title">{% trans "Terms and Conditions" %}</div>
+          <div class="check-description">
+            {% blocktrans trimmed %}
+            You must review and accept the Terms and Conditions before completing your provider profile.
+            {% endblocktrans %}
+          </div>
 
           <div class="terms-panel">
             <form method="post" class="terms-form">
@@ -452,23 +485,23 @@
                   {% if provider.accepts_terms %}checked disabled{% else %}required{% endif %}
                 >
                 <span>
-                  I have read and accept the
+                  {% trans "I have read and accept the" %}
                   <a href="{% url 'ui:terms_and_conditions' %}" target="_blank" rel="noopener" class="terms-link">
-                    Terms and Conditions
+                    {% trans "Terms and Conditions" %}
                   </a>.
                 </span>
               </label>
 
               {% if provider.accepts_terms %}
                 <div class="terms-note terms-note-success">
-                  Terms already accepted.
+                  {% trans "Terms already accepted." %}
                 </div>
               {% else %}
                 <div class="terms-note">
-                  Acceptance is required to complete your base provider profile.
+                  {% trans "Acceptance is required to complete your base provider profile." %}
                 </div>
                 <div>
-                  <button type="submit" class="btn btn-primary">Save Terms Acceptance</button>
+                  <button type="submit" class="btn btn-primary">{% trans "Save Terms Acceptance" %}</button>
                 </div>
               {% endif %}
             </form>
@@ -477,7 +510,11 @@
 
         <div class="check-actions">
           <span class="badge {% if provider.accepts_terms %}badge-complete{% else %}badge-missing{% endif %}">
-            {% if provider.accepts_terms %}Accepted{% else %}Missing{% endif %}
+            {% if provider.accepts_terms %}
+              {% trans "Accepted" %}
+            {% else %}
+              {% trans "Missing" %}
+            {% endif %}
           </span>
         </div>
       </div>
@@ -485,28 +522,30 @@
   </div>
 
   <div class="card">
-    <h2>Manage Profile Modules</h2>
-    <p class="muted">Use these dedicated pages to update each module directly.</p>
+    <h2>{% trans "Manage Profile Modules" %}</h2>
+    <p class="muted">{% trans "Use these dedicated pages to update each module directly." %}</p>
 
     <div class="action-grid">
       <a href="{% url 'provider_edit' %}" class="action-card">
-        <div class="action-title">Edit Profile</div>
-        <div class="action-copy">Update business details, address, and availability.</div>
+        <div class="action-title">{% trans "Edit Profile" %}</div>
+        <div class="action-copy">{% trans "Update business details, address, and availability." %}</div>
       </a>
 
       <a href="{% url 'provider_service_areas' %}" class="action-card">
-        <div class="action-title">Manage Service Areas</div>
-        <div class="action-copy">Add, activate, or deactivate the cities where you work.</div>
+        <div class="action-title">{% trans "Manage Service Areas" %}</div>
+        <div class="action-copy">{% trans "Add, activate, or deactivate the cities where you work." %}</div>
       </a>
 
       <a href="{% url 'provider_insurance' %}" class="action-card">
-        <div class="action-title">Manage Insurance</div>
-        <div class="action-copy">Create or update your insurance details and review verification status.</div>
+        <div class="action-title">{% trans "Manage Insurance" %}</div>
+        <div class="action-copy">
+          {% trans "Create or update your insurance details and review verification status." %}
+        </div>
       </a>
 
       <a href="{% url 'provider_certificates' %}" class="action-card">
-        <div class="action-title">Manage Certificates</div>
-        <div class="action-copy">Manage your certificates from the dedicated certificates page.</div>
+        <div class="action-title">{% trans "Manage Certificates" %}</div>
+        <div class="action-copy">{% trans "Manage your certificates from the dedicated certificates page." %}</div>
       </a>
     </div>
   </div>

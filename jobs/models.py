@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from clients.models import Client
 from providers.models import Provider
@@ -38,15 +39,15 @@ def _set(obj, name: str, value):
 def normalize_job_kind_and_schedule(job) -> None:
     """
     Invariantes:
-    1) SCHEDULED requiere scheduled_date futura (para DateField: > hoy).
+    1) SCHEDULED requiere scheduled_date presente o futura.
     2) ON_DEMAND requiere scheduled_date = None.
-    3) scheduled_date en pasado/hoy se normaliza a ON_DEMAND y se limpia.
+    3) scheduled_date en pasado se normaliza a ON_DEMAND y se limpia.
     """
     today = timezone.localdate()
     kind = _get(job, FIELD_KIND)
     sd = _get(job, FIELD_SCHEDULED)
 
-    if sd is not None and sd <= today:
+    if sd is not None and sd < today:
         _set(job, FIELD_KIND, KIND_ON_DEMAND)
         _set(job, FIELD_SCHEDULED, None)
         return
@@ -87,31 +88,35 @@ class Job(models.Model):
     )
 
     class JobStatus(models.TextChoices):
-        DRAFT = "draft", "Draft"
-        POSTED = "posted", "Posted"
-        WAITING_PROVIDER_RESPONSE = "waiting_provider_response", "Waiting Provider Response"
-        PENDING_CLIENT_DECISION = "pending_client_decision", "Pending Client Decision"
-        HOLD = "hold", "Hold"
-        PENDING_PROVIDER_CONFIRMATION = "pending_provider_confirmation", "Pending provider confirmation"
-        PENDING_CLIENT_CONFIRMATION = "pending_client_confirmation", "Pending client confirmation"
-        ASSIGNED = "assigned", "Assigned"
-        IN_PROGRESS = "in_progress", "In progress"
-        COMPLETED = "completed", "Completed"
-        CONFIRMED = "confirmed", "Confirmed"
-        CANCELLED = "cancelled", "Cancelled"
-        EXPIRED = "expired", "Expired"
+        DRAFT = "draft", _("Draft")
+        POSTED = "posted", _("Posted")
+        SCHEDULED_PENDING_ACTIVATION = (
+            "scheduled_pending_activation",
+            _("Scheduled Pending Activation"),
+        )
+        WAITING_PROVIDER_RESPONSE = "waiting_provider_response", _("Waiting Provider Response")
+        PENDING_CLIENT_DECISION = "pending_client_decision", _("Pending Client Decision")
+        HOLD = "hold", _("Hold")
+        PENDING_PROVIDER_CONFIRMATION = "pending_provider_confirmation", _("Pending provider confirmation")
+        PENDING_CLIENT_CONFIRMATION = "pending_client_confirmation", _("Pending client confirmation")
+        ASSIGNED = "assigned", _("Assigned")
+        IN_PROGRESS = "in_progress", _("In progress")
+        COMPLETED = "completed", _("Completed")
+        CONFIRMED = "confirmed", _("Confirmed")
+        CANCELLED = "cancelled", _("Cancelled")
+        EXPIRED = "expired", _("Expired")
 
     class CancellationActor(models.TextChoices):
-        CLIENT = "client", "Client"
-        PROVIDER = "provider", "Provider"
-        SYSTEM = "system", "System"
+        CLIENT = "client", _("Client")
+        PROVIDER = "provider", _("Provider")
+        SYSTEM = "system", _("System")
 
     class CancelReason(models.TextChoices):
-        DISPUTE_APPROVED = "dispute_approved", "Dispute approved"
-        PROVIDER_REJECTED = "provider_rejected", "Provider rejected"
-        CLIENT_CANCELLED = "client_cancelled", "Client cancelled"
-        AUTO_TIMEOUT = "auto_timeout", "Auto timeout"
-        SYSTEM = "system", "System action"
+        DISPUTE_APPROVED = "dispute_approved", _("Dispute approved")
+        PROVIDER_REJECTED = "provider_rejected", _("Provider rejected")
+        CLIENT_CANCELLED = "client_cancelled", _("Client cancelled")
+        AUTO_TIMEOUT = "auto_timeout", _("Auto timeout")
+        SYSTEM = "system", _("System action")
 
     hold_provider = models.ForeignKey(
         "providers.Provider",
@@ -144,8 +149,8 @@ class Job(models.Model):
         )
 
     class JobMode(models.TextChoices):
-        ON_DEMAND = "on_demand", "On demand"
-        SCHEDULED = "scheduled", "Scheduled"
+        ON_DEMAND = "on_demand", _("On demand")
+        SCHEDULED = "scheduled", _("Scheduled")
 
     job_id = models.AutoField(primary_key=True)
     job_mode = models.CharField(
@@ -608,10 +613,13 @@ class JobEvent(models.Model):
         TIMEOUT = "timeout", "timeout"
         CANCELLED = "cancelled", "cancelled"
         JOB_CREATED = "job_created", "job_created"
+        SCHEDULED_ACTIVATED = "scheduled_activated", "scheduled_activated"
         WAITING_PROVIDER_RESPONSE = "waiting_provider_response", "waiting_provider_response"
         JOB_ACCEPTED = "job_accepted", "job_accepted"
+        PROVIDER_DECLINED = "provider_declined", "provider_declined"
         JOB_IN_PROGRESS = "job_in_progress", "job_in_progress"
         JOB_COMPLETED = "job_completed", "job_completed"
+        JOB_EXPIRED = "job_expired", "job_expired"
         JOB_CANCELLED = "job_cancelled", "job_cancelled"
 
     class ActorRole(models.TextChoices):
@@ -653,6 +661,40 @@ class JobEvent(models.Model):
 
     def __str__(self):
         return f"{self.job_id} {self.event_type} {self.created_at}"
+
+
+class JobProviderExclusion(models.Model):
+    class Reason(models.TextChoices):
+        DECLINED = "declined", "Declined"
+
+    job = models.ForeignKey(
+        "jobs.Job",
+        on_delete=models.CASCADE,
+        related_name="provider_exclusions",
+    )
+    provider = models.ForeignKey(
+        "providers.Provider",
+        on_delete=models.CASCADE,
+        related_name="job_exclusions",
+    )
+    reason = models.CharField(
+        max_length=20,
+        choices=Reason.choices,
+        default=Reason.DECLINED,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "jobs_job_provider_exclusion"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job", "provider"],
+                name="uq_job_provider_exclusion_one_per_provider_per_job",
+            ),
+        ]
+
+    def __str__(self):
+        return f"job={self.job_id} provider={self.provider_id} reason={self.reason}"
 
 
 class BroadcastAttemptStatus(models.TextChoices):

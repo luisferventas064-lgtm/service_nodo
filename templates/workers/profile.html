@@ -1,44 +1,35 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block content %}
 <div class="container page">
   <div class="card" style="max-width:680px;margin:auto;">
-    <h1 class="card-title">Complete Worker Profile</h1>
-    <p class="muted">Confirm your identity details and language preferences to continue.</p>
-
+    <h1 class="card-title">{% trans "Complete Worker Profile" %}</h1>
+    <p class="muted">{% trans "Confirm your identity details and language preferences to continue." %}</p>
     {% if form.non_field_errors %}
       {% for error in form.non_field_errors %}
         <p style="color:#991B1B;">{{ error }}</p>
       {% endfor %}
     {% endif %}
-
     <form method="post" novalidate>
       {% csrf_token %}
-
-      <label for="{{ form.first_name.id_for_label }}">First name</label>
+      <label for="{{ form.first_name.id_for_label }}">{% trans "First name" %}</label>
       {{ form.first_name }}
       {% if form.first_name.errors %}
         <p style="color:#991B1B;">{{ form.first_name.errors }}</p>
       {% endif %}
-
-      <label for="{{ form.last_name.id_for_label }}">Last name</label>
+      <label for="{{ form.last_name.id_for_label }}">{% trans "Last name" %}</label>
       {{ form.last_name }}
       {% if form.last_name.errors %}
         <p style="color:#991B1B;">{{ form.last_name.errors }}</p>
       {% endif %}
-
       <div style="margin-bottom:25px;text-align:left;">
-        <label>Languages spoken</label>
+        <label>{% trans "Languages spoken" %}</label>
         {% with selected_languages=form.languages_spoken.value %}
           <div class="language-grid">
             {% for value, label in form.fields.languages_spoken.choices %}
               <label>
-                <input
-                  type="checkbox"
-                  name="languages_spoken"
-                  value="{{ value }}"
-                  {% if selected_languages and value in selected_languages %}checked{% endif %}
-                >
+                <input type="checkbox" name="languages_spoken" value="{{ value }}" {% if selected_languages and value in selected_languages %}checked{% endif %}>
                 {{ label }}
               </label>
             {% endfor %}
@@ -48,26 +39,22 @@
           <p style="color:#991B1B;">{{ form.languages_spoken.errors }}</p>
         {% endif %}
       </div>
-
       <div style="margin-bottom:20px;">
         <label>
-          <input type="checkbox" name="accepts_terms" {% if form.accepts_terms.value %}checked{% endif %}>
-          I accept the terms.
+          <input type="checkbox" name="accepts_terms" {% if form.accepts_terms.value %}checked{% endif %}> {% trans "I accept the terms." %}
         </label>
         {% if form.accepts_terms.errors %}
           <p style="color:#991B1B;">{{ form.accepts_terms.errors }}</p>
         {% endif %}
       </div>
-
-      <button class="btn primary" type="submit">Save and Continue</button>
+      <button class="btn primary" type="submit">{% trans "Save and Continue" %}</button>
     </form>
-
     <hr>
-    <h3>Worker Dashboard</h3>
+    <h3>{% trans "Worker Dashboard" %}</h3>
     <ul>
-      <li><a href="{% url 'worker_jobs' %}">Jobs</a></li>
-      <li><a href="{% url 'worker_activity' %}">Activity</a></li>
-      <li><a href="{% url 'worker_edit' %}">Account Settings</a></li>
+      <li><a href="{% url 'worker_jobs' %}">{% trans "Jobs" %}</a></li>
+      <li><a href="{% url 'worker_activity' %}">{% trans "Activity" %}</a></li>
+      <li><a href="{% url 'worker_edit' %}">{% trans "Account Settings" %}</a></li>
     </ul>
   </div>
 </div>

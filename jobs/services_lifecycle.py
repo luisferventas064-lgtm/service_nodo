@@ -4,10 +4,14 @@ from django.utils import timezone
 from jobs.events import create_job_event
 from assignments.models import JobAssignment
 from jobs.models import Job, JobEvent
+from jobs.services_state_transitions import transition_job_status
 
 
 @transaction.atomic
 def accept_job_by_provider(job, provider):
+    if job.job_mode == Job.JobMode.SCHEDULED:
+        raise ValueError("Scheduled marketplace accept must use accept_marketplace_offer().")
+
     if job.job_status != Job.JobStatus.WAITING_PROVIDER_RESPONSE:
         raise ValueError("Job not eligible for acceptance.")
 
@@ -24,8 +28,12 @@ def accept_job_by_provider(job, provider):
         is_active=True,
     )
 
-    job.job_status = Job.JobStatus.ASSIGNED
-    job.save(update_fields=["job_status"])
+    transition_job_status(
+        job,
+        Job.JobStatus.ASSIGNED,
+        actor=JobEvent.ActorRole.PROVIDER,
+        reason="accept_job_by_provider",
+    )
     provider.__class__.objects.filter(pk=provider.pk).update(last_job_assigned_at=assigned_at)
     create_job_event(
         job=job,

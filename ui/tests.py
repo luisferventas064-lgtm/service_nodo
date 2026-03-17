@@ -1,23 +1,32 @@
 from decimal import Decimal
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 from unittest.mock import patch
 from urllib.parse import quote, urlencode
 
+from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import get_user_model
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils.formats import date_format, time_format
 from django.utils import timezone
 
 from assignments.models import JobAssignment
 from clients.models import Client
 from clients.models import ClientTicket
-from jobs.models import Job, JobEvent, JobLocation, JobRequestedExtra, PlatformLedgerEntry
-from notifications.models import PushDevice
+from jobs.models import (
+    Job,
+    JobEvent,
+    JobLocation,
+    JobProviderExclusion,
+    JobRequestedExtra,
+    PlatformLedgerEntry,
+)
+from notifications.models import PushDevice, PushDispatchAttempt
 from providers.models import (
     Provider,
     ProviderInsurance,
@@ -35,7 +44,13 @@ from workers.models import Worker
 from .models import PasswordResetCode
 
 
-class QualityProvidersDashboardViewTests(TestCase):
+class EnglishLocaleTestMixin:
+    def setUp(self):
+        super().setUp()
+        self.client.defaults["HTTP_ACCEPT_LANGUAGE"] = "en"
+
+
+class QualityProvidersDashboardViewTests(EnglishLocaleTestMixin, TestCase):
     def test_staff_can_load_quality_dashboard(self):
         user_model = get_user_model()
         user = user_model.objects.create_user(
@@ -100,7 +115,66 @@ class QualityProvidersDashboardViewTests(TestCase):
         self.assertEqual(response.context["providers"][0].provider_id, matching_provider.provider_id)
 
 
+class InternalDashboardViewTests(EnglishLocaleTestMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        user_model = get_user_model()
+        self.staff_user = user_model.objects.create_user(
+            username="internal_dashboard_staff",
+            password="test-pass-123",
+            is_staff=True,
+        )
+        self.client.force_login(self.staff_user)
+
+    def test_staff_dashboard_renders_language_dropdown(self):
+        response = self.client.get("/dashboard/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="nav-language-select"', html=False)
+        self.assertContains(response, 'name="next" value="/dashboard/"', html=False)
+
+    def test_staff_marketplace_dashboard_renders_language_dropdown(self):
+        response = self.client.get(
+            reverse("ui:marketplace_analytics_dashboard"),
+            {"limit": 5},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Marketplace Analytics")
+        self.assertContains(response, 'id="nav-language-select"', html=False)
+        self.assertContains(
+            response,
+            'name="next" value="/dashboard/marketplace/?limit=5"',
+            html=False,
+        )
+
+
 class RegisterPushDeviceViewTests(TestCase):
+    def test_register_push_device_accepts_web_platform(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            username="push_device_web",
+            password="test-pass-123",
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("ui:register_push_device"),
+            data=json.dumps(
+                {
+                    "role": "client",
+                    "platform": "web",
+                    "token": "push-token-web-001",
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        device = PushDevice.objects.get(token="push-token-web-001")
+        self.assertEqual(response.json()["ok"], True)
+        self.assertEqual(device.platform, PushDevice.Platform.WEB)
+
     def test_register_push_device_creates_device_for_authenticated_user(self):
         user_model = get_user_model()
         user = user_model.objects.create_user(
@@ -201,13 +275,14 @@ class RegisterPushDeviceViewTests(TestCase):
             password="test-pass-123",
         )
         self.client.force_login(user)
+        original_count = PushDevice.objects.count()
 
         response = self.client.post(
             reverse("ui:register_push_device"),
             data=json.dumps(
                 {
                     "role": "admin",
-                    "platform": "web",
+                    "platform": "desktop",
                     "token": "",
                 }
             ),
@@ -216,31 +291,40 @@ class RegisterPushDeviceViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["ok"], False)
-        self.assertEqual(PushDevice.objects.count(), 0)
+        self.assertEqual(PushDevice.objects.count(), original_count)
 
 
 class HomeViewTests(TestCase):
     def test_home_is_public_without_session(self):
-        response = self.client.get(reverse("ui:home"))
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Find &amp; book trusted local services.")
+        self.assertContains(response, "Find & book trusted local services.")
 
     def test_root_home_is_public_without_session(self):
-        response = self.client.get(reverse("ui:root_home"))
+        response = self.client.get(
+            reverse("ui:root_home"),
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Find &amp; book trusted local services.")
+        self.assertContains(response, "Find & book trusted local services.")
 
     def test_home_shows_navigation_links_for_authenticated_session(self):
         session = self.client.session
         session["client_id"] = 123
         session.save()
 
-        response = self.client.get(reverse("ui:home"))
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Find &amp; book trusted local services.")
+        self.assertContains(response, "Find & book trusted local services.")
         self.assertContains(response, "Marketplace")
         self.assertContains(response, "Providers")
         self.assertContains(response, "Logout")
@@ -250,7 +334,10 @@ class HomeViewTests(TestCase):
         session["client_id"] = 123
         session.save()
 
-        response = self.client.get(reverse("ui:home"))
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Logout")
@@ -261,11 +348,111 @@ class HomeViewTests(TestCase):
         session["profile_id"] = 123
         session.save()
 
-        response = self.client.get(reverse("ui:home"))
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("client_dashboard"))
         self.assertContains(response, "Client Dashboard")
+
+    def test_home_uses_supported_browser_language_variant(self):
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="fr-CA,fr;q=0.9,en;q=0.8",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.wsgi_request.LANGUAGE_CODE, "fr")
+        self.assertEqual(response.headers["Content-Language"], "fr")
+
+    def test_home_maps_browser_language_variant_to_spanish(self):
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="es-MX,es;q=0.9,en;q=0.8",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.wsgi_request.LANGUAGE_CODE, "es")
+        self.assertEqual(response.headers["Content-Language"], "es")
+
+    def test_home_uses_next_supported_browser_language_when_first_choice_is_unsupported(self):
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="de-DE,de;q=0.9,en;q=0.8",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.wsgi_request.LANGUAGE_CODE, "en")
+        self.assertEqual(response.headers["Content-Language"], "en")
+
+    def test_home_falls_back_to_default_language_when_no_supported_browser_language_exists(self):
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="de-DE,de;q=0.9",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.wsgi_request.LANGUAGE_CODE, settings.LANGUAGE_CODE)
+        self.assertEqual(
+            response.headers["Content-Language"],
+            settings.LANGUAGE_CODE,
+        )
+
+    def test_home_respects_manual_language_cookie_over_browser_language(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="fr-CA,fr;q=0.9",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.wsgi_request.LANGUAGE_CODE, "en")
+        self.assertEqual(response.headers["Content-Language"], "en")
+
+    def test_home_renders_language_dropdown_with_supported_options(self):
+        response = self.client.get(
+            reverse("ui:home"),
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "English")
+        self.assertContains(response, "Français")
+        self.assertContains(response, "Español")
+        self.assertContains(response, "Русский")
+        self.assertContains(response, 'name="language"', html=False)
+        self.assertContains(response, 'value="zh-hans"', html=False)
+        self.assertContains(response, 'value="ru"', html=False)
+
+    def test_set_language_persists_manual_preference_across_views(self):
+        response = self.client.post(
+            reverse("set_language"),
+            data={
+                "language": "en",
+                "next": reverse("ui:home"),
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("ui:home"),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(
+            response.cookies[settings.LANGUAGE_COOKIE_NAME].value,
+            "en",
+        )
+
+        follow_up_response = self.client.get(
+            reverse("ui:root_login"),
+            HTTP_ACCEPT_LANGUAGE="fr-CA,fr;q=0.9",
+        )
+
+        self.assertEqual(follow_up_response.wsgi_request.LANGUAGE_CODE, "en")
+        self.assertEqual(follow_up_response.headers["Content-Language"], "en")
 
     def test_logout_clears_manual_session_and_auth(self):
         user_model = get_user_model()
@@ -291,7 +478,7 @@ class HomeViewTests(TestCase):
         self.assertNotIn("_auth_user_id", self.client.session)
 
 
-class LoginViewTests(TestCase):
+class LoginViewTests(EnglishLocaleTestMixin, TestCase):
     def test_root_login_selector_renders_role_choices(self):
         response = self.client.get(reverse("ui:root_login"))
 
@@ -730,7 +917,7 @@ class LoginViewTests(TestCase):
         response = self.client.post(reverse("ui:resend_code"))
 
         self.assertEqual(response.status_code, 429)
-        self.assertEqual(response.json()["error"], "Please wait before requesting again")
+        self.assertEqual(response.json()["error"], "Please wait before requesting again.")
 
     def test_resend_code_rejects_when_phone_limit_is_reached(self):
         session = self.client.session
@@ -869,7 +1056,7 @@ class PortalViewTests(TestCase):
         )
 
 
-class ProfileViewsTests(TestCase):
+class ProfileViewsTests(EnglishLocaleTestMixin, TestCase):
     def _create_client(self, *, first_name="Client", last_name="Visible", email="client.visible@test.local", phone_number="5550000100"):
         return Client.objects.create(
             first_name=first_name,
@@ -1545,8 +1732,8 @@ class ProfileViewsTests(TestCase):
             "Job ID,Date,Service,Provider,Status,Total charged,Cancelled Reason",
             content,
         )
-        self.assertIn(str(recent_job.job_id), content)
-        self.assertNotIn(str(old_job.job_id), content)
+        self.assertIn(f"{recent_job.job_id},", content)
+        self.assertNotIn(f"{old_job.job_id},", content)
 
     def test_client_activity_shows_clear_filters_link(self):
         client_obj = self._create_client(
@@ -1667,13 +1854,15 @@ class ProfileViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Provider Profile")
-        self.assertContains(response, "self_employed")
+        self.assertContains(response, "Self-employed")
         self.assertContains(response, "Operational")
 
 
 class RequestCreateViewTests(TestCase):
     def setUp(self):
         super().setUp()
+        # These copy assertions intentionally validate the English catalog.
+        self.client.defaults["HTTP_ACCEPT_LANGUAGE"] = "en"
         self.geocode_address_patcher = patch("ui.views.geocode_address", return_value=None)
         self.geocode_address_mock = self.geocode_address_patcher.start()
         self.addCleanup(self.geocode_address_patcher.stop)
@@ -1729,8 +1918,10 @@ class RequestCreateViewTests(TestCase):
         self.assertContains(response, "Service option")
         self.assertContains(response, "Standard cleaning")
         self.assertContains(response, "Move-out cleaning")
-        self.assertContains(response, "$120.00 / Fixed Price")
-        self.assertContains(response, "$180.00 / Per Hour")
+        self.assertContains(response, "Standard cleaning - $120.00 /", html=False)
+        self.assertContains(response, "Move-out cleaning - $180.00 /", html=False)
+        self.assertContains(response, "Fixed Price")
+        self.assertContains(response, "Per Hour")
         self.assertContains(response, "Main Offer:")
         self.assertContains(response, cheaper_offer.custom_name)
         self.assertNotContains(response, f'data-provider-service-id="{premium_offer.pk}"')
@@ -2416,11 +2607,18 @@ class RequestCreateViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        job = Job.objects.get()
+        job = client.jobs.get(selected_provider=provider)
         self.assertEqual(job.job_mode, Job.JobMode.SCHEDULED)
+        self.assertEqual(job.job_status, Job.JobStatus.SCHEDULED_PENDING_ACTIVATION)
         self.assertFalse(job.is_asap)
         self.assertEqual(str(job.scheduled_date), "2026-03-20")
         self.assertEqual(job.scheduled_start_time.strftime("%H:%M"), "14:30")
+        self.assertTrue(job.events.filter(event_type=JobEvent.EventType.JOB_CREATED).exists())
+        self.assertFalse(
+            job.events.filter(
+                event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE
+            ).exists()
+        )
 
     def test_request_create_maps_urgent_service_timing_to_on_demand_job_mode(self):
         provider = Provider.objects.create(
@@ -3286,6 +3484,131 @@ class RequestCreateViewTests(TestCase):
             response_text.index("Recent Provider"),
         )
 
+    def test_providers_nearby_job_excludes_provider_who_already_declined_same_job(self):
+        client = Client.objects.create(
+            first_name="Declined",
+            last_name="Client",
+            phone_number="5550000499",
+            email="nearby.job.declined@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="4 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="Nearby Exclusion Service",
+            description="Nearby Exclusion Service",
+        )
+        job = Job.objects.create(
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="4 Client St",
+        )
+        JobLocation.objects.create(
+            job=job,
+            latitude=Decimal("45.560100"),
+            longitude=Decimal("-73.712400"),
+            postal_code="H7A1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+
+        excluded_provider = Provider.objects.create(
+            provider_type="company",
+            company_name="Excluded Nearby Provider",
+            contact_first_name="Excluded",
+            contact_last_name="Provider",
+            phone_number="5550000500",
+            email="provider.nearby.job.excluded@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="50 Excluded St",
+            is_active=True,
+        )
+        ProviderServiceArea.objects.create(
+            provider=excluded_provider,
+            city="Laval",
+            province="QC",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=excluded_provider,
+            service_type=service_type,
+            custom_name="Excluded Nearby Service",
+            billing_unit="fixed",
+            price_cents=10000,
+            is_active=True,
+        )
+        ProviderLocation.objects.create(
+            provider=excluded_provider,
+            latitude=Decimal("45.561000"),
+            longitude=Decimal("-73.713000"),
+            postal_code="H7A1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+        JobProviderExclusion.objects.create(
+            job=job,
+            provider=excluded_provider,
+            reason=JobProviderExclusion.Reason.DECLINED,
+        )
+
+        visible_provider = Provider.objects.create(
+            provider_type="company",
+            company_name="Visible Nearby Provider",
+            contact_first_name="Visible",
+            contact_last_name="Provider",
+            phone_number="5550000501",
+            email="provider.nearby.job.visible@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="51 Visible St",
+            is_active=True,
+        )
+        ProviderServiceArea.objects.create(
+            provider=visible_provider,
+            city="Laval",
+            province="QC",
+            is_active=True,
+        )
+        ProviderService.objects.create(
+            provider=visible_provider,
+            service_type=service_type,
+            custom_name="Visible Nearby Service",
+            billing_unit="fixed",
+            price_cents=10200,
+            is_active=True,
+        )
+        ProviderLocation.objects.create(
+            provider=visible_provider,
+            latitude=Decimal("45.562000"),
+            longitude=Decimal("-73.714000"),
+            postal_code="H7A1A1",
+            city="Laval",
+            province="QC",
+            country="Canada",
+        )
+
+        response = self.client.get(reverse("ui:providers_nearby_job", args=[job.job_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Visible Nearby Provider")
+        self.assertNotContains(response, "Excluded Nearby Provider")
+
     def test_providers_nearby_job_shows_error_when_job_has_no_location(self):
         client = Client.objects.create(
             first_name="No",
@@ -3501,6 +3824,8 @@ class RequestCreateViewTests(TestCase):
             data={
                 "service_type": str(service_type.pk),
                 "job_mode": "on_demand",
+                "search": "deep clean",
+                "provider_name": "Message Offer",
             },
             follow=True,
         )
@@ -3508,8 +3833,29 @@ class RequestCreateViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         job = client.jobs.get()
         job_created_url = reverse("ui:job_created", args=[job.job_id])
+        expected_job_created_query = urlencode(
+            {
+                "service_timing": "urgent",
+                "search": "deep clean",
+                "provider_name": "Message Offer",
+            }
+        )
+        expected_request_status_url = "{}?{}".format(
+            reverse("ui:request_status", args=[job.job_id]),
+            urlencode(
+                {
+                    "service_timing": "urgent",
+                    "service_type": str(service_type.pk),
+                    "postal_code": client.postal_code,
+                    "city": client.city,
+                    "province": client.province,
+                    "search": "deep clean",
+                    "provider_name": "Message Offer",
+                }
+            ),
+        )
         self.assertEqual(response.request["PATH_INFO"], job_created_url)
-        self.assertEqual(response.request["QUERY_STRING"], "service_timing=urgent")
+        self.assertEqual(response.request["QUERY_STRING"], expected_job_created_query)
         self.assertNotContains(response, "Request created")
         self.assertContains(response, "Job created")
         self.assertContains(response, "Job ID")
@@ -3520,10 +3866,7 @@ class RequestCreateViewTests(TestCase):
         self.assertContains(response, "Urgent")
         self.assertContains(response, "Next step")
         self.assertContains(response, "Pending confirmation")
-        self.assertContains(
-            response,
-            f'{reverse("ui:request_status", args=[job.job_id])}?service_timing=urgent',
-        )
+        self.assertEqual(response.context["request_status_url"], expected_request_status_url)
         created_event = job.events.get(event_type=JobEvent.EventType.JOB_CREATED)
         waiting_event = job.events.get(event_type=JobEvent.EventType.WAITING_PROVIDER_RESPONSE)
         self.assertEqual(created_event.actor_role, JobEvent.ActorRole.CLIENT)
@@ -3613,9 +3956,18 @@ class RequestCreateViewTests(TestCase):
         self.assertContains(response, "Waiting for provider response")
         self.assertEqual(response.context["service_timing"], "emergency")
         self.assertEqual(response.context["next_step_label"], "Waiting for provider response")
-        self.assertContains(
-            response,
-            f'{reverse("ui:request_status", args=[job.job_id])}?service_timing=emergency',
+        expected_request_status_query = urlencode(
+            {
+                "service_timing": "emergency",
+                "service_type": str(service_type.pk),
+                "postal_code": "H7A0A1",
+                "city": "Laval",
+                "province": "QC",
+            }
+        )
+        self.assertEqual(
+            response.context["request_status_url"],
+            f'{reverse("ui:request_status", args=[job.job_id])}?{expected_request_status_query}',
         )
 
     def test_job_created_view_falls_back_to_scheduled_timing_from_job_mode(self):
@@ -4429,8 +4781,11 @@ class RequestCreateViewTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 403)
-        self.assertIn(b"PHONE_NOT_VERIFIED", response.content)
+        self.assertContains(
+            response,
+            "Phone verification is required before creating a request.",
+            status_code=403,
+        )
 
     def test_incomplete_profile_client_is_redirected_with_warning(self):
         provider = Provider.objects.create(
@@ -4583,7 +4938,10 @@ class RequestCreateViewTests(TestCase):
 
         self.assertRedirects(
             response,
-            reverse("ui:job_created", args=[job.job_id]),
+            "{}?{}".format(
+                reverse("ui:job_created", args=[job.job_id]),
+                urlencode({"service_timing": "urgent"}),
+            ),
             fetch_redirect_response=False,
         )
         self.assertEqual(job.selected_provider_id, provider.pk)
@@ -4929,6 +5287,11 @@ class RequestCreateViewTests(TestCase):
 
 
 class RequestStatusViewTests(TestCase):
+    def setUp(self):
+        super().setUp()
+        # These copy assertions intentionally validate the English catalog.
+        self.client.defaults["HTTP_ACCEPT_LANGUAGE"] = "en"
+
     def _make_job(self, *, status):
         provider = Provider.objects.create(
             provider_type="self_employed",
@@ -4992,6 +5355,63 @@ class RequestStatusViewTests(TestCase):
         self.assertEqual(event.actor_role, JobEvent.ActorRole.CLIENT)
         self.assertEqual(event.visible_status, "Cancelled")
         self.assertEqual(event.payload_json.get("source"), "request_status_cancel")
+
+    def test_request_status_allows_client_cancel_while_scheduled_pending_activation(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Scheduled",
+            contact_last_name="Provider Pending",
+            phone_number="555100033201",
+            email="provider.status.scheduled.pending@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="300 Provider St",
+        )
+        client = Client.objects.create(
+            first_name="Luis",
+            last_name="Scheduled Pending",
+            phone_number="555100033202",
+            email="client.status.scheduled.pending@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="923 100 e avenue",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="Status scheduled pending",
+            description="Status scheduled pending",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.SCHEDULED_PENDING_ACTIVATION,
+            is_asap=False,
+            scheduled_date=timezone.localdate() + timedelta(days=2),
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="923 100 e avenue",
+        )
+
+        response = self.client.post(
+            reverse("ui:request_status", args=[job.job_id]),
+            data={"action": "cancel_request"},
+            follow=True,
+        )
+
+        job.refresh_from_db()
+
+        self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
+        self.assertEqual(job.cancelled_by, Job.CancellationActor.CLIENT)
+        self.assertEqual(job.cancel_reason, Job.CancelReason.CLIENT_CANCELLED)
+        self.assertContains(response, "Request cancelled successfully.")
 
     def test_request_status_shows_emergency_timing_and_next_step(self):
         job = self._make_job(status=Job.JobStatus.WAITING_PROVIDER_RESPONSE)
@@ -5066,10 +5486,75 @@ class RequestStatusViewTests(TestCase):
 
         response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
 
+        expected_refresh_url = "{}?{}".format(
+            reverse("ui:request_status", args=[job.job_id]),
+            urlencode(
+                {
+                    "service_timing": "urgent",
+                    "service_type": str(job.service_type_id),
+                    "postal_code": job.postal_code,
+                    "city": job.city,
+                    "province": job.province,
+                }
+            ),
+        )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Status")
         self.assertContains(response, "Accepted")
+        self.assertContains(response, "A provider accepted your request.")
+        self.assertContains(response, "Refresh status")
         self.assertEqual(response.context["job_status_label"], "Accepted")
+        self.assertEqual(response.context["refresh_status_url"], expected_refresh_url)
+
+    def test_request_status_shows_in_progress_update_and_refresh(self):
+        job = self._make_job(status=Job.JobStatus.IN_PROGRESS)
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        expected_refresh_url = "{}?{}".format(
+            reverse("ui:request_status", args=[job.job_id]),
+            urlencode(
+                {
+                    "service_timing": "urgent",
+                    "service_type": str(job.service_type_id),
+                    "postal_code": job.postal_code,
+                    "city": job.city,
+                    "province": job.province,
+                }
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Status")
+        self.assertContains(response, "In progress")
+        self.assertContains(response, "Your service is in progress.")
+        self.assertContains(response, "Refresh status")
+        self.assertEqual(response.context["job_status_label"], "In progress")
+        self.assertEqual(response.context["refresh_status_url"], expected_refresh_url)
+
+    def test_request_status_shows_completed_update_and_refresh(self):
+        job = self._make_job(status=Job.JobStatus.COMPLETED)
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        expected_refresh_url = "{}?{}".format(
+            reverse("ui:request_status", args=[job.job_id]),
+            urlencode(
+                {
+                    "service_timing": "urgent",
+                    "service_type": str(job.service_type_id),
+                    "postal_code": job.postal_code,
+                    "city": job.city,
+                    "province": job.province,
+                }
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Status")
+        self.assertContains(response, "Completed")
+        self.assertContains(response, "Your service has been completed.")
+        self.assertContains(response, "Refresh status")
+        self.assertEqual(response.context["job_status_label"], "Completed")
+        self.assertEqual(response.context["refresh_status_url"], expected_refresh_url)
 
     def test_request_status_shows_job_event_timeline(self):
         job = self._make_job(status=Job.JobStatus.WAITING_PROVIDER_RESPONSE)
@@ -5093,6 +5578,179 @@ class RequestStatusViewTests(TestCase):
             response.context["job_events"][0].event_type,
             JobEvent.EventType.JOB_CREATED,
         )
+
+    def test_request_status_shows_search_again_link_when_expired(self):
+        job = self._make_job(status=Job.JobStatus.EXPIRED)
+        job.cancelled_by = Job.CancellationActor.SYSTEM
+        job.cancel_reason = Job.CancelReason.AUTO_TIMEOUT
+        job.save(update_fields=["cancelled_by", "cancel_reason", "updated_at"])
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        expected_marketplace_url = "{}?{}".format(
+            reverse("ui:marketplace_search"),
+            urlencode(
+                {
+                    "service_timing": "urgent",
+                    "service_type": str(job.service_type_id),
+                    "postal_code": job.postal_code,
+                    "city": job.city,
+                    "province": job.province,
+                }
+            ),
+        )
+        expected_refresh_url = "{}?{}".format(
+            reverse("ui:request_status", args=[job.job_id]),
+            urlencode(
+                {
+                    "service_timing": "urgent",
+                    "service_type": str(job.service_type_id),
+                    "postal_code": job.postal_code,
+                    "city": job.city,
+                    "province": job.province,
+                }
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Request expired.")
+        self.assertContains(response, "No provider accepted your request in time.")
+        self.assertContains(response, "Search again")
+        self.assertContains(response, "Refresh status")
+        self.assertEqual(response.context["marketplace_retry_url"], expected_marketplace_url)
+        self.assertEqual(response.context["search_again_url"], expected_marketplace_url)
+        self.assertEqual(response.context["refresh_status_url"], expected_refresh_url)
+
+    def test_request_status_search_again_link_preserves_search_context(self):
+        job = self._make_job(status=Job.JobStatus.EXPIRED)
+        response = self.client.get(
+            reverse("ui:request_status", args=[job.job_id]),
+            {
+                "service_timing": "scheduled",
+                "service_type": str(job.service_type_id),
+                "postal_code": "H7W4A2",
+                "city": "Laval",
+                "province": "QC",
+                "search": "deep clean",
+                "provider_name": "Alpha Team",
+            },
+        )
+
+        expected_marketplace_url = "{}?{}".format(
+            reverse("ui:marketplace_search"),
+            urlencode(
+                {
+                    "service_timing": "scheduled",
+                    "service_type": str(job.service_type_id),
+                    "postal_code": "H7W4A2",
+                    "city": "Laval",
+                    "province": "QC",
+                    "q": "deep clean",
+                    "provider_name": "Alpha Team",
+                }
+            ),
+        )
+        expected_refresh_url = "{}?{}".format(
+            reverse("ui:request_status", args=[job.job_id]),
+            urlencode(
+                {
+                    "service_timing": "scheduled",
+                    "service_type": str(job.service_type_id),
+                    "postal_code": "H7W4A2",
+                    "city": "Laval",
+                    "province": "QC",
+                    "search": "deep clean",
+                    "provider_name": "Alpha Team",
+                }
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["marketplace_retry_url"], expected_marketplace_url)
+        self.assertEqual(response.context["search_again_url"], expected_marketplace_url)
+        self.assertEqual(response.context["refresh_status_url"], expected_refresh_url)
+
+    @override_settings(DEBUG=False)
+    def test_request_status_shows_last_push_attempt_in_internal_context(self):
+        job = self._make_job(status=Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+        user_model = get_user_model()
+        staff_user = user_model.objects.create_user(
+            username="request_status_push_staff",
+            password="test-pass-123",
+            is_staff=True,
+        )
+        self.client.force_login(staff_user)
+        push_user = user_model.objects.create_user(
+            username="request_status_push_user",
+            email=job.client.email,
+            password="test-pass-123",
+        )
+        device = PushDevice.objects.create(
+            user=push_user,
+            role=PushDevice.Role.CLIENT,
+            platform=PushDevice.Platform.ANDROID,
+            token="request-status-push-token",
+        )
+        job_event = JobEvent.objects.create(
+            job=job,
+            event_type=JobEvent.EventType.JOB_CREATED,
+            visible_status="Waiting for provider response",
+            actor_role=JobEvent.ActorRole.CLIENT,
+            payload_json={"source": "test"},
+        )
+        attempt = PushDispatchAttempt.objects.create(
+            job_event=job_event,
+            device=device,
+            status=PushDispatchAttempt.Status.STUB_SENT,
+            payload_json={"event_type": JobEvent.EventType.JOB_CREATED},
+            response_json={"provider": "stub", "token": device.token},
+        )
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["show_push_debug"])
+        self.assertEqual(response.context["last_push_attempt"], attempt)
+        self.assertContains(response, "Push delivery")
+        self.assertContains(response, "Last push status")
+        self.assertContains(response, PushDispatchAttempt.Status.STUB_SENT)
+        self.assertContains(response, "Last push target")
+        self.assertContains(response, PushDevice.Role.CLIENT)
+
+    @override_settings(DEBUG=False)
+    def test_request_status_hides_push_attempt_outside_internal_context(self):
+        job = self._make_job(status=Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+        user_model = get_user_model()
+        push_user = user_model.objects.create_user(
+            username="request_status_push_hidden_user",
+            email=job.client.email,
+            password="test-pass-123",
+        )
+        device = PushDevice.objects.create(
+            user=push_user,
+            role=PushDevice.Role.CLIENT,
+            platform=PushDevice.Platform.ANDROID,
+            token="request-status-push-hidden-token",
+        )
+        job_event = JobEvent.objects.create(
+            job=job,
+            event_type=JobEvent.EventType.JOB_CREATED,
+            visible_status="Waiting for provider response",
+            actor_role=JobEvent.ActorRole.CLIENT,
+            payload_json={"source": "test"},
+        )
+        PushDispatchAttempt.objects.create(
+            job_event=job_event,
+            device=device,
+            status=PushDispatchAttempt.Status.STUB_SENT,
+            payload_json={"event_type": JobEvent.EventType.JOB_CREATED},
+            response_json={"provider": "stub", "token": device.token},
+        )
+
+        response = self.client.get(reverse("ui:request_status", args=[job.job_id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["show_push_debug"])
+        self.assertIsNone(response.context["last_push_attempt"])
+        self.assertNotContains(response, "Push delivery")
 
     def test_request_status_allows_client_cancel_while_assigned(self):
         job = self._make_job(status=Job.JobStatus.ASSIGNED)
@@ -5255,7 +5913,7 @@ class RequestStatusViewTests(TestCase):
         self.assertContains(response, "Back to Activity")
 
 
-class ProviderFinancialConsistencyTests(TestCase):
+class ProviderFinancialConsistencyTests(EnglishLocaleTestMixin, TestCase):
     def _login_provider(self, provider):
         session = self.client.session
         session["provider_id"] = provider.pk
@@ -5529,8 +6187,671 @@ class ProviderFinancialConsistencyTests(TestCase):
         self.assertEqual(len(summary_response.context["monthly_revenue"]), 1)
         self.assertEqual(summary_response.context["monthly_revenue"][0]["gross"], Decimal("114.98"))
 
+class ProviderIncomingJobsViewTests(EnglishLocaleTestMixin, TestCase):
+    def _login_provider(self, provider):
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
 
-class ProviderJobsViewTests(TestCase):
+    def _create_operational_provider(self, *, email, phone_number, service_type):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Incoming",
+            contact_last_name="Provider",
+            phone_number=phone_number,
+            email=email,
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="300 Provider St",
+            is_phone_verified=True,
+            profile_completed=True,
+            billing_profile_completed=True,
+            accepts_terms=True,
+        )
+        ProviderService.objects.create(
+            provider=provider,
+            service_type=service_type,
+            custom_name="Incoming Offer",
+            billing_unit="fixed",
+            price_cents=15000,
+            is_active=True,
+        )
+        ProviderServiceArea.objects.create(
+            provider=provider,
+            city="Laval",
+            province="QC",
+            postal_prefix="H7W",
+            is_active=True,
+        )
+        return provider
+
+    def _create_client(self, *, email, phone_number):
+        return Client.objects.create(
+            first_name="Luis",
+            last_name="Incoming",
+            phone_number=phone_number,
+            email=email,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="930 100 e avenue",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+
+    def test_provider_incoming_jobs_redirects_to_register_without_provider_session(self):
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertRedirects(response, reverse("provider_register"))
+
+    def test_provider_incoming_jobs_shows_only_eligible_waiting_jobs(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Cleaning",
+            description="Incoming Cleaning",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.queue@test.local",
+            phone_number="5550000300",
+            service_type=service_type,
+        )
+        other_provider = self._create_operational_provider(
+            email="provider.incoming.other@test.local",
+            phone_number="5550000301",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.queue@test.local",
+            phone_number="5550000302",
+        )
+        matching_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="930 100 e avenue",
+            quoted_base_price="150.00",
+            quoted_base_price_cents=15000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingQueueTest",
+            quoted_total_price_cents=15000,
+            requested_subservice_name="Deep Cleaning",
+            requested_total_snapshot=Decimal("150.00"),
+        )
+        outside_area_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Montreal",
+            postal_code="H2X1A4",
+            address_line1="99 Remote St",
+            quoted_base_price="180.00",
+            quoted_base_price_cents=18000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingQueueTest",
+            quoted_total_price_cents=18000,
+            requested_total_snapshot=Decimal("180.00"),
+        )
+        other_provider_job = Job.objects.create(
+            selected_provider=other_provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="931 100 e avenue",
+            quoted_base_price="175.00",
+            quoted_base_price_cents=17500,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingQueueTest",
+            quoted_total_price_cents=17500,
+            requested_total_snapshot=Decimal("175.00"),
+        )
+        completed_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.COMPLETED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="932 100 e avenue",
+            requested_total_snapshot=Decimal("190.00"),
+        )
+        JobEvent.objects.create(
+            job=matching_job,
+            event_type=JobEvent.EventType.JOB_CREATED,
+            visible_status="Waiting for provider response",
+            actor_role=JobEvent.ActorRole.CLIENT,
+            payload_json={"service_timing": "urgent"},
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Incoming Jobs")
+        self.assertContains(response, "New service request")
+        self.assertContains(response, "Deep Cleaning")
+        self.assertContains(response, "Laval H7W")
+        self.assertContains(response, "Urgent")
+        self.assertContains(response, "$150.00")
+        self.assertContains(response, reverse("ui:provider_accept_job", args=[matching_job.job_id]))
+        self.assertContains(response, reverse("ui:provider_decline_job", args=[matching_job.job_id]))
+        self.assertNotContains(
+            response,
+            reverse("ui:provider_accept_job", args=[outside_area_job.job_id]),
+        )
+        self.assertNotContains(
+            response,
+            reverse("ui:provider_accept_job", args=[other_provider_job.job_id]),
+        )
+        self.assertNotContains(
+            response,
+            reverse("ui:provider_accept_job", args=[completed_job.job_id]),
+        )
+
+    def test_provider_incoming_jobs_hides_job_when_provider_already_declined_it(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Excluded",
+            description="Incoming Excluded",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.excluded@test.local",
+            phone_number="5550000307",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.excluded@test.local",
+            phone_number="5550000308",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="935 100 e avenue",
+            requested_subservice_name="Excluded Cleaning",
+            requested_total_snapshot=Decimal("160.00"),
+        )
+        JobProviderExclusion.objects.create(
+            job=job,
+            provider=provider,
+            reason=JobProviderExclusion.Reason.DECLINED,
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Excluded Cleaning")
+        self.assertEqual(response.context["incoming_jobs_count"], 0)
+
+    def test_provider_incoming_jobs_hides_waiting_job_without_pricing_snapshot(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Missing Snapshot",
+            description="Incoming Missing Snapshot",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.missing.snapshot@test.local",
+            phone_number="5550000381",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.missing.snapshot@test.local",
+            phone_number="5550000382",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="935 Snapshot St",
+            requested_subservice_name="Snapshotless Cleaning",
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            reverse("ui:provider_accept_job", args=[job.job_id]),
+        )
+        self.assertNotContains(response, "Snapshotless Cleaning")
+        self.assertEqual(response.context["incoming_jobs_count"], 0)
+
+    def test_provider_incoming_jobs_hides_future_scheduled_job_until_scheduled_time(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Scheduled Hidden",
+            description="Incoming Scheduled Hidden",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.scheduled.hidden@test.local",
+            phone_number="5550000309",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.scheduled.hidden@test.local",
+            phone_number="5550000310",
+        )
+        hidden_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            scheduled_date=timezone.localdate() + timedelta(days=1),
+            scheduled_start_time="15:29",
+            is_asap=False,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="936 100 e avenue",
+            quoted_base_price="210.00",
+            quoted_base_price_cents=21000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingQueueTest",
+            quoted_total_price_cents=21000,
+            requested_subservice_name="Scheduled Cleaning",
+            requested_total_snapshot=Decimal("210.00"),
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            reverse("ui:provider_accept_job", args=[hidden_job.job_id]),
+        )
+        self.assertNotContains(response, "Scheduled Cleaning")
+        self.assertEqual(response.context["incoming_jobs_count"], 0)
+
+    def test_provider_incoming_jobs_shows_scheduled_job_once_scheduled_time_arrives(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Scheduled Ready",
+            description="Incoming Scheduled Ready",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.scheduled.ready@test.local",
+            phone_number="5550000311",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.scheduled.ready@test.local",
+            phone_number="5550000312",
+        )
+        ready_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            scheduled_date=timezone.localdate() + timedelta(days=1),
+            scheduled_start_time="15:29",
+            is_asap=False,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="937 100 e avenue",
+            quoted_base_price="215.00",
+            quoted_base_price_cents=21500,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingQueueTest",
+            quoted_total_price_cents=21500,
+            requested_subservice_name="Ready Scheduled Cleaning",
+            requested_total_snapshot=Decimal("215.00"),
+        )
+        ready_at = timezone.make_aware(
+            datetime.combine(
+                ready_job.scheduled_date,
+                ready_job.scheduled_start_time,
+            ),
+            ready_job.get_job_timezone(),
+        ) + timedelta(minutes=1)
+
+        self._login_provider(provider)
+
+        with patch("ui.views_provider.timezone.now", return_value=ready_at):
+            response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, str(ready_job.job_id))
+        self.assertContains(response, "Ready Scheduled Cleaning")
+        self.assertContains(response, "Scheduled")
+        self.assertEqual(response.context["incoming_jobs_count"], 1)
+
+    def test_provider_incoming_jobs_shows_scheduled_time_billing_unit_and_address_details(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Scheduled Detail",
+            description="Incoming Scheduled Detail",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.scheduled.detail@test.local",
+            phone_number="5550000385",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.scheduled.detail@test.local",
+            phone_number="5550000386",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            scheduled_date=timezone.localdate() + timedelta(days=1),
+            scheduled_start_time="14:30",
+            is_asap=False,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="940 Detail St",
+            address_line2="Apt 4",
+            quoted_base_price="210.00",
+            quoted_base_price_cents=21000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingQueueTest",
+            quoted_total_price_cents=21000,
+            requested_total_snapshot=Decimal("210.00"),
+            requested_billing_unit_snapshot="hour",
+            requested_subservice_name="Detail Scheduled Cleaning",
+        )
+        ready_at = timezone.make_aware(
+            datetime.combine(
+                job.scheduled_date,
+                job.scheduled_start_time,
+            ),
+            job.get_job_timezone(),
+        ) + timedelta(minutes=1)
+
+        self._login_provider(provider)
+
+        with patch("ui.views_provider.timezone.now", return_value=ready_at):
+            response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        expected_schedule = "{} at {}".format(
+            date_format(job.scheduled_date, "M j, Y"),
+            time_format(job.scheduled_start_time, "g:i A"),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Scheduled For")
+        self.assertContains(response, expected_schedule)
+        self.assertContains(response, "Billing Unit")
+        self.assertContains(response, "Per Hour")
+        self.assertContains(response, "Address")
+        self.assertContains(response, "940 Detail St")
+        self.assertContains(response, "Laval QC H7W4A2")
+        self.assertContains(response, "Unit / Suite")
+        self.assertContains(response, "Apt 4")
+        self.assertContains(response, "$210.00")
+
+    def test_provider_incoming_jobs_shows_access_notes_and_main_offer_context(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Offer Context",
+            description="Incoming Offer Context",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.offer.context@test.local",
+            phone_number="5550000387",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.offer.context@test.local",
+            phone_number="5550000388",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="941 Offer St",
+            access_notes="Use side door and ring bell twice.",
+            provider_service_name_snapshot="Premium Deep Clean",
+            requested_subservice_name="Kitchen Deep Cleaning",
+            quoted_base_price="225.00",
+            quoted_base_price_cents=22500,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingQueueTest",
+            quoted_total_price_cents=22500,
+            requested_total_snapshot=Decimal("225.00"),
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Kitchen Deep Cleaning")
+        self.assertContains(response, "Premium Deep Clean")
+        self.assertContains(response, "Access Notes")
+        self.assertContains(response, "Use side door and ring bell twice.")
+        self.assertContains(response, "$225.00")
+
+    @override_settings(PUSH_PROVIDER="stub")
+    def test_provider_accept_job_from_incoming_assigns_job_and_dispatches_client_push(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Accept",
+            description="Incoming Accept",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.accept@test.local",
+            phone_number="5550000303",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.accept@test.local",
+            phone_number="5550000304",
+        )
+        user_model = get_user_model()
+        client_user = user_model.objects.create_user(
+            username="incoming_accept_client_user",
+            email=client.email,
+            password="test-pass-123",
+        )
+        device = PushDevice.objects.create(
+            user=client_user,
+            role=PushDevice.Role.CLIENT,
+            platform=PushDevice.Platform.ANDROID,
+            token="incoming-accept-client-token",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="933 100 e avenue",
+            quoted_base_price="150.00",
+            quoted_base_price_cents=15000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingQueueTest",
+            quoted_total_price_cents=15000,
+            requested_total_snapshot=Decimal("150.00"),
+        )
+
+        self._login_provider(provider)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("ui:provider_accept_job", args=[job.job_id]),
+                follow=True,
+            )
+
+        job.refresh_from_db()
+        assignment = JobAssignment.objects.get(job=job, is_active=True)
+        event = job.events.get(event_type=JobEvent.EventType.JOB_ACCEPTED)
+        attempt = PushDispatchAttempt.objects.get(job_event=event)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Request accepted.")
+        self.assertEqual(job.job_status, Job.JobStatus.ASSIGNED)
+        self.assertEqual(assignment.provider_id, provider.pk)
+        self.assertEqual(event.actor_role, JobEvent.ActorRole.PROVIDER)
+        self.assertEqual(event.payload_json.get("source"), "accept_job_by_provider")
+        self.assertEqual(attempt.status, PushDispatchAttempt.Status.STUB_SENT)
+        self.assertEqual(attempt.device_id, device.pk)
+
+    def test_provider_accept_job_without_pricing_snapshot_returns_400(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Accept Invalid Snapshot",
+            description="Incoming Accept Invalid Snapshot",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.accept.invalid@test.local",
+            phone_number="5550000383",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.accept.invalid@test.local",
+            phone_number="5550000384",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="936 Snapshot St",
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.post(
+            reverse("ui:provider_accept_job", args=[job.job_id]),
+            follow=False,
+        )
+
+        job.refresh_from_db()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("pricing snapshot", response.content.decode("utf-8").lower())
+        self.assertEqual(job.job_status, Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+        self.assertFalse(JobAssignment.objects.filter(job=job, is_active=True).exists())
+
+    def test_provider_decline_job_from_incoming_recycles_request_and_creates_timeline_event(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Decline",
+            description="Incoming Decline",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.decline@test.local",
+            phone_number="5550000305",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.decline@test.local",
+            phone_number="5550000306",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="934 100 e avenue",
+            requested_total_snapshot=Decimal("150.00"),
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.post(
+            reverse("ui:provider_decline_job", args=[job.job_id]),
+            follow=True,
+        )
+
+        job.refresh_from_db()
+        event = job.events.get(event_type=JobEvent.EventType.PROVIDER_DECLINED)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Request declined.")
+        self.assertEqual(job.job_status, Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+        self.assertIsNone(job.selected_provider_id)
+        self.assertEqual(job.cancelled_by, Job.CancellationActor.PROVIDER)
+        self.assertEqual(job.cancel_reason, Job.CancelReason.PROVIDER_REJECTED)
+        self.assertEqual(event.actor_role, JobEvent.ActorRole.PROVIDER)
+        self.assertEqual(event.visible_status, "Waiting for provider response")
+        self.assertEqual(event.payload_json.get("source"), "provider_incoming_decline")
+        self.assertTrue(
+            JobProviderExclusion.objects.filter(
+                job=job,
+                provider=provider,
+                reason=JobProviderExclusion.Reason.DECLINED,
+            ).exists()
+        )
+
+
+class ProviderJobsViewTests(EnglishLocaleTestMixin, TestCase):
     def test_provider_jobs_redirects_to_register_without_provider_session(self):
         response = self.client.get(reverse("ui:provider_jobs"))
 
@@ -5865,6 +7186,7 @@ class ProviderJobsViewTests(TestCase):
 
         job.refresh_from_db()
         assignment.refresh_from_db()
+        event = job.events.get(event_type=JobEvent.EventType.PROVIDER_DECLINED)
 
         self.assertEqual(job.job_status, Job.JobStatus.POSTED)
         self.assertIsNone(job.selected_provider_id)
@@ -5872,10 +7194,19 @@ class ProviderJobsViewTests(TestCase):
         self.assertEqual(job.cancel_reason, Job.CancelReason.PROVIDER_REJECTED)
         self.assertEqual(assignment.assignment_status, "cancelled")
         self.assertFalse(assignment.is_active)
+        self.assertEqual(event.actor_role, JobEvent.ActorRole.PROVIDER)
+        self.assertEqual(event.payload_json.get("source"), "provider_incoming_decline")
         self.assertContains(response, "Request declined.")
+        self.assertTrue(
+            JobProviderExclusion.objects.filter(
+                job=job,
+                provider=provider,
+                reason=JobProviderExclusion.Reason.DECLINED,
+            ).exists()
+        )
 
 
-class MarketplaceSearchViewTests(TestCase):
+class MarketplaceSearchViewTests(EnglishLocaleTestMixin, TestCase):
     def _login_client(self, client_obj):
         session = self.client.session
         session["client_id"] = client_obj.pk
@@ -7116,7 +8447,7 @@ class MarketplaceSearchViewTests(TestCase):
         self.assertContains(response, service_type.name)
 
 
-class RequestCreateComplianceTests(TestCase):
+class RequestCreateComplianceTests(EnglishLocaleTestMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.geocode_address_patcher = patch("ui.views.geocode_address", return_value=None)

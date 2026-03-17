@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Manage Certificates{% endblock %}
+{% block title %}{% trans "Manage Certificates" %}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -10,13 +11,13 @@
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
-                            <h1 class="h3 mb-1">Manage Certificates</h1>
+                            <h1 class="h3 mb-1">{% trans "Manage Certificates" %}</h1>
                             <p class="text-muted mb-0">
-                                Providers can register certificates here even when they are not required globally.
+                                {% trans "Providers can register certificates here even when they are not required globally." %}
                             </p>
                         </div>
                         <a href="{% url 'provider_profile' %}" class="btn btn-outline-secondary">
-                            Back to Profile
+                            {% trans "Back to Profile" %}
                         </a>
                     </div>
 
@@ -29,11 +30,11 @@
                     {% endif %}
 
                     <div class="alert alert-info mb-4">
-                        This section is open and available. Certificate requirements will later depend on service type and jurisdiction.
+                        {% trans "This section is open and available. Certificate requirements will later depend on service type and jurisdiction." %}
                     </div>
 
                     <div class="mb-3">
-                        <div class="small text-muted">Total certificates</div>
+                        <div class="small text-muted">{% trans "Total certificates" %}</div>
                         <div class="h4 mb-0">{{ total_certificates }}</div>
                     </div>
 
@@ -42,11 +43,11 @@
                             <table class="table align-middle">
                                 <thead>
                                     <tr>
-                                        <th>Type</th>
-                                        <th>Name</th>
-                                        <th>Status</th>
-                                        <th>Issued by</th>
-                                        <th>Expires</th>
+                                        <th>{% trans "Type" %}</th>
+                                        <th>{% trans "Name" %}</th>
+                                        <th>{% trans "Status" %}</th>
+                                        <th>{% trans "Issued by" %}</th>
+                                        <th>{% trans "Expires" %}</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -66,14 +67,14 @@
                                             </td>
                                             <td class="text-end">
                                                 <a href="{% url 'provider_certificates' %}?edit={{ cert.pk }}" class="btn btn-sm btn-outline-primary">
-                                                    Edit
+                                                    {% trans "Edit" %}
                                                 </a>
                                             </td>
                                         </tr>
                                         {% if cert.notes %}
                                             <tr>
                                                 <td colspan="6" class="text-muted small">
-                                                    <strong>Notes:</strong> {{ cert.notes }}
+                                                    <strong>{% trans "Notes:" %}</strong> {{ cert.notes }}
                                                 </td>
                                             </tr>
                                         {% endif %}
@@ -83,7 +84,7 @@
                         </div>
                     {% else %}
                         <div class="border rounded p-4 bg-light">
-                            <p class="mb-0">No certificates added yet.</p>
+                            <p class="mb-0">{% trans "No certificates added yet." %}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -94,12 +95,12 @@
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     {% if edit_certificate %}
-                        <h2 class="h5 mb-3">Edit Certificate</h2>
+                        <h2 class="h5 mb-3">{% trans "Edit Certificate" %}</h2>
                         <div class="small text-muted mb-3">
-                            Current status: {{ edit_certificate.status|default:"-" }}
+                            {% trans "Current status:" %} {{ edit_certificate.status|default:"-" }}
                         </div>
                     {% else %}
-                        <h2 class="h5 mb-3">Add Certificate</h2>
+                        <h2 class="h5 mb-3">{% trans "Add Certificate" %}</h2>
                     {% endif %}
 
                     <form method="post" novalidate>
@@ -110,7 +111,7 @@
                         {% endif %}
 
                         <div class="mb-3">
-                            <label class="form-label" for="{{ form.cert_type.id_for_label }}">Certificate type</label>
+                            <label class="form-label" for="{{ form.cert_type.id_for_label }}">{% trans "Certificate type" %}</label>
                             {{ form.cert_type }}
                             {% if form.cert_type.errors %}
                                 <div class="text-danger small mt-1">{{ form.cert_type.errors }}</div>
@@ -118,7 +119,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label" for="{{ form.cert_name.id_for_label }}">Certificate name</label>
+                            <label class="form-label" for="{{ form.cert_name.id_for_label }}">{% trans "Certificate name" %}</label>
                             {{ form.cert_name }}
                             {% if form.cert_name.errors %}
                                 <div class="text-danger small mt-1">{{ form.cert_name.errors }}</div>
@@ -126,7 +127,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label" for="{{ form.taken_at.id_for_label }}">Taken at</label>
+                            <label class="form-label" for="{{ form.taken_at.id_for_label }}">{% trans "Taken at" %}</label>
                             {{ form.taken_at }}
                             {% if form.taken_at.errors %}
                                 <div class="text-danger small mt-1">{{ form.taken_at.errors }}</div>
@@ -134,7 +135,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label" for="{{ form.issued_by.id_for_label }}">Issued by</label>
+                            <label class="form-label" for="{{ form.issued_by.id_for_label }}">{% trans "Issued by" %}</label>
                             {{ form.issued_by }}
                             {% if form.issued_by.errors %}
                                 <div class="text-danger small mt-1">{{ form.issued_by.errors }}</div>
@@ -143,14 +144,14 @@
 
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label" for="{{ form.issued_country.id_for_label }}">Issued country</label>
+                                <label class="form-label" for="{{ form.issued_country.id_for_label }}">{% trans "Issued country" %}</label>
                                 {{ form.issued_country }}
                                 {% if form.issued_country.errors %}
                                     <div class="text-danger small mt-1">{{ form.issued_country.errors }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="{{ form.issued_city.id_for_label }}">Issued city</label>
+                                <label class="form-label" for="{{ form.issued_city.id_for_label }}">{% trans "Issued city" %}</label>
                                 {{ form.issued_city }}
                                 {% if form.issued_city.errors %}
                                     <div class="text-danger small mt-1">{{ form.issued_city.errors }}</div>
@@ -160,14 +161,14 @@
 
                         <div class="row g-3 mt-1">
                             <div class="col-md-6">
-                                <label class="form-label" for="{{ form.issued_date.id_for_label }}">Issued date</label>
+                                <label class="form-label" for="{{ form.issued_date.id_for_label }}">{% trans "Issued date" %}</label>
                                 {{ form.issued_date }}
                                 {% if form.issued_date.errors %}
                                     <div class="text-danger small mt-1">{{ form.issued_date.errors }}</div>
                                 {% endif %}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="{{ form.expires_date.id_for_label }}">Expires date</label>
+                                <label class="form-label" for="{{ form.expires_date.id_for_label }}">{% trans "Expires date" %}</label>
                                 {{ form.expires_date }}
                                 {% if form.expires_date.errors %}
                                     <div class="text-danger small mt-1">{{ form.expires_date.errors }}</div>
@@ -176,7 +177,7 @@
                         </div>
 
                         <div class="mt-3 mb-3">
-                            <label class="form-label" for="{{ form.notes.id_for_label }}">Notes</label>
+                            <label class="form-label" for="{{ form.notes.id_for_label }}">{% trans "Notes" %}</label>
                             {{ form.notes }}
                             {% if form.notes.errors %}
                                 <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
@@ -191,19 +192,19 @@
 
                         <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
-                                {% if edit_certificate %}Save Changes{% else %}Add Certificate{% endif %}
+                                {% if edit_certificate %}{% trans "Save Changes" %}{% else %}{% trans "Add Certificate" %}{% endif %}
                             </button>
 
                             {% if edit_certificate %}
                                 <a href="{% url 'provider_certificates' %}" class="btn btn-outline-secondary">
-                                    Cancel
+                                    {% trans "Cancel" %}
                                 </a>
                             {% endif %}
                         </div>
                     </form>
 
                     <div class="small text-muted mt-4">
-                        This page does not handle uploads yet. It stores certificate details and status only.
+                        {% trans "This page does not handle uploads yet. It stores certificate details and status only." %}
                     </div>
                 </div>
             </div>

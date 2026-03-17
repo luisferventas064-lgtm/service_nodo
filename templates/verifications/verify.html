@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Verify Phone{% endblock %}
+{% block title %}{% trans "Verify Phone" %}{% endblock %}
 
 {% block content %}
 <form method="post">
   {% csrf_token %}
-  <input type="text" name="code" placeholder="Enter code" required />
-  <button type="submit">Verify</button>
+  <input type="text" name="code" placeholder="{% trans "Enter code" %}" required />
+  <button type="submit">{% trans "Verify" %}</button>
 </form>
 
 {% if error %}

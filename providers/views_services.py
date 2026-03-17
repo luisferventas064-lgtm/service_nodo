@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from .models import Provider, ProviderService
@@ -17,7 +18,10 @@ def _ensure_provider_can_manage_services(request, provider):
         return redirect("provider_complete_profile")
 
     if not provider.profile_completed:
-        messages.info(request, "Please complete your profile to activate your provider account.")
+        messages.info(
+            request,
+            _("Please complete your profile to activate your provider account."),
+        )
         return redirect("provider_complete_profile")
 
     return None
@@ -31,7 +35,7 @@ def provider_services_list(request):
     if guard_response is not None:
         return guard_response
 
-    messages.info(request, "Services are now managed from the portal.")
+    messages.info(request, _("Services are now managed from the portal."))
     return redirect("portal:provider_services")
 
 
@@ -43,7 +47,10 @@ def provider_service_add(request):
     if guard_response is not None:
         return guard_response
 
-    messages.info(request, "Use the portal service categories page to add a new service.")
+    messages.info(
+        request,
+        _("Use the portal service categories page to add a new service."),
+    )
     return redirect("portal:provider_service_categories")
 
 
@@ -61,7 +68,7 @@ def provider_service_edit(request, service_id):
         provider=provider,
     )
 
-    messages.info(request, "This legacy edit page has moved to the portal.")
+    messages.info(request, _("This legacy edit page has moved to the portal."))
     return redirect("portal:provider_service_edit", service_id=service.id)
 
 
@@ -83,5 +90,8 @@ def provider_service_toggle(request, service_id):
     service.is_active = not service.is_active
     service.save(update_fields=["is_active"])
 
-    messages.info(request, "Service status updated. Manage services in the portal.")
+    messages.info(
+        request,
+        _("Service status updated. Manage services in the portal."),
+    )
     return redirect("portal:provider_services")

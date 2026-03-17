@@ -1,17 +1,18 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}
-{% if mode == "edit" %}Edit Service{% else %}Add Service{% endif %}
+{% if mode == "edit" %}{% trans "Edit Service" %}{% else %}{% trans "Add Service" %}{% endif %}
 {% endblock %}
 
 {% block content %}
-<h2>{% if mode == "edit" %}Edit Service{% else %}Add Service{% endif %}</h2>
+<h2>{% if mode == "edit" %}{% trans "Edit Service" %}{% else %}{% trans "Add Service" %}{% endif %}</h2>
 
 <form method="post">
   {% csrf_token %}
   {{ form.as_p }}
   <button type="submit">
-    {% if mode == "edit" %}Save Changes{% else %}Add Service{% endif %}
+    {% if mode == "edit" %}{% trans "Save Changes" %}{% else %}{% trans "Add Service" %}{% endif %}
   </button>
 </form>
 {% endblock %}

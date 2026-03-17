@@ -2,6 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView, TemplateView
 
 from . import views
+from . import views_provider
 
 app_name = "ui"
 
@@ -59,6 +60,21 @@ urlpatterns = [
     path("request/status/<int:job_id>/", views.request_status_view, name="request_status"),
     path("jobs/<int:job_id>/created/", views.job_created_view, name="job_created"),
     path("api/push/devices/register/", views.register_push_device, name="register_push_device"),
+    path(
+        "provider/jobs/incoming/",
+        views_provider.provider_incoming_jobs_view,
+        name="provider_incoming_jobs",
+    ),
+    path(
+        "provider/jobs/<int:job_id>/accept/",
+        views_provider.provider_accept_job_view,
+        name="provider_accept_job",
+    ),
+    path(
+        "provider/jobs/<int:job_id>/decline/",
+        views_provider.provider_decline_job_view,
+        name="provider_decline_job",
+    ),
     path("provider/jobs/", views.provider_jobs_view, name="provider_jobs"),
     path("provider/job/<int:job_id>/action/", views.provider_job_action_view, name="provider_job_action"),
     path("jobs/", views.jobs_list, name="jobs_list"),

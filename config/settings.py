@@ -73,9 +73,6 @@ STRIPE_ONBOARDING_RETURN_URL = os.getenv(
     f"{PUBLIC_BASE_URL}/stripe/onboarding/complete/",
 )
 
-if not STRIPE_SECRET_KEY:
-    raise RuntimeError("Stripe secret key not configured")
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -84,7 +81,7 @@ if not STRIPE_SECRET_KEY:
 SECRET_KEY = 'django-insecure-d%3ebi)1nzk6*y3!mtijivxes#c7u)_%whx!05w^3g2gqhq!q)'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DJANGO_DEBUG", os.getenv("DEBUG", "False")).lower() == "true"
+DEBUG = os.getenv("DJANGO_DEBUG", os.getenv("DEBUG", "True")).lower() == "true"
 ALLOW_LEDGER_REBUILD = False
 DEV_OTP_CODE = os.getenv("DEV_OTP_CODE", "12345")
 
@@ -129,6 +126,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'core.middleware.ActiveProfileMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -147,6 +145,7 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
+                'django.template.context_processors.i18n',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.active_profile_nav',
@@ -204,7 +203,20 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'fr'
+
+LANGUAGES = [
+    ('fr', 'Français'),
+    ('en', 'English'),
+    ('es', 'Español'),
+    ('ar', 'العربية'),
+    ('zh-hans', '中文'),
+    ('it', 'Italiano'),
+    ('pt', 'Português'),
+    ('ru', 'Русский'),
+    ('pa', 'ਪੰਜਾਬੀ'),
+    ('vi', 'Tiếng Việt'),
+]
 
 TIME_ZONE = 'UTC'
 
@@ -212,18 +224,21 @@ USE_I18N = True
 
 USE_TZ = True
 
+LOCALE_PATHS = [
+    BASE_DIR / "locale",
+]
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Optional override for auto evidence destination.
 NODO_EVIDENCE_DIR = None
 
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
-PUSH_PROVIDER = os.getenv("PUSH_PROVIDER", "stub").strip().lower()
-FCM_PROJECT_ID = os.getenv("FCM_PROJECT_ID", "").strip()
-FCM_CREDENTIALS_FILE = os.getenv("FCM_CREDENTIALS_FILE", "").strip()
-
-os.getenv('jyYU94--rE7vzSfiYtYvDKCBdqK2O26J6miXOgeIFzo')
+PUSH_PROVIDER = os.getenv("PUSH_PROVIDER", "stub")
+FCM_PROJECT_ID = os.getenv("FCM_PROJECT_ID")
+FCM_CREDENTIALS_FILE = os.getenv("FCM_CREDENTIALS_FILE")

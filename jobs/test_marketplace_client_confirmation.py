@@ -88,7 +88,7 @@ class MarketplaceClientConfirmationTests(TestCase):
         self.assertIsNone(job.next_marketplace_alert_at)
         self.assertIsNone(job.marketplace_search_started_at)
         self.assertIsNone(job.client_confirmation_started_at)
-        self.assertIsNone(job.selected_provider_id)
+        self.assertEqual(job.selected_provider_id, self.provider.provider_id)
         self.assertIsNotNone(self.provider.last_job_assigned_at)
         active = JobAssignment.objects.filter(job=job, is_active=True).first()
         self.assertIsNotNone(active)
@@ -122,31 +122,49 @@ class MarketplaceClientConfirmationTests(TestCase):
 
     def test_process_client_confirmation_timeout_reactivates_marketplace(self):
         job = self._mk_job(started_delta_minutes=61)
+        assignment = JobAssignment.objects.create(
+            job=job,
+            provider=self.provider,
+            is_active=True,
+            assignment_status="assigned",
+        )
 
         result, updated = process_marketplace_client_confirmation_timeout(job.job_id)
         self.assertEqual(result, "timeout_reopened_marketplace")
         self.assertEqual(updated, 1)
 
         job.refresh_from_db()
+        assignment.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.WAITING_PROVIDER_RESPONSE)
         self.assertIsNone(job.client_confirmation_started_at)
         self.assertIsNone(job.selected_provider_id)
         self.assertIsNotNone(job.next_marketplace_alert_at)
+        self.assertFalse(assignment.is_active)
+        self.assertEqual(assignment.assignment_status, "cancelled")
 
     def test_process_client_confirmation_timeout_to_pending_client_decision(self):
         job = self._mk_job(started_delta_minutes=61)
         job.marketplace_search_started_at = timezone.now() - timedelta(hours=25)
         job.save(update_fields=["marketplace_search_started_at"])
+        assignment = JobAssignment.objects.create(
+            job=job,
+            provider=self.provider,
+            is_active=True,
+            assignment_status="assigned",
+        )
 
         result, updated = process_marketplace_client_confirmation_timeout(job.job_id)
         self.assertEqual(result, "timeout_to_pending_client_decision")
         self.assertEqual(updated, 1)
 
         job.refresh_from_db()
+        assignment.refresh_from_db()
         self.assertEqual(job.job_status, Job.JobStatus.PENDING_CLIENT_DECISION)
         self.assertIsNone(job.selected_provider_id)
         self.assertIsNone(job.client_confirmation_started_at)
         self.assertIsNone(job.next_marketplace_alert_at)
+        self.assertFalse(assignment.is_active)
+        self.assertEqual(assignment.assignment_status, "cancelled")
 
     def test_tick_marketplace_processes_client_confirmation_timeouts(self):
         self._mk_job(started_delta_minutes=61)

@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% load text_extras %}
+{% load i18n text_extras %}
 
-{% block title %}Marketplace Results{% endblock %}
+{% block title %}{% trans "Marketplace Results" %}{% endblock %}
 
 {% block content %}
 <div class="card">
 
-<h2>Available Providers</h2>
+<h2>{% trans "Available Providers" %}</h2>
 
 {% if error %}
   <div class="provider-meta">{{ error }}</div>
@@ -34,11 +34,11 @@
 <div class="badges">
 
 {% if p.has_verified_certificate %}
-<span class="badge certified">Certified</span>
+<span class="badge certified">{% trans "Certified" %}</span>
 {% endif %}
 
 {% if p.has_verified_insurance %}
-<span class="badge insured">Insured</span>
+<span class="badge insured">{% trans "Insured" %}</span>
 {% endif %}
 
 </div>
@@ -60,11 +60,11 @@
 
 {% if p.is_compliant %}
 <a class="btn primary" href="{% url 'ui:request_create' p.provider_id %}{% if service_type_id %}?service_type_id={{ service_type_id }}{% endif %}">
-Request Service
+{% trans "Request Service" %}
 </a>
 {% else %}
 <span class="btn" aria-disabled="true" style="opacity:.65; cursor:not-allowed;">
-Compliance required
+{% trans "Compliance required" %}
 </span>
 {% endif %}
 
@@ -74,7 +74,7 @@ Compliance required
 
 </div>
 {% else %}
-<p>No providers available in this area.</p>
+<p>{% trans "No providers available in this area." %}</p>
 {% endif %}
 
 </div>

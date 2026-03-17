@@ -1,82 +1,185 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>NODO Marketplace Analytics</title>
-    <style>
-        body { font-family: Arial; background:#f4f6f9; margin:0; padding:30px; color:#1f2937; }
-        h1, h2 { margin:0 0 16px; }
-        h2 { margin-top:36px; }
-        .topbar { display:flex; gap:12px; align-items:center; margin-bottom:24px; flex-wrap:wrap; }
-        .topbar a {
-            background:#111;
-            color:white;
-            padding:10px 16px;
-            border-radius:6px;
-            text-decoration:none;
-        }
-        .topbar form { display:flex; gap:8px; align-items:center; }
-        .topbar input, .topbar button {
-            padding:8px 10px;
-            border-radius:6px;
-            border:1px solid #d1d5db;
-        }
-        .topbar button { background:#0b5cab; color:white; border:none; cursor:pointer; }
-        .cards { display:flex; flex-wrap:wrap; gap:14px; }
-        .card {
-            background:white;
-            border-radius:10px;
-            box-shadow:0 2px 6px rgba(0,0,0,0.08);
-            padding:18px 20px;
-            min-width:180px;
-        }
-        .label { font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:0.04em; }
-        .value { font-size:26px; font-weight:bold; margin-top:6px; }
-        .subvalue { font-size:13px; color:#4b5563; margin-top:4px; }
-        table {
-            width:100%;
-            border-collapse:collapse;
-            background:white;
-            border-radius:10px;
-            overflow:hidden;
-            box-shadow:0 2px 6px rgba(0,0,0,0.08);
-        }
-        th, td {
-            text-align:left;
-            padding:12px 14px;
-            border-bottom:1px solid #e5e7eb;
-            font-size:14px;
-        }
-        th { background:#eef2f7; }
-        tr:last-child td { border-bottom:none; }
-        .muted { color:#6b7280; font-size:13px; margin-bottom:12px; }
-        .empty { background:white; padding:18px 20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
-        .score-pill {
-            display:inline-block;
-            padding:4px 8px;
-            border-radius:999px;
-            font-weight:bold;
-            font-size:12px;
-        }
-        .score-pill.high { background:#fef2f2; color:#b91c1c; }
-        .score-pill.medium { background:#fffbeb; color:#b45309; }
-        .score-pill.low { background:#ecfdf5; color:#047857; }
-        .alert-badge {
-            display:inline-block;
-            padding:4px 8px;
-            border-radius:999px;
-            font-weight:bold;
-            font-size:11px;
-            margin:2px 4px 2px 0;
-            white-space:nowrap;
-        }
-        .alert-badge.critical { background:#b91c1c; color:white; }
-        .alert-badge.competition { background:#ea580c; color:white; }
-        .alert-badge.dispersion { background:#facc15; color:#713f12; }
-        .alert-badge.top-slice { background:#1d4ed8; color:white; }
-        .alert-badge.top-group { background:#dbeafe; color:#1e3a8a; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}NODO Marketplace Analytics{% endblock %}
+
+{% block content %}
+<style>
+    .marketplace-dashboard h1,
+    .marketplace-dashboard h2 {
+        margin: 0 0 16px;
+    }
+
+    .marketplace-dashboard h2 {
+        margin-top: 36px;
+    }
+
+    .marketplace-dashboard .topbar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+    }
+
+    .marketplace-dashboard .topbar a {
+        background: #111;
+        color: white;
+        padding: 10px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+    }
+
+    .marketplace-dashboard .topbar form {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .marketplace-dashboard .topbar input,
+    .marketplace-dashboard .topbar button {
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+    }
+
+    .marketplace-dashboard .topbar button {
+        background: #0b5cab;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+
+    .marketplace-dashboard .cards {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+
+    .marketplace-dashboard .card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        padding: 18px 20px;
+        min-width: 180px;
+    }
+
+    .marketplace-dashboard .label {
+        font-size: 12px;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .marketplace-dashboard .value {
+        font-size: 26px;
+        font-weight: bold;
+        margin-top: 6px;
+    }
+
+    .marketplace-dashboard .subvalue {
+        font-size: 13px;
+        color: #4b5563;
+        margin-top: 4px;
+    }
+
+    .marketplace-dashboard table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .marketplace-dashboard th,
+    .marketplace-dashboard td {
+        text-align: left;
+        padding: 12px 14px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 14px;
+    }
+
+    .marketplace-dashboard th {
+        background: #eef2f7;
+    }
+
+    .marketplace-dashboard tr:last-child td {
+        border-bottom: none;
+    }
+
+    .marketplace-dashboard .muted {
+        color: #6b7280;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    .marketplace-dashboard .empty {
+        background: white;
+        padding: 18px 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .marketplace-dashboard .score-pill {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-weight: bold;
+        font-size: 12px;
+    }
+
+    .marketplace-dashboard .score-pill.high {
+        background: #fef2f2;
+        color: #b91c1c;
+    }
+
+    .marketplace-dashboard .score-pill.medium {
+        background: #fffbeb;
+        color: #b45309;
+    }
+
+    .marketplace-dashboard .score-pill.low {
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .marketplace-dashboard .alert-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-weight: bold;
+        font-size: 11px;
+        margin: 2px 4px 2px 0;
+        white-space: nowrap;
+    }
+
+    .marketplace-dashboard .alert-badge.critical {
+        background: #b91c1c;
+        color: white;
+    }
+
+    .marketplace-dashboard .alert-badge.competition {
+        background: #ea580c;
+        color: white;
+    }
+
+    .marketplace-dashboard .alert-badge.dispersion {
+        background: #facc15;
+        color: #713f12;
+    }
+
+    .marketplace-dashboard .alert-badge.top-slice {
+        background: #1d4ed8;
+        color: white;
+    }
+
+    .marketplace-dashboard .alert-badge.top-group {
+        background: #dbeafe;
+        color: #1e3a8a;
+    }
+</style>
+
+<div class="marketplace-dashboard">
 
 <h1>Marketplace Analytics</h1>
 
@@ -291,6 +394,5 @@
 {% else %}
 <div class="empty">No score spread data available.</div>
 {% endif %}
-
-</body>
-</html>
+</div>
+{% endblock %}

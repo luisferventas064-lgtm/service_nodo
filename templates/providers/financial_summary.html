@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -98,11 +99,11 @@
   <div class="card provider-financial-hero">
     <h2 class="card-title">{{ page_title }}</h2>
     <p class="muted" style="margin: 0;">
-      Operational financial summary based on your provider jobs, pricing snapshots, tickets, and ledger records.
+      {% trans "Operational financial summary based on your provider jobs, pricing snapshots, tickets, and ledger records." %}
     </p>
     <div class="provider-financial-actions">
-      <a class="btn primary" href="?{{ export_querystring }}">Export CSV</a>
-      <a class="btn" href="{% url 'provider_activity' %}">View Activity</a>
+      <a class="btn primary" href="?{{ export_querystring }}">{% trans "Export CSV" %}</a>
+      <a class="btn" href="{% url 'provider_activity' %}">{% trans "View Activity" %}</a>
     </div>
     <p class="provider-financial-note">
       {{ financial_disclaimer_short }}
@@ -111,40 +112,40 @@
 
   <div class="provider-financial-grid">
     <div class="provider-financial-card">
-      <div class="provider-financial-label">Total jobs</div>
+      <div class="provider-financial-label">{% trans "Total jobs" %}</div>
       <div class="provider-financial-value">{{ activity_analytics.total_jobs }}</div>
     </div>
     <div class="provider-financial-card">
-      <div class="provider-financial-label">Completed jobs</div>
+      <div class="provider-financial-label">{% trans "Completed jobs" %}</div>
       <div class="provider-financial-value">{{ activity_analytics.completed_jobs }}</div>
     </div>
     <div class="provider-financial-card">
-      <div class="provider-financial-label">Cancelled jobs</div>
+      <div class="provider-financial-label">{% trans "Cancelled jobs" %}</div>
       <div class="provider-financial-value">{{ activity_analytics.cancelled_jobs }}</div>
     </div>
     <div class="provider-financial-card">
-      <div class="provider-financial-label">Gross</div>
+      <div class="provider-financial-label">{% trans "Gross" %}</div>
       <div class="provider-financial-value">{{ activity_analytics.total_gross_display }}</div>
     </div>
     <div class="provider-financial-card">
-      <div class="provider-financial-label">Platform fees</div>
+      <div class="provider-financial-label">{% trans "Platform fees" %}</div>
       <div class="provider-financial-value">{{ activity_analytics.total_platform_fees_display }}</div>
     </div>
     <div class="provider-financial-card">
-      <div class="provider-financial-label">Provider net</div>
+      <div class="provider-financial-label">{% trans "Provider net" %}</div>
       <div class="provider-financial-value">{{ activity_analytics.total_provider_earnings_display }}</div>
     </div>
   </div>
 
   <div class="card">
-    <h3 style="margin-top: 0; margin-bottom: 16px;">Monthly breakdown</h3>
+    <h3 style="margin-top: 0; margin-bottom: 16px;">{% trans "Monthly breakdown" %}</h3>
     <table class="provider-financial-table">
       <thead>
         <tr>
-          <th>Month</th>
-          <th>Gross</th>
-          <th>Platform fees</th>
-          <th>Provider net</th>
+          <th>{% trans "Month" %}</th>
+          <th>{% trans "Gross" %}</th>
+          <th>{% trans "Platform fees" %}</th>
+          <th>{% trans "Provider net" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -157,7 +158,7 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="4">No data</td>
+            <td colspan="4">{% trans "No data" %}</td>
           </tr>
         {% endfor %}
       </tbody>

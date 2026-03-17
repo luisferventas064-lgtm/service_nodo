@@ -1,10 +1,12 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 
 <head>
 
 <meta charset="UTF-8">
-<title>NODO</title>
+<title>{% block title %}NODO{% endblock %}</title>
 
 <style>
 
@@ -90,6 +92,47 @@ color:#0F172A;
 display:flex;
 gap:10px;
 align-items:center;
+flex-wrap:wrap;
+}
+
+.lang-dropdown{
+display:inline-flex;
+align-items:center;
+gap:8px;
+margin-right:2px;
+flex-shrink:0;
+position:relative;
+z-index:5;
+}
+
+.lang-dropdown__select{
+min-width:110px;
+max-width:100%;
+padding:8px 36px 8px 12px;
+border:1px solid #E2E8F0;
+border-radius:999px;
+background:#F8FAFC;
+font-size:13px;
+font-weight:700;
+color:#0F172A;
+box-shadow:0 6px 16px rgba(15,23,42,.05);
+}
+
+.lang-dropdown__select:focus{
+outline:none;
+border-color:var(--nodo-primary);
+box-shadow:0 0 0 3px rgba(15,185,177,.14);
+}
+
+@media (max-width: 768px) {
+  .navcta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .lang-dropdown {
+    width: auto;
+  }
 }
 
 
@@ -1002,17 +1045,15 @@ hr{
 
 <nav class="navlinks">
 
-<a href="/home/">Home</a>
+<a href="/home/">{% trans "Home" %}</a>
 
-<a href="/login/client/">Clients</a>
+<a href="/login/client/">{% trans "Clients" %}</a>
 
-<a href="/login/provider/">Providers</a>
+<a href="/login/provider/">{% trans "Providers" %}</a>
 
-<a href="/login/worker/">Workers</a>
+<a href="/login/worker/">{% trans "Workers" %}</a>
 
-<a href="#app">Get the app</a>
-
-<a href="#contact">Contact us</a>
+<a href="#contact">{% trans "Contact us" %}</a>
 
 </nav>
 
@@ -1020,17 +1061,19 @@ hr{
 
 <div class="navcta">
 
+{% include "partials/language_dropdown.html" %}
+
 {% if request.session.nodo_role or request.session.client_id or request.session.provider_id or request.session.worker_id %}
 
 <span>{{ user_nav_label }}</span>
 
-<a class="btn" href="/logout/">Logout</a>
+<a class="btn" href="/logout/">{% trans "Logout" %}</a>
 
 {% else %}
 
-<a class="btn" href="/login/">Login</a>
+<a class="btn" href="/login/">{% trans "Login" %}</a>
 
-<a class="btn primary" href="/signup/">Sign Up</a>
+<a class="btn primary" href="/signup/">{% trans "Sign Up" %}</a>
 
 {% endif %}
 
@@ -1048,15 +1091,15 @@ hr{
 
 {% if user_client and user_client.is_phone_verified and not user_client.profile_completed %}
 <div class="status-banner client">
-Your profile is incomplete.
-<a href="{% url 'client_complete_profile' %}">Complete it here</a>
+{% trans "Your profile is incomplete." %}
+<a href="{% url 'client_complete_profile' %}">{% trans "Complete it here" %}</a>
 </div>
 {% endif %}
 
 {% if user_provider and user_provider.is_phone_verified and not user_provider.profile_completed %}
 <div class="status-banner provider">
-Your provider profile is incomplete.
-<a href="{% url 'provider_complete_profile' %}">Complete it here</a>
+{% trans "Your provider profile is incomplete." %}
+<a href="{% url 'provider_complete_profile' %}">{% trans "Complete it here" %}</a>
 </div>
 {% endif %}
 
@@ -1086,23 +1129,25 @@ Your provider profile is incomplete.
 
 <footer class="nodo-footer">
   <div class="nodo-footer__inner">
-    <h3 id="app" class="nodo-footer__title">Get the app</h3>
+    <h3 id="app" class="nodo-footer__title">{% trans "Get the app" %}</h3>
     <p class="nodo-footer__text">
-      Launch with a clean web experience first. Add mobile download links when ready.
+      {% trans "Launch with a clean web experience first. Add mobile download links when ready." %}
     </p>
 
     <div class="nodo-footer__buttons">
-      <span class="store-badge">App Store (soon)</span>
-      <span class="store-badge">Google Play (soon)</span>
+      <span class="store-badge">{% trans "App Store (soon)" %}</span>
+      <span class="store-badge">{% trans "Google Play (soon)" %}</span>
     </div>
 
     <div id="contact" class="nodo-footer__copyright">
-      &copy; 2026 NODO. All rights reserved.
+      &copy; 2026 NODO. {% trans "All rights reserved." %}
     </div>
   </div>
 </footer>
 
 <script>
+var hidePasswordLabel = "{% trans 'Hide password' %}";
+var showPasswordLabel = "{% trans 'Show password' %}";
 
 setTimeout(function(){
 
@@ -1131,7 +1176,7 @@ return;
 var showingPassword = field.type === "password";
 field.type = showingPassword ? "text" : "password";
 button.setAttribute("aria-pressed", showingPassword ? "true" : "false");
-button.setAttribute("aria-label", showingPassword ? "Hide password" : "Show password");
+button.setAttribute("aria-label", showingPassword ? hidePasswordLabel : showPasswordLabel);
 }
 
 </script>

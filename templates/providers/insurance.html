@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Manage Insurance{% endblock %}
+{% block title %}{% trans "Manage Insurance" %}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -10,11 +11,11 @@
                 <div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
-                            <h1 class="h3 mb-1">Manage Insurance</h1>
-                            <p class="text-muted mb-0">Create or update your insurance information.</p>
+                            <h1 class="h3 mb-1">{% trans "Manage Insurance" %}</h1>
+                            <p class="text-muted mb-0">{% trans "Create or update your insurance information." %}</p>
                         </div>
                         <a href="{% url 'provider_profile' %}" class="btn btn-outline-secondary">
-                            Back to Profile
+                            {% trans "Back to Profile" %}
                         </a>
                     </div>
 
@@ -29,17 +30,17 @@
                     <div class="mb-4 p-3 rounded bg-light border">
                         <div class="row g-3 align-items-center">
                             <div class="col-md-6">
-                                <div class="small text-muted">Verification status</div>
+                                <div class="small text-muted">{% trans "Verification status" %}</div>
                                 <div class="fw-semibold">
                                     {% if insurance and insurance.is_verified %}
-                                        Verified
+                                        {% trans "Verified" %}
                                     {% else %}
-                                        Not verified
+                                        {% trans "Not verified" %}
                                     {% endif %}
                                 </div>
                             </div>
                             <div class="col-md-6 text-md-end">
-                                <div class="small text-muted">Provider ID</div>
+                                <div class="small text-muted">{% trans "Provider ID" %}</div>
                                 <div class="fw-semibold">{{ provider.pk }}</div>
                             </div>
                         </div>
@@ -51,7 +52,7 @@
                         <div class="form-check mb-4">
                             {{ form.has_insurance }}
                             <label class="form-check-label" for="{{ form.has_insurance.id_for_label }}">
-                                I have active insurance
+                                {% trans "I have active insurance" %}
                             </label>
                             {% if form.has_insurance.errors %}
                                 <div class="text-danger small mt-1">{{ form.has_insurance.errors }}</div>
@@ -61,7 +62,7 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label" for="{{ form.insurance_company.id_for_label }}">
-                                    Insurance company
+                                    {% trans "Insurance company" %}
                                 </label>
                                 {{ form.insurance_company }}
                                 {% if form.insurance_company.errors %}
@@ -71,7 +72,7 @@
 
                             <div class="col-md-6">
                                 <label class="form-label" for="{{ form.policy_number.id_for_label }}">
-                                    Policy number
+                                    {% trans "Policy number" %}
                                 </label>
                                 {{ form.policy_number }}
                                 {% if form.policy_number.errors %}
@@ -81,7 +82,7 @@
 
                             <div class="col-md-6">
                                 <label class="form-label" for="{{ form.coverage_amount.id_for_label }}">
-                                    Coverage amount
+                                    {% trans "Coverage amount" %}
                                 </label>
                                 {{ form.coverage_amount }}
                                 {% if form.coverage_amount.errors %}
@@ -91,7 +92,7 @@
 
                             <div class="col-md-6">
                                 <label class="form-label" for="{{ form.expiry_date.id_for_label }}">
-                                    Expiry date
+                                    {% trans "Expiry date" %}
                                 </label>
                                 {{ form.expiry_date }}
                                 {% if form.expiry_date.errors %}
@@ -108,10 +109,10 @@
 
                         <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
-                                Save Insurance
+                                {% trans "Save Insurance" %}
                             </button>
                             <a href="{% url 'provider_profile' %}" class="btn btn-outline-secondary">
-                                Cancel
+                                {% trans "Cancel" %}
                             </a>
                         </div>
                     </form>

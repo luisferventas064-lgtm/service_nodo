@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from compliance.services import evaluate_provider_compliance
@@ -32,7 +33,7 @@ def _get_session_role(request):
 def home(request):
     role = _get_session_role(request)
     if role is None:
-        messages.error(request, "Please log in to access your portal.")
+        messages.error(request, _("Please log in to access your portal."))
         return redirect("ui:root_login")
 
     if role == "client":
@@ -70,7 +71,10 @@ def _get_provider_compliance_result(provider, service_type):
 def provider_dashboard_view(request):
     provider = _get_provider_from_session(request)
     if provider is None:
-        messages.error(request, "Provider profile not found. Please complete your profile.")
+        messages.error(
+            request,
+            _("Provider profile not found. Please complete your profile."),
+        )
         return redirect("ui:root_login")
 
     qs = Job.objects.filter(selected_provider=provider)
@@ -130,14 +134,20 @@ def provider_dashboard_view(request):
 def provider_services_view(request):
     provider = _get_provider_from_session(request)
     if provider is None:
-        messages.error(request, "Provider profile not found. Please complete your profile.")
+        messages.error(
+            request,
+            _("Provider profile not found. Please complete your profile."),
+        )
         return redirect("ui:root_login")
 
     provider.evaluate_profile_completion()
     provider.refresh_from_db(fields=["profile_completed"])
 
     if not provider.profile_completed:
-        messages.info(request, "Please complete your profile to activate your provider account.")
+        messages.info(
+            request,
+            _("Please complete your profile to activate your provider account."),
+        )
         return redirect("provider_complete_profile")
 
     service_type_id = request.GET.get("service_type_id")
@@ -198,14 +208,20 @@ def provider_services_view(request):
 def provider_service_categories_view(request):
     provider = _get_provider_from_session(request)
     if provider is None:
-        messages.error(request, "Provider profile not found. Please complete your profile.")
+        messages.error(
+            request,
+            _("Provider profile not found. Please complete your profile."),
+        )
         return redirect("ui:root_login")
 
     provider.evaluate_profile_completion()
     provider.refresh_from_db(fields=["profile_completed"])
 
     if not provider.profile_completed:
-        messages.info(request, "Please complete your profile to activate your provider account.")
+        messages.info(
+            request,
+            _("Please complete your profile to activate your provider account."),
+        )
         return redirect("provider_complete_profile")
 
     service_types = ServiceType.objects.filter(is_active=True).order_by("name")
@@ -237,14 +253,17 @@ def provider_service_categories_view(request):
 def provider_service_add_view(request, service_type_id):
     provider = _get_provider_from_session(request)
     if not provider:
-        messages.error(request, "Please sign in again.")
+        messages.error(request, _("Please sign in again."))
         return redirect("ui:root_login")
 
     provider.evaluate_profile_completion()
     provider.refresh_from_db(fields=["profile_completed"])
 
     if not provider.profile_completed:
-        messages.info(request, "Complete your provider profile before managing services.")
+        messages.info(
+            request,
+            _("Complete your provider profile before managing services."),
+        )
         return redirect("provider_complete_profile")
 
     service_type = get_object_or_404(ServiceType, pk=service_type_id, is_active=True)
@@ -274,7 +293,7 @@ def provider_service_add_view(request, service_type_id):
                     if _normalize_name(existing.custom_name or "") == normalized_name:
                         form.add_error(
                             "custom_name",
-                            "You already have a service with this name in this category.",
+                            _("You already have a service with this name in this category."),
                         )
                         break
 
@@ -283,7 +302,7 @@ def provider_service_add_view(request, service_type_id):
                 service.provider = provider
                 service.service_type = service_type
                 service.save()
-                messages.success(request, "Service added successfully.")
+                messages.success(request, _("Service added successfully."))
                 return redirect("portal:provider_services")
     else:
         form = ProviderServiceCreateForm(service_type_name=service_type.name)
@@ -305,14 +324,17 @@ def provider_service_add_view(request, service_type_id):
 def provider_service_edit_view(request, service_id):
     provider = _get_provider_from_session(request)
     if not provider:
-        messages.error(request, "Please sign in again.")
+        messages.error(request, _("Please sign in again."))
         return redirect("ui:root_login")
 
     provider.evaluate_profile_completion()
     provider.refresh_from_db(fields=["profile_completed"])
 
     if not provider.profile_completed:
-        messages.info(request, "Complete your provider profile before managing services.")
+        messages.info(
+            request,
+            _("Complete your provider profile before managing services."),
+        )
         return redirect("provider_complete_profile")
 
     service = get_object_or_404(
@@ -340,13 +362,13 @@ def provider_service_edit_view(request, service_id):
                 if _normalize_name(existing.custom_name or "") == normalized_name:
                     form.add_error(
                         "custom_name",
-                        "You already have a service with this name in this category.",
+                        _("You already have a service with this name in this category."),
                     )
                     break
 
             if not form.errors:
                 form.save()
-                messages.success(request, "Service updated successfully.")
+                messages.success(request, _("Service updated successfully."))
                 return redirect("portal:provider_services")
     else:
         form = ProviderServiceCreateForm(
@@ -373,14 +395,17 @@ def provider_service_edit_view(request, service_id):
 def provider_service_toggle_view(request, service_id: int):
     provider = _get_provider_from_session(request)
     if not provider:
-        messages.error(request, "Please sign in again.")
+        messages.error(request, _("Please sign in again."))
         return redirect("ui:root_login")
 
     provider.evaluate_profile_completion()
     provider.refresh_from_db(fields=["profile_completed"])
 
     if not provider.profile_completed:
-        messages.info(request, "Complete your provider profile before managing services.")
+        messages.info(
+            request,
+            _("Complete your provider profile before managing services."),
+        )
         return redirect("provider_complete_profile")
 
     service = get_object_or_404(
@@ -394,7 +419,11 @@ def provider_service_toggle_view(request, service_id: int):
         service.save(update_fields=["is_active"])
         messages.success(
             request,
-            "Service activated successfully." if service.is_active else "Service deactivated successfully.",
+            (
+                _("Service activated successfully.")
+                if service.is_active
+                else _("Service deactivated successfully.")
+            ),
         )
 
     return redirect("portal:provider_services")
@@ -403,7 +432,7 @@ def provider_service_toggle_view(request, service_id: int):
 def client_dashboard_alias(request):
     role = _get_session_role(request)
     if role != "client":
-        messages.error(request, "Please log in as client.")
+        messages.error(request, _("Please log in as client."))
         return redirect("ui:root_login")
     return redirect("client_dashboard")
 
@@ -411,7 +440,7 @@ def client_dashboard_alias(request):
 def provider_dashboard_alias(request):
     role = _get_session_role(request)
     if role != "provider":
-        messages.error(request, "Please log in as provider.")
+        messages.error(request, _("Please log in as provider."))
         return redirect("ui:root_login")
     return redirect("provider_dashboard")
 
@@ -419,6 +448,6 @@ def provider_dashboard_alias(request):
 def worker_dashboard_alias(request):
     role = _get_session_role(request)
     if role != "worker":
-        messages.error(request, "Please log in as worker.")
+        messages.error(request, _("Please log in as worker."))
         return redirect("ui:root_login")
     return redirect("worker_jobs")

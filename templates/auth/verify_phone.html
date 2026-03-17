@@ -1,14 +1,17 @@
 {% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Verify Phone" %}{% endblock %}
 
 {% block content %}
 <div style="max-width:400px;margin:80px auto;text-align:center;">
-    <h2>Verify your phone number</h2>
-    <p>Enter the verification code sent to your phone.</p>
+    <h2>{% trans "Verify your phone number" %}</h2>
+    <p>{% trans "Enter the verification code sent to your phone." %}</p>
 
     <form method="post">
         {% csrf_token %}
-        <input type="text" name="code" placeholder="6-digit code" required style="padding:10px;width:100%;margin:15px 0;">
-        <button type="submit" style="padding:10px 20px;">Verify</button>
+        <input type="text" name="code" placeholder="{% trans '6-digit code' %}" required style="padding:10px;width:100%;margin:15px 0;">
+        <button type="submit" style="padding:10px 20px;">{% trans "Verify" %}</button>
     </form>
 
     {% if error %}
@@ -19,12 +22,16 @@
 
     <div style="margin-top:20px; text-align:center;">
         <button id="resendBtn" type="button" disabled style="padding:8px 16px;">
-            Resend code (<span id="countdown">60</span>s)
+            {% trans "Resend code" %} (<span id="countdown">60</span>s)
         </button>
     </div>
 </div>
 
 <script>
+const resendCodeLabel = "{% trans 'Resend code' %}";
+const resendSuccessMessage = "{% trans 'A new verification code has been sent.' %}";
+const resendFailureMessage = "{% trans 'Unable to resend code.' %}";
+const resendNetworkMessage = "{% trans 'Network error. Please try again.' %}";
 let seconds = 60;
 const resendBtn = document.getElementById("resendBtn");
 let countdownEl = document.getElementById("countdown");
@@ -49,7 +56,7 @@ function startTimer() {
             clearInterval(timer);
             timer = null;
             resendBtn.disabled = false;
-            resendBtn.textContent = "Resend code";
+            resendBtn.textContent = resendCodeLabel;
         }
     }, 1000);
 }
@@ -69,22 +76,22 @@ resendBtn.addEventListener("click", function() {
     .then(data => {
         if (data.success) {
             messageBox.style.color = "green";
-            messageBox.textContent = "A new verification code has been sent.";
-            resendBtn.innerHTML = 'Resend code (<span id="countdown">60</span>s)';
+            messageBox.textContent = resendSuccessMessage;
+            resendBtn.innerHTML = `${resendCodeLabel} (<span id="countdown">60</span>s)`;
             countdownEl = document.getElementById("countdown");
             startTimer();
         } else {
             messageBox.style.color = "red";
-            messageBox.textContent = data.error || "Unable to resend code.";
+            messageBox.textContent = data.error || resendFailureMessage;
             resendBtn.disabled = false;
-            resendBtn.textContent = "Resend code";
+            resendBtn.textContent = resendCodeLabel;
         }
     })
     .catch(() => {
         messageBox.style.color = "red";
-        messageBox.textContent = "Network error. Please try again.";
+        messageBox.textContent = resendNetworkMessage;
         resendBtn.disabled = false;
-        resendBtn.textContent = "Resend code";
+        resendBtn.textContent = resendCodeLabel;
     });
 });
 

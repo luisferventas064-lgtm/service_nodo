@@ -1,22 +1,29 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Client Profile{% endblock %}
+{% block title %}{% trans "Client Profile" %}{% endblock %}
 
 {% block content %}
-<h2>Client Profile</h2>
+<h2>{% trans "Client Profile" %}</h2>
 
-<p>Full name: {{ client.first_name }} {{ client.last_name }}</p>
-<p>Email: {{ client.email }}</p>
-<p><strong>Languages spoken:</strong> {{ client.languages_spoken|default:"-" }}</p>
-<p>Phone verified: {{ client.is_phone_verified }}</p>
-<p>Profile completed: {{ client.profile_completed }}</p>
+<p>{% trans "Full name:" %} {{ client.first_name }} {{ client.last_name }}</p>
+<p>{% trans "Email:" %} {{ client.email }}</p>
+<p><strong>{% trans "Languages spoken:" %}</strong> {{ client.languages_spoken|default:"-" }}</p>
+<p>
+  {% trans "Phone verified:" %}
+  {% if client.is_phone_verified %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}
+</p>
+<p>
+  {% trans "Profile completed:" %}
+  {% if client.profile_completed %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}
+</p>
 
 <hr>
-<h3>Quick Links</h3>
+<h3>{% trans "Quick Links" %}</h3>
 <ul>
-  <li><a href="{% url 'client_dashboard' %}">Dashboard</a></li>
-  <li><a href="{% url 'client_activity' %}">Activity</a></li>
-  <li><a href="{% url 'client_billing' %}">Billing</a></li>
-  <li><a href="{% url 'client_edit' %}">Account Settings</a></li>
+  <li><a href="{% url 'client_dashboard' %}">{% trans "Dashboard" %}</a></li>
+  <li><a href="{% url 'client_activity' %}">{% trans "Activity" %}</a></li>
+  <li><a href="{% url 'client_billing' %}">{% trans "Billing" %}</a></li>
+  <li><a href="{% url 'client_edit' %}">{% trans "Account Settings" %}</a></li>
 </ul>
 {% endblock %}

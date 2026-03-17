@@ -1,12 +1,14 @@
-﻿<!doctype html>
-<html lang="en">
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NODO - Find & Book Trusted Services</title>
+  <title>NODO - {% trans "Find & Book Trusted Services" %}</title>
   <meta
     name="description"
-    content="NODO connects clients with trusted local providers. Marketplace now. Independent workers next."
+    content="{% trans 'NODO connects clients with trusted local providers. Marketplace now. Independent workers next.' %}"
   />
   <style>
   :root{
@@ -116,6 +118,34 @@
     gap:10px;
     align-items:center;
     flex-wrap:wrap;
+  }
+
+  .lang-dropdown{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-right:2px;
+    flex-shrink:0;
+    position:relative;
+    z-index:5;
+  }
+
+  .lang-dropdown__select{
+    min-width:110px;
+    max-width:100%;
+    padding:8px 36px 8px 12px;
+    border:1px solid var(--nodo-border);
+    border-radius:999px;
+    background:#fff;
+    font-size:13px;
+    font-weight:700;
+    color:var(--nodo-text);
+  }
+
+  .lang-dropdown__select:focus{
+    outline:none;
+    border-color:var(--nodo-primary);
+    box-shadow:0 0 0 3px rgba(15,185,177,.14);
   }
 
   .navuser{
@@ -514,53 +544,57 @@
     .nav{
       border-radius:22px;
     }
+
+    .navcta{
+      width:100%;
+      justify-content:flex-start;
+    }
   }
 </style>
 </head>
 <body>
   <div class="wrap">
     <header class="nav">
-      <a class="brand" href="{% url 'ui:home' %}" aria-label="NODO home">
+      <a class="brand" href="{% url 'ui:home' %}" aria-label="{% trans 'NODO home' %}">
         <div class="logo" aria-hidden="true"></div>
         <strong>NODO</strong>
       </a>
 
-      <nav class="navlinks" aria-label="Primary">
-        <a href="{% url 'ui:home' %}">Home</a>
+      <nav class="navlinks" aria-label="{% trans 'Primary' %}">
+        <a href="{% url 'ui:home' %}">{% trans "Home" %}</a>
 
         {% if request.session.nodo_role == "provider" %}
-          <a href="{% url 'portal:provider_dashboard' %}">Dashboard</a>
         {% elif request.session.nodo_role == "client" %}
-          <a href="{% url 'client_dashboard' %}">Client Dashboard</a>
+          <a href="{% url 'client_dashboard' %}">{% trans "Client Dashboard" %}</a>
         {% elif request.session.nodo_role == "worker" %}
-          <a href="#">Worker Dashboard</a>
+          <a href="#">{% trans "Worker Dashboard" %}</a>
         {% else %}
-          <a href="{% url 'ui:login_client' %}">Clients</a>
-          <a href="{% url 'ui:login_provider' %}">Providers</a>
-          <a href="{% url 'ui:login_worker' %}">Workers</a>
+          <a href="{% url 'ui:login_client' %}">{% trans "Clients" %}</a>
+          <a href="{% url 'ui:login_provider' %}">{% trans "Providers" %}</a>
+          <a href="{% url 'ui:login_worker' %}">{% trans "Workers" %}</a>
         {% endif %}
 
-        <a href="#app">Get the app</a>
-        <a href="#contact">Contact us</a>
+        <a href="#contact">{% trans "Contact us" %}</a>
       </nav>
 
       <div class="navcta">
+        {% include "partials/language_dropdown.html" %}
+
         {% if request.session.nodo_role == "provider" %}
-          <a class="btn" href="{% url 'portal:provider_dashboard' %}">Provider Dashboard</a>
-          <span class="navuser">{{ nav_identity|default:"Provider Account" }}</span>
-          <a class="btn" href="{% url 'ui:logout' %}">Logout</a>
+          <a class="btn" href="{% url 'portal:provider_dashboard' %}">{% trans "Provider Dashboard" %}</a>
+          <a class="btn" href="{% url 'ui:logout' %}">{% trans "Logout" %}</a>
 
         {% elif request.session.nodo_role == "client" %}
-          <span class="navuser">{{ nav_identity|default:"Client Account" }}</span>
-          <a class="btn" href="{% url 'ui:logout' %}">Logout</a>
+          <span class="navuser">{{ nav_identity }}</span>
+          <a class="btn" href="{% url 'ui:logout' %}">{% trans "Logout" %}</a>
 
         {% elif request.session.nodo_role == "worker" %}
-          <span class="navuser">{{ nav_identity|default:"Worker Account" }}</span>
-          <a class="btn" href="{% url 'ui:logout' %}">Logout</a>
+          <span class="navuser">{{ nav_identity }}</span>
+          <a class="btn" href="{% url 'ui:logout' %}">{% trans "Logout" %}</a>
 
         {% else %}
-          <a class="btn" href="{% url 'ui:login_choice' %}">Login</a>
-          <a class="btn primary" href="{% url 'ui:signup' %}">Sign Up</a>
+          <a class="btn" href="{% url 'ui:login_choice' %}">{% trans "Login" %}</a>
+          <a class="btn primary" href="{% url 'ui:signup' %}">{% trans "Sign Up" %}</a>
         {% endif %}
       </div>
     </header>
@@ -568,20 +602,22 @@
     <main>
       <section class="hero" id="top">
         <div class="hero-content">
-          <h1>Find &amp; book trusted local services.</h1>
+          <h1>{% trans "Find & book trusted local services." %}</h1>
 
           <p class="sub">
+            {% blocktrans %}
             NODO connects clients with trusted providers across Quebec and Canada.
             Search by service type and filter results with verified requirements.
+            {% endblocktrans %}
           </p>
 
           <form class="heroform" method="get" action="{% url 'ui:marketplace_search' %}">
             <div class="field">
-              <label for="hero_service_type">Service Type</label>
+              <label for="hero_service_type">{% trans "Service Type" %}</label>
               <select id="hero_service_type" name="service_type" required>
-                <option value="">Select service type</option>
+                <option value="">{% trans "Select service type" %}</option>
                 {% for st in service_types %}
-                  <option value="{{ st.service_type_id }}">{{ st.name }}</option>
+                  <option value="{{ st.service_type_id }}">{{ st.localized_name }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -589,99 +625,99 @@
             <div class="checks">
               <label class="check">
                 <input type="checkbox" name="only_certified" value="1">
-                Only certified
+                {% trans "Only certified" %}
               </label>
 
               <label class="check">
                 <input type="checkbox" name="only_insured" value="1">
-                Only insured
+                {% trans "Only insured" %}
               </label>
             </div>
 
             <div class="field field-submit">
-              <button class="btn primary submit" type="submit">Search Marketplace</button>
+              <button class="btn primary submit" type="submit">{% trans "Search Marketplace" %}</button>
             </div>
           </form>
 
           <div class="heroactions">
-            <a class="btn" href="#app">Get the app</a>
-            <a class="btn" href="{% url 'ui:signup' %}">Become a Provider</a>
+            <a class="btn" href="#app">{% trans "Get the app" %}</a>
+            <a class="btn" href="{% url 'ui:signup' %}">{% trans "Become a Provider" %}</a>
           </div>
         </div>
       </section>
 
       <section class="section" id="about">
-        <h2>One platform, three roles.</h2>
+        <h2>{% trans "One platform, three roles." %}</h2>
         <p class="sub" style="max-width:none">
-          Today: Marketplace for clients and providers. Next phase: independent workers (on-demand assignments).
+          {% trans "Today: Marketplace for clients and providers. Next phase: independent workers (on-demand assignments)." %}
         </p>
 
         <div class="grid3">
           <div class="mini" id="clients">
             <div class="top">
-              <strong>Clients</strong>
-              <span class="pill">Live</span>
+              <strong>{% trans "Clients" %}</strong>
+              <span class="pill">{% trans "Live" %}</span>
             </div>
-            <p>Browse categories, compare providers, and request service with clear status updates.</p>
+            <p>{% trans "Browse categories, compare providers, and request service with clear status updates." %}</p>
           </div>
 
           <div class="mini" id="providers">
             <div class="top">
-              <strong>Providers</strong>
-              <span class="pill">Live</span>
+              <strong>{% trans "Providers" %}</strong>
+              <span class="pill">{% trans "Live" %}</span>
             </div>
-            <p>List services, define service areas, and build trust with compliance and reliability signals.</p>
+            <p>{% trans "List services, define service areas, and build trust with compliance and reliability signals." %}</p>
           </div>
 
           <div class="mini">
             <div class="top">
-              <strong>Workers</strong>
-              <span class="soon">Coming soon</span>
+              <strong>{% trans "Workers" %}</strong>
+              <span class="soon">{% trans "Coming soon" %}</span>
             </div>
-            <p>Independent workers can accept jobs when providers need extra hands (flex staffing).</p>
+            <p>{% trans "Independent workers can accept jobs when providers need extra hands (flex staffing)." %}</p>
           </div>
         </div>
       </section>
 
       <section class="section">
-        <h2>How it works</h2>
+        <h2>{% trans "How it works" %}</h2>
         <div class="how">
           <div class="step">
             <div class="num">1</div>
-            <strong>Choose a service</strong>
-            <p>Pick what you need in the marketplace and filter by verified signals.</p>
+            <strong>{% trans "Choose a service" %}</strong>
+            <p>{% trans "Pick what you need in the marketplace and filter by verified signals." %}</p>
           </div>
           <div class="step">
             <div class="num">2</div>
-            <strong>Request confidently</strong>
-            <p>Providers appear ranked by compliance and reliability (no random lists).</p>
+            <strong>{% trans "Request confidently" %}</strong>
+            <p>{% trans "Providers appear ranked by compliance and reliability (no random lists)." %}</p>
           </div>
           <div class="step">
             <div class="num">3</div>
-            <strong>Track &amp; close</strong>
-            <p>Status updates keep both sides aligned. Close the job and leave a review.</p>
+            <strong>{% trans "Track & close" %}</strong>
+            <p>{% trans "Status updates keep both sides aligned. Close the job and leave a review." %}</p>
           </div>
         </div>
       </section>
 
       <section class="section" id="app">
-        <h2>Get the app</h2>
+        <h2>{% trans "Get the app" %}</h2>
         <p class="sub" style="max-width:none">
-          Launch with a clean web experience first. Add mobile download links when ready.
+          {% trans "Launch with a clean web experience first. Add mobile download links when ready." %}
         </p>
         <div class="heroactions" style="margin-top:12px">
-          <a class="btn" href="#" aria-disabled="true">App Store (soon)</a>
-          <a class="btn" href="#" aria-disabled="true">Google Play (soon)</a>
-          <a class="btn primary" href="{% url 'ui:marketplace_search' %}">Use web marketplace</a>
+          <a class="btn" href="#" aria-disabled="true">{% trans "App Store (soon)" %}</a>
+          <a class="btn" href="#" aria-disabled="true">{% trans "Google Play (soon)" %}</a>
+          <a class="btn primary" href="{% url 'ui:marketplace_search' %}">{% trans "Use web marketplace" %}</a>
         </div>
       </section>
 
       <footer class="foot" id="contact">
-        <div>&copy; <span id="y"></span> NODO. All rights reserved.</div>
+        <div>&copy; <span id="y"></span> NODO. {% trans "All rights reserved." %}</div>
         <div style="display:flex; gap:14px; flex-wrap:wrap">
-          <a href="/terms/">Terms</a>
-          <a href="/privacy/">Privacy</a>
-          <a href="/contact/">Contact</a>
+          <a href="/terms/">{% trans "Terms" %}</a>
+          <a href="/privacy/">{% trans "Privacy" %}</a>
+          <a href="/contact/">{% trans "Contact" %}</a>
         </div>
       </footer>
     </main>
@@ -692,4 +728,3 @@
   </script>
 </body>
 </html>
-

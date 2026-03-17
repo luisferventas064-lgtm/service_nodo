@@ -4,13 +4,18 @@ from django.utils import timezone
 
 
 class Command(BaseCommand):
-    help = "Run all ticks: on_demand + marketplace (safe orchestrator)."
+    help = "Run all ticks: scheduled_activation + on_demand + marketplace."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--skip-on-demand",
             action="store_true",
             help="Skip tick_on_demand",
+        )
+        parser.add_argument(
+            "--skip-scheduled-activation",
+            action="store_true",
+            help="Skip tick_scheduled_activation",
         )
         parser.add_argument(
             "--skip-marketplace",
@@ -24,6 +29,19 @@ class Command(BaseCommand):
         self.stdout.write("TICK_ALL: start")
 
         errors = 0
+
+        if not options["skip_scheduled_activation"]:
+            try:
+                self.stdout.write("TICK_ALL: running tick_scheduled_activation...")
+                call_command(
+                    "tick_scheduled_activation",
+                    stdout=self.stdout,
+                    stderr=self.stderr,
+                )
+                self.stdout.write("TICK_ALL: tick_scheduled_activation OK")
+            except Exception as exc:
+                errors += 1
+                self.stderr.write(f"TICK_ALL: tick_scheduled_activation FAILED: {exc!r}")
 
         if not options["skip_on_demand"]:
             try:

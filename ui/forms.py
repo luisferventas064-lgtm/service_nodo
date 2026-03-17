@@ -1,10 +1,11 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 
 class RoleLoginForm(forms.Form):
     identifier = forms.CharField(
         max_length=255,
-        label="Email or phone",
+        label=_("Email or phone"),
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "username",
@@ -12,6 +13,7 @@ class RoleLoginForm(forms.Form):
         ),
     )
     password = forms.CharField(
+        label=_("Password"),
         widget=forms.PasswordInput(
             attrs={
                 "autocomplete": "current-password",
@@ -38,11 +40,11 @@ class RoleLoginForm(forms.Form):
 class ForgotPasswordForm(forms.Form):
     phone = forms.CharField(
         max_length=20,
-        label="Phone number",
+        label=_("Phone number"),
         widget=forms.TextInput(
             attrs={
                 "type": "tel",
-                "placeholder": "+1 514 000 0000",
+                "placeholder": _("+1 514 000 0000"),
             }
         ),
     )
@@ -51,19 +53,21 @@ class ForgotPasswordForm(forms.Form):
 class ResetPasswordConfirmForm(forms.Form):
     code = forms.CharField(
         max_length=6,
+        label=_("Verification code"),
         widget=forms.TextInput(
             attrs={
                 "inputmode": "numeric",
                 "autocomplete": "one-time-code",
-                "placeholder": "6-digit code",
+                "placeholder": _("6-digit code"),
             }
         ),
     )
     new_password = forms.CharField(
+        label=_("New password"),
         widget=forms.PasswordInput(
             attrs={
                 "autocomplete": "new-password",
-                "placeholder": "New password",
+                "placeholder": _("New password"),
             }
         )
     )

@@ -1,9 +1,10 @@
+{% load i18n %}
 {% with current_url_name=request.resolver_match.url_name %}
 <nav class="nodo-subnav">
-  <a class="nodo-subnav__item{% if current_url_name == 'client_dashboard' %} active{% endif %}" href="{% url 'client_dashboard' %}"{% if current_url_name == 'client_dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
-  <a class="nodo-subnav__item{% if current_url_name == 'marketplace_search' or current_url_name == 'marketplace_results' %} active{% endif %}" href="{% url 'ui:marketplace_search' %}"{% if current_url_name == 'marketplace_search' or current_url_name == 'marketplace_results' %} aria-current="page"{% endif %}>Marketplace</a>
-  <a class="nodo-subnav__item{% if current_url_name == 'client_activity' %} active{% endif %}" href="{% url 'client_activity' %}"{% if current_url_name == 'client_activity' %} aria-current="page"{% endif %}>Activity</a>
-  <a class="nodo-subnav__item{% if current_url_name == 'client_profile' %} active{% endif %}" href="{% url 'client_profile' %}"{% if current_url_name == 'client_profile' %} aria-current="page"{% endif %}>Profile</a>
-  <a class="nodo-subnav__item{% if current_url_name == 'client_billing' %} active{% endif %}" href="{% url 'client_billing' %}"{% if current_url_name == 'client_billing' %} aria-current="page"{% endif %}>Billing</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'client_dashboard' %} active{% endif %}" href="{% url 'client_dashboard' %}"{% if current_url_name == 'client_dashboard' %} aria-current="page"{% endif %}>{% trans "Dashboard" %}</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'marketplace_search' or current_url_name == 'marketplace_results' %} active{% endif %}" href="{% url 'ui:marketplace_search' %}"{% if current_url_name == 'marketplace_search' or current_url_name == 'marketplace_results' %} aria-current="page"{% endif %}>{% trans "Marketplace" %}</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'client_activity' %} active{% endif %}" href="{% url 'client_activity' %}"{% if current_url_name == 'client_activity' %} aria-current="page"{% endif %}>{% trans "Activity" %}</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'client_profile' %} active{% endif %}" href="{% url 'client_profile' %}"{% if current_url_name == 'client_profile' %} aria-current="page"{% endif %}>{% trans "Profile" %}</a>
+  <a class="nodo-subnav__item{% if current_url_name == 'client_billing' %} active{% endif %}" href="{% url 'client_billing' %}"{% if current_url_name == 'client_billing' %} aria-current="page"{% endif %}>{% trans "Billing" %}</a>
 </nav>
 {% endwith %}

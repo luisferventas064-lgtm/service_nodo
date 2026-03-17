@@ -1,16 +1,17 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Provider Login{% endblock %}
+{% block title %}{% trans "Provider Login" %}{% endblock %}
 
 {% block content %}
 <div class="container page">
   <div class="card">
-    <h1 class="card-title">Provider Login</h1>
-    <p class="muted">Sign in to manage your services and requests.</p>
+    <h1 class="card-title">{% trans "Provider Login" %}</h1>
+    <p class="muted">{% trans "Sign in to manage your services and requests." %}</p>
 
     {% if form.non_field_errors %}
     <div class="alert alert-error">
-      <strong>Login failed.</strong><br>
+      <strong>{% trans "Login failed." %}</strong><br>
       {% for error in form.non_field_errors %}
         {{ error }}
       {% endfor %}
@@ -21,7 +22,7 @@
       {% csrf_token %}
 
       <div class="form-row">
-        <label for="{{ form.identifier.id_for_label }}">Email or phone</label>
+        <label for="{{ form.identifier.id_for_label }}">{% trans "Email or phone" %}</label>
         {{ form.identifier }}
         {% if form.identifier.errors %}
           <div class="muted">{{ form.identifier.errors }}</div>
@@ -29,17 +30,17 @@
       </div>
 
       <div class="form-row">
-        <label for="{{ form.password.id_for_label }}">Password</label>
+        <label for="{{ form.password.id_for_label }}">{% trans "Password" %}</label>
         <div class="password-field">
           {{ form.password }}
           <button
             type="button"
             class="password-toggle"
             onclick="togglePasswordVisibility(this)"
-            aria-label="Show password"
+            aria-label="{% trans 'Show password' %}"
             aria-pressed="false"
           >
-            👁
+            &#128065;
           </button>
         </div>
         {% if form.password.errors %}
@@ -49,20 +50,20 @@
 
       <div style="margin-top:10px;">
         <a href="{% url 'ui:reset_password_request' %}" class="link-small">
-          Forgot your password?
+          {% trans "Forgot your password?" %}
         </a>
       </div>
 
       <div class="auth-actions">
-        <button class="btn primary" type="submit">Login</button>
-        <a class="btn" href="{% url 'ui:home' %}">Back</a>
+        <button class="btn primary" type="submit">{% trans "Login" %}</button>
+        <a class="btn" href="{% url 'ui:home' %}">{% trans "Back" %}</a>
       </div>
     </form>
 
     <div class="auth-helper">
-      <p class="muted">Don't have a profile yet?</p>
+      <p class="muted">{% trans "Don't have a profile yet?" %}</p>
       <div class="auth-actions">
-        <a class="btn primary" href="{% url 'provider_register' %}">Create a Provider Profile</a>
+        <a class="btn primary" href="{% url 'provider_register' %}">{% trans "Create a Provider Profile" %}</a>
       </div>
     </div>
   </div>

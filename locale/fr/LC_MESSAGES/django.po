@@ -1,0 +1,4167 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-16 17:38-0400\n"
+"PO-Revision-Date: 2026-03-15 21:10-0400\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: French <fr@li.org>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: .\clients\forms.py:10 .\providers\forms.py:22 .\workers\forms.py:9
+msgid "English"
+msgstr "Anglais"
+
+#: .\clients\forms.py:11 .\providers\forms.py:23 .\workers\forms.py:10
+msgid "French"
+msgstr "Français"
+
+#: .\clients\forms.py:12 .\providers\forms.py:24 .\workers\forms.py:11
+msgid "Spanish"
+msgstr "Espagnol"
+
+#: .\clients\forms.py:13 .\providers\forms.py:25 .\workers\forms.py:12
+msgid "Arabic"
+msgstr "Arabe"
+
+#: .\clients\forms.py:14 .\providers\forms.py:26 .\workers\forms.py:13
+msgid "Mandarin"
+msgstr "Mandarin"
+
+#: .\clients\forms.py:15 .\providers\forms.py:27 .\workers\forms.py:14
+msgid "Italian"
+msgstr "Italien"
+
+#: .\clients\forms.py:16 .\providers\forms.py:28 .\workers\forms.py:15
+msgid "Portuguese"
+msgstr "Portugais"
+
+#: .\clients\forms.py:17 .\providers\forms.py:29 .\workers\forms.py:16
+msgid "Russian"
+msgstr "Russe"
+
+#: .\clients\forms.py:18 .\providers\forms.py:30 .\workers\forms.py:17
+msgid "Punjabi"
+msgstr "Pendjabi"
+
+#: .\clients\forms.py:19 .\providers\forms.py:31 .\workers\forms.py:18
+msgid "Vietnamese"
+msgstr "Vietnamien"
+
+#: .\clients\forms.py:27 .\providers\forms.py:54
+#: .\templates\request\create.html:360 .\workers\forms.py:26
+msgid "Phone"
+msgstr "Téléphone"
+
+#: .\clients\forms.py:39
+msgid "A client with this email already exists."
+msgstr "Un client avec cet e-mail existe déjà."
+
+#: .\clients\forms.py:53
+msgid "A client with this phone number already exists."
+msgstr "Un client avec ce numéro de téléphone existe déjà."
+
+#: .\clients\forms.py:61 .\providers\forms.py:105 .\workers\forms.py:60
+msgid "Passwords do not match."
+msgstr "Les mots de passe ne correspondent pas."
+
+#: .\clients\views.py:252 .\providers\views.py:262
+#: .\templates\jobs\_activity_content.html:247 .\workers\views.py:191
+msgid "Activity History"
+msgstr ""
+
+#: .\core\legal_disclaimers.py:6
+msgid ""
+"Financial and activity data displayed on this page is provided for "
+"informational and operational purposes only. NODO does not provide "
+"accounting, tax, payroll, or legal services and does not file, calculate, "
+"collect, or pay taxes on behalf of clients, providers, or workers. Each user "
+"is solely responsible for maintaining their own records and complying with "
+"all applicable tax, accounting, and legal obligations."
+msgstr ""
+
+#: .\core\legal_disclaimers.py:15
+msgid "Financial Reporting and Tax Responsibility"
+msgstr ""
+
+#: .\core\legal_disclaimers.py:19
+msgid ""
+"Any financial, revenue, earnings, or activity information displayed on the "
+"NODO platform is provided solely for informational and operational "
+"convenience. Such information may include summaries, analytics, exports, "
+"reports, or other data derived from platform activity.\n"
+"\n"
+"NODO does not provide accounting, tax, payroll, or legal services. NODO does "
+"not calculate, collect, remit, report, or pay taxes on behalf of clients, "
+"providers, or workers unless explicitly stated in a separate written "
+"agreement.\n"
+"\n"
+"All clients, providers, and workers using the platform remain solely "
+"responsible for maintaining accurate financial records, determining their "
+"tax obligations, filing required tax returns, and complying with all "
+"applicable federal, provincial, state, or local laws and regulations.\n"
+"\n"
+"The information provided by the platform should not be relied upon as "
+"professional accounting, tax, or legal advice. Users should consult their "
+"own accountants, tax advisors, or legal professionals when necessary."
+msgstr ""
+
+#: .\jobs\activity_query.py:19
+msgid "All"
+msgstr ""
+
+#: .\jobs\activity_query.py:20 .\jobs\models.py:92
+msgid "Posted"
+msgstr "Publiée"
+
+#: .\jobs\activity_query.py:21 .\jobs\models.py:102
+msgid "Assigned"
+msgstr "Attribuée"
+
+#: .\jobs\activity_query.py:22 .\jobs\events.py:19 .\jobs\models.py:103
+msgid "In progress"
+msgstr "En cours"
+
+#: .\jobs\activity_query.py:23 .\jobs\events.py:20 .\jobs\events.py:21
+#: .\jobs\models.py:104 .\templates\portal\client_dashboard.html:172
+#: .\templates\portal\provider_dashboard.html:49
+#: .\templates\request\status.html:442
+msgid "Completed"
+msgstr "Terminée"
+
+#: .\jobs\activity_query.py:24 .\jobs\events.py:22 .\jobs\models.py:106
+#: .\templates\portal\client_dashboard.html:176
+#: .\templates\portal\provider_dashboard.html:53
+msgid "Cancelled"
+msgstr "Annulée"
+
+#: .\jobs\activity_query.py:40 .\jobs\models.py:111
+#: .\templates\jobs\created.html:166 .\templates\portal\index.html:35
+#: .\templates\request\status.html:246 .\templates\ui\login.html:34
+#: .\templates\ui\signup.html:35 .\ui\views.py:181
+msgid "Provider"
+msgstr "Prestataire"
+
+#: .\jobs\activity_query.py:41 .\jobs\activity_query.py:42 .\jobs\models.py:110
+#: .\templates\provider\jobs.html:233 .\templates\ui\login.html:19
+#: .\templates\ui\signup.html:20 .\ui\views.py:179
+msgid "Client"
+msgstr "Client"
+
+#: .\jobs\activity_query.py:45
+msgid "All time"
+msgstr ""
+
+#: .\jobs\activity_query.py:46
+msgid "Today"
+msgstr ""
+
+#: .\jobs\activity_query.py:47
+#, fuzzy
+#| msgid "Last name"
+msgid "Last 7 days"
+msgstr "Nom"
+
+#: .\jobs\activity_query.py:48
+msgid "Last 30 days"
+msgstr ""
+
+#: .\jobs\activity_query.py:51
+msgid "Newest first"
+msgstr ""
+
+#: .\jobs\activity_query.py:52
+msgid "Oldest first"
+msgstr ""
+
+#: .\jobs\activity_query.py:53
+#, fuzzy
+#| msgid "Status"
+msgid "Status A-Z"
+msgstr "Statut"
+
+#: .\jobs\events.py:10 .\jobs\events.py:11 .\jobs\events.py:13
+#: .\jobs\events.py:14 .\jobs\events.py:15
+#, fuzzy
+#| msgid "Waiting Provider Response"
+msgid "Waiting for provider response"
+msgstr "En attente de la réponse du prestataire"
+
+#: .\jobs\events.py:12
+#, fuzzy
+#| msgid "Request sent"
+msgid "Request submitted"
+msgstr "Demande envoyée"
+
+#: .\jobs\events.py:16 .\jobs\events.py:17 .\jobs\events.py:18
+#: .\templates\providers\complete_profile.html:514
+#: .\templates\providers\compliance.html:32 .\templates\request\status.html:440
+msgid "Accepted"
+msgstr "Accepté"
+
+#: .\jobs\events.py:23 .\jobs\models.py:107
+#: .\templates\providers\compliance.html:161
+msgid "Expired"
+msgstr "Expirée"
+
+#: .\jobs\models.py:91
+msgid "Draft"
+msgstr "Brouillon"
+
+#: .\jobs\models.py:95
+msgid "Scheduled Pending Activation"
+msgstr "Planifiée en attente d'activation"
+
+#: .\jobs\models.py:97
+msgid "Waiting Provider Response"
+msgstr "En attente de la réponse du prestataire"
+
+#: .\jobs\models.py:98
+msgid "Pending Client Decision"
+msgstr "En attente de la décision du client"
+
+#: .\jobs\models.py:99
+msgid "Hold"
+msgstr "En attente"
+
+#: .\jobs\models.py:100
+msgid "Pending provider confirmation"
+msgstr "En attente de confirmation du prestataire"
+
+#: .\jobs\models.py:101
+msgid "Pending client confirmation"
+msgstr "En attente de confirmation du client"
+
+#: .\jobs\models.py:105 .\templates\jobs\created.html:142
+#: .\templates\request\status.html:443
+msgid "Confirmed"
+msgstr "Confirmée"
+
+#: .\jobs\models.py:112
+msgid "System"
+msgstr ""
+
+#: .\jobs\models.py:115
+#, fuzzy
+#| msgid "Dispute resolved."
+msgid "Dispute approved"
+msgstr "Litige résolu."
+
+#: .\jobs\models.py:116
+#, fuzzy
+#| msgid "Provider type"
+msgid "Provider rejected"
+msgstr "Type de prestataire"
+
+#: .\jobs\models.py:117
+#, fuzzy
+#| msgid "Cancelled"
+msgid "Client cancelled"
+msgstr "Annulée"
+
+#: .\jobs\models.py:118
+msgid "Auto timeout"
+msgstr ""
+
+#: .\jobs\models.py:119
+msgid "System action"
+msgstr ""
+
+#: .\jobs\models.py:152
+msgid "On demand"
+msgstr ""
+
+#: .\jobs\models.py:153 .\templates\request\create.html:645
+#: .\templates\request\status.html:345
+msgid "Scheduled"
+msgstr "Planifié"
+
+#: .\portal\forms.py:216 .\templates\portal\provider_service_add.html:54
+#: .\templates\portal\provider_service_edit.html:54
+#: .\templates\request\create.html:508
+msgid "Service option"
+msgstr "Option de service"
+
+#: .\portal\forms.py:221 .\templates\portal\provider_service_add.html:64
+#: .\templates\portal\provider_service_edit.html:64
+msgid "This is an add-on (extra)"
+msgstr ""
+
+#: .\portal\forms.py:228 .\portal\forms.py:255
+#: .\templates\portal\provider_service_add.html:71
+#: .\templates\portal\provider_service_edit.html:71
+msgid "Service name"
+msgstr ""
+
+#: .\portal\forms.py:237 .\templates\portal\provider_service_add.html:89
+#: .\templates\portal\provider_service_edit.html:89
+msgid "Price (CAD)"
+msgstr ""
+
+#: .\portal\forms.py:238
+msgid "Enter the regular price in CAD (e.g., 120.00)."
+msgstr ""
+
+#: .\portal\forms.py:250
+msgid "Select an option"
+msgstr ""
+
+#: .\portal\forms.py:252
+msgid "Other (type)"
+msgstr ""
+
+#: .\portal\forms.py:257
+msgid "Type a name (or choose an option above)"
+msgstr ""
+
+#: .\portal\forms.py:259 .\templates\portal\provider_service_add.html:77
+#: .\templates\portal\provider_service_edit.html:77
+msgid "Description"
+msgstr ""
+
+#: .\portal\forms.py:260 .\templates\portal\provider_service_add.html:83
+#: .\templates\portal\provider_service_edit.html:83
+#: .\templates\request\status.html:313
+msgid "Billing unit"
+msgstr "Unité de facturation"
+
+#: .\portal\forms.py:282
+msgid "Please enter a custom service name."
+msgstr ""
+
+#: .\portal\forms.py:288
+msgid "Please select an option or enter a service name."
+msgstr ""
+
+#: .\portal\views.py:36
+msgid "Please log in to access your portal."
+msgstr ""
+
+#: .\portal\views.py:76 .\portal\views.py:139 .\portal\views.py:213
+msgid "Provider profile not found. Please complete your profile."
+msgstr ""
+
+#: .\portal\views.py:149 .\portal\views.py:223 .\providers\views_services.py:23
+msgid "Please complete your profile to activate your provider account."
+msgstr ""
+
+#: .\portal\views.py:256 .\portal\views.py:327 .\portal\views.py:398
+msgid "Please sign in again."
+msgstr ""
+
+#: .\portal\views.py:265 .\portal\views.py:336 .\portal\views.py:407
+msgid "Complete your provider profile before managing services."
+msgstr ""
+
+#: .\portal\views.py:296 .\portal\views.py:365
+msgid "You already have a service with this name in this category."
+msgstr ""
+
+#: .\portal\views.py:305
+msgid "Service added successfully."
+msgstr ""
+
+#: .\portal\views.py:371
+msgid "Service updated successfully."
+msgstr ""
+
+#: .\portal\views.py:423
+msgid "Service activated successfully."
+msgstr ""
+
+#: .\portal\views.py:425
+msgid "Service deactivated successfully."
+msgstr ""
+
+#: .\portal\views.py:435
+msgid "Please log in as client."
+msgstr ""
+
+#: .\portal\views.py:443
+msgid "Please log in as provider."
+msgstr ""
+
+#: .\portal\views.py:451
+msgid "Please log in as worker."
+msgstr ""
+
+#: .\providers\forms.py:17
+msgid "Individual"
+msgstr "Particulier"
+
+#: .\providers\forms.py:18 .\templates\providers\compliance.html:100
+msgid "Company"
+msgstr "Entreprise"
+
+#: .\providers\forms.py:47
+msgid "Business name"
+msgstr "Nom de l'entreprise"
+
+#: .\providers\forms.py:48 .\templates\clients\register.html:43
+#: .\templates\providers\account.html:267 .\templates\request\create.html:364
+#: .\templates\workers\register.html:33
+msgid "Email"
+msgstr "E-mail"
+
+#: .\providers\forms.py:52 .\templates\clients\complete_profile.html:21
+#: .\templates\clients\register.html:49 .\templates\providers\account.html:285
+#: .\templates\providers\account.html:286 .\templates\request\create.html:368
+#: .\templates\workers\register.html:38
+msgid "Country"
+msgstr "Pays"
+
+#: .\providers\forms.py:59 .\providers\forms.py:206 .\providers\forms.py:239
+#: .\templates\clients\complete_profile.html:52
+#: .\templates\clients\register.html:62 .\templates\workers\profile.html:27
+#: .\templates\workers\register.html:49
+msgid "Languages spoken"
+msgstr "Langues parlées"
+
+#: .\providers\forms.py:63 .\templates\auth\login_client.html:30
+#: .\templates\auth\login_provider.html:33
+#: .\templates\auth\login_worker.html:30 .\templates\clients\register.html:83
+#: .\templates\workers\register.html:64 .\ui\forms.py:16
+msgid "Password"
+msgstr "Mot de passe"
+
+#: .\providers\forms.py:67 .\templates\clients\register.html:89
+#: .\templates\workers\register.html:69
+msgid "Confirm password"
+msgstr "Confirmer le mot de passe"
+
+#: .\providers\forms.py:71
+msgid "Provider type"
+msgstr "Type de prestataire"
+
+#: .\providers\forms.py:77 .\providers\views.py:181
+msgid "A provider with this email already exists."
+msgstr ""
+
+#: .\providers\forms.py:93
+msgid "A provider with this phone number already exists."
+msgstr ""
+
+#: .\providers\forms.py:99
+msgid "Canada"
+msgstr "Canada"
+
+#: .\providers\forms.py:113
+msgid "Address Line"
+msgstr ""
+
+#: .\providers\forms.py:117
+msgid "Entity Type"
+msgstr ""
+
+#: .\providers\forms.py:119 .\templates\providers\account.html:223
+msgid "Legal Name"
+msgstr ""
+
+#: .\providers\forms.py:120
+msgid "Business Name"
+msgstr ""
+
+#: .\providers\forms.py:121
+msgid "GST/HST Number"
+msgstr ""
+
+#: .\providers\forms.py:122
+msgid "QST/TVQ Number"
+msgstr ""
+
+#: .\providers\forms.py:123
+msgid "NEQ Number"
+msgstr ""
+
+#: .\providers\forms.py:124
+msgid "BN Number"
+msgstr ""
+
+#: .\providers\forms.py:208 .\providers\forms.py:241
+msgid "Accept terms"
+msgstr ""
+
+#: .\providers\forms.py:234
+msgid "Contact person name"
+msgstr ""
+
+#: .\providers\forms.py:298 .\templates\providers\insurance.html:65
+msgid "Insurance company"
+msgstr ""
+
+#: .\providers\forms.py:304 .\templates\providers\compliance.html:104
+#: .\templates\providers\insurance.html:75
+msgid "Policy number"
+msgstr ""
+
+#: .\providers\forms.py:310 .\templates\providers\compliance.html:108
+#: .\templates\providers\insurance.html:85
+msgid "Coverage amount"
+msgstr ""
+
+#: .\providers\forms.py:342
+msgid "Certificate type (example: RBQ)"
+msgstr ""
+
+#: .\providers\forms.py:348 .\templates\providers\certificates.html:122
+msgid "Certificate name"
+msgstr ""
+
+#: .\providers\forms.py:354
+msgid "Taken at / reference"
+msgstr ""
+
+#: .\providers\forms.py:360 .\templates\providers\certificates.html:49
+#: .\templates\providers\certificates.html:138
+msgid "Issued by"
+msgstr ""
+
+#: .\providers\forms.py:366 .\templates\providers\certificates.html:147
+msgid "Issued country"
+msgstr ""
+
+#: .\providers\forms.py:372 .\templates\providers\certificates.html:154
+msgid "Issued city"
+msgstr ""
+
+#: .\providers\forms.py:391 .\templates\providers\certificates.html:180
+msgid "Notes"
+msgstr ""
+
+#: .\providers\models.py:340 .\templates\providers\nearby.html:263
+#: .\templates\request\create.html:303 .\templates\request\create.html:469
+#: .\templates\request\create.html:521 .\templates\request\create.html:575
+#: .\ui\views_provider.py:84
+msgid "Per Hour"
+msgstr "Par heure"
+
+#: .\providers\models.py:341 .\templates\providers\nearby.html:265
+#: .\templates\request\create.html:305 .\templates\request\create.html:471
+#: .\templates\request\create.html:523 .\templates\request\create.html:577
+#: .\ui\views_provider.py:85
+msgid "Fixed Price"
+msgstr "Prix fixe"
+
+#: .\providers\models.py:342 .\templates\providers\nearby.html:267
+#: .\templates\request\create.html:307 .\templates\request\create.html:473
+#: .\templates\request\create.html:525 .\templates\request\create.html:579
+#: .\ui\views_provider.py:86
+msgid "Per Square Meter"
+msgstr "Par mètre carré"
+
+#: .\providers\models.py:343 .\templates\providers\nearby.html:269
+#: .\templates\request\create.html:309 .\templates\request\create.html:475
+#: .\templates\request\create.html:527 .\templates\request\create.html:581
+#: .\ui\views_provider.py:87
+msgid "Per Kilometer"
+msgstr "Par kilomètre"
+
+#: .\providers\models.py:344 .\templates\providers\nearby.html:271
+#: .\templates\request\create.html:311 .\templates\request\create.html:477
+#: .\templates\request\create.html:529 .\templates\request\create.html:583
+#: .\ui\views_provider.py:88
+msgid "Per Day"
+msgstr "Par jour"
+
+#: .\providers\views.py:133 .\ui\views.py:279 .\ui\views.py:334
+#: .\ui\views.py:792
+msgid "Too many attempts. Try later."
+msgstr ""
+
+#: .\providers\views.py:135 .\ui\views.py:281 .\ui\views.py:344
+#: .\ui\views.py:803
+msgid "Too many attempts from this network."
+msgstr ""
+
+#: .\providers\views.py:175 .\ui\views.py:360
+#, python-format
+msgid "Your NODO verification code is: %(code)s"
+msgstr ""
+
+#: .\providers\views.py:301
+msgid "Financial Summary"
+msgstr ""
+
+#: .\providers\views.py:359
+msgid "Base profile is not completed yet."
+msgstr ""
+
+#: .\providers\views.py:362
+msgid "Payment setup is not completed yet."
+msgstr ""
+
+#: .\providers\views.py:365
+msgid "Phone verification is still pending."
+msgstr ""
+
+#: .\providers\views.py:368
+msgid "Terms and Conditions are not accepted yet."
+msgstr ""
+
+#: .\providers\views.py:371
+msgid "No active services are configured yet."
+msgstr ""
+
+#: .\providers\views.py:377
+msgid ""
+"Some required certificates or insurance items are still missing for your "
+"active services."
+msgstr ""
+
+#: .\providers\views.py:470
+msgid "Insurance information saved successfully."
+msgstr ""
+
+#: .\providers\views.py:526
+msgid "Certificate updated successfully."
+msgstr ""
+
+#: .\providers\views.py:531
+msgid "Certificate added successfully."
+msgstr ""
+
+#: .\providers\views.py:574
+msgid "City and province are required."
+msgstr ""
+
+#: .\providers\views.py:599
+msgid "Service area reactivated."
+msgstr ""
+
+#: .\providers\views.py:601
+msgid "That service area is already active."
+msgstr ""
+
+#: .\providers\views.py:610
+msgid "Service area added."
+msgstr ""
+
+#: .\providers\views.py:628
+msgid "Service area activated."
+msgstr ""
+
+#: .\providers\views.py:630
+msgid "Service area deactivated."
+msgstr ""
+
+#: .\providers\views.py:632
+msgid "Service area not found."
+msgstr ""
+
+#: .\providers\views.py:636
+msgid "Unsupported service area action."
+msgstr ""
+
+#: .\providers\views.py:686
+msgid ""
+"Service areas are now managed from the dedicated Manage Service Areas page."
+msgstr ""
+
+#: .\providers\views.py:703
+msgid ""
+"Terms accepted. Complete the remaining requirements below to finish your "
+"profile."
+msgstr ""
+
+#: .\providers\views.py:710
+msgid ""
+"This page is now a checklist. Use the dedicated pages below to update your "
+"profile."
+msgstr ""
+
+#: .\providers\views.py:720
+msgid "Business profile details"
+msgstr ""
+
+#: .\providers\views.py:722
+msgid ""
+"Complete your company name, business registration number, and contact person "
+"in Edit Profile."
+msgstr ""
+
+#: .\providers\views.py:731
+msgid "Personal profile details"
+msgstr ""
+
+#: .\providers\views.py:732
+msgid "Complete your legal name in Edit Profile."
+msgstr ""
+
+#: .\providers\views.py:748
+msgid "Complete your profile details from Edit Profile."
+msgstr ""
+
+#: .\providers\views.py:751
+msgid "Add at least one active service area."
+msgstr ""
+
+#: .\providers\views.py:753
+msgid "Accept the provider terms."
+msgstr ""
+
+#: .\providers\views.py:758 .\templates\providers\complete_profile.html:383
+#: .\templates\providers\compliance.html:119
+#: .\templates\providers\compliance.html:149
+#: .\templates\providers\compliance.html:184
+#: .\templates\providers\insurance.html:36
+msgid "Verified"
+msgstr ""
+
+#: .\providers\views.py:760
+msgid "Pending verification"
+msgstr ""
+
+#: .\providers\views.py:763
+msgid "Not provided"
+msgstr ""
+
+#: .\providers\views.py:768
+#, python-format
+msgid "%(verified)s/%(total)s verified"
+msgstr ""
+
+#: .\providers\views.py:773
+msgid "No certificates uploaded"
+msgstr ""
+
+#: .\providers\views.py:836
+msgid "Billing information saved successfully."
+msgstr ""
+
+#: .\providers\views_services.py:38
+msgid "Services are now managed from the portal."
+msgstr ""
+
+#: .\providers\views_services.py:52
+msgid "Use the portal service categories page to add a new service."
+msgstr ""
+
+#: .\providers\views_services.py:71
+msgid "This legacy edit page has moved to the portal."
+msgstr ""
+
+#: .\providers\views_services.py:95
+msgid "Service status updated. Manage services in the portal."
+msgstr ""
+
+#: .\templates\auth\forgot_password.html:4
+#: .\templates\auth\forgot_password.html:7
+msgid "Forgot Password"
+msgstr "Mot de passe oublié"
+
+#: .\templates\auth\forgot_password.html:8
+msgid "Enter your phone number and we will send a reset code."
+msgstr ""
+"Entrez votre numéro de téléphone et nous vous enverrons un code de "
+"réinitialisation."
+
+#: .\templates\auth\forgot_password.html:13
+msgid "Send Reset Code"
+msgstr "Envoyer le code de réinitialisation"
+
+#: .\templates\auth\login_client.html:4 .\templates\auth\login_client.html:9
+msgid "Client Login"
+msgstr "Connexion client"
+
+#: .\templates\auth\login_client.html:10
+msgid "Sign in to browse providers and track your requests."
+msgstr "Connectez-vous pour parcourir les prestataires et suivre vos demandes."
+
+#: .\templates\auth\login_client.html:14
+#: .\templates\auth\login_provider.html:14
+#: .\templates\auth\login_worker.html:14
+msgid "Login failed."
+msgstr "Échec de la connexion."
+
+#: .\templates\auth\login_client.html:25
+#: .\templates\auth\login_provider.html:25
+#: .\templates\auth\login_worker.html:25 .\ui\forms.py:8
+msgid "Email or phone"
+msgstr "E-mail ou téléphone"
+
+#: .\templates\auth\login_client.html:37
+#: .\templates\auth\login_provider.html:40
+#: .\templates\auth\login_worker.html:37 .\templates\base.html:1150
+msgid "Show password"
+msgstr "Afficher le mot de passe"
+
+#: .\templates\auth\login_client.html:47
+#: .\templates\auth\login_provider.html:53
+#: .\templates\auth\login_worker.html:47
+msgid "Forgot your password?"
+msgstr "Mot de passe oublié ?"
+
+#: .\templates\auth\login_client.html:52
+#: .\templates\auth\login_provider.html:58
+#: .\templates\auth\login_selector.html:4 .\templates\auth\login_worker.html:52
+#: .\templates\base.html:1074 .\templates\clients\register.html:102
+#: .\templates\providers\register.html:108 .\templates\ui\login.html:4
+#: .\templates\workers\register.html:76 .\ui\templates\ui\home.html:598
+msgid "Login"
+msgstr "Se connecter"
+
+#: .\templates\auth\login_client.html:53
+#: .\templates\auth\login_provider.html:59
+#: .\templates\auth\login_worker.html:53 .\templates\request\status.html:219
+msgid "Back"
+msgstr "Retour"
+
+#: .\templates\auth\login_client.html:58
+#: .\templates\auth\login_provider.html:64
+#: .\templates\auth\login_worker.html:58
+msgid "Don't have a profile yet?"
+msgstr "Vous n'avez pas encore de profil ?"
+
+#: .\templates\auth\login_client.html:60
+msgid "Create a Client Profile"
+msgstr "Créer un profil client"
+
+#: .\templates\auth\login_provider.html:4
+#: .\templates\auth\login_provider.html:9
+msgid "Provider Login"
+msgstr "Connexion prestataire"
+
+#: .\templates\auth\login_provider.html:10
+msgid "Sign in to manage your services and requests."
+msgstr "Connectez-vous pour gérer vos services et vos demandes."
+
+#: .\templates\auth\login_provider.html:66
+msgid "Create a Provider Profile"
+msgstr "Créer un profil prestataire"
+
+#: .\templates\auth\login_selector.html:41
+msgid "Welcome back - choose your account"
+msgstr "Bon retour - choisissez votre compte"
+
+#: .\templates\auth\login_selector.html:42
+msgid "Select how you would like to continue."
+msgstr "Choisissez comment vous souhaitez continuer."
+
+#: .\templates\auth\login_selector.html:45 .\templates\ui\login.html:26
+msgid "Continue as Client"
+msgstr "Continuer comme client"
+
+#: .\templates\auth\login_selector.html:46 .\templates\ui\login.html:41
+msgid "Continue as Provider"
+msgstr "Continuer comme prestataire"
+
+#: .\templates\auth\login_selector.html:47 .\templates\ui\login.html:56
+msgid "Continue as Worker"
+msgstr "Continuer comme travailleur"
+
+#: .\templates\auth\login_worker.html:4 .\templates\auth\login_worker.html:9
+msgid "Worker Login"
+msgstr "Connexion travailleur"
+
+#: .\templates\auth\login_worker.html:10
+msgid "Sign in to manage your jobs and account activity."
+msgstr "Connectez-vous pour gérer vos missions et l'activité de votre compte."
+
+#: .\templates\auth\login_worker.html:60
+msgid "Create a Worker Profile"
+msgstr "Créer un profil travailleur"
+
+#: .\templates\auth\reset_password_confirm.html:4
+#: .\templates\auth\reset_password_request.html:4
+msgid "Reset Password"
+msgstr "Réinitialiser le mot de passe"
+
+#: .\templates\auth\reset_password_confirm.html:9
+#: .\templates\auth\reset_password_request.html:9
+msgid "Reset your password"
+msgstr "Réinitialisez votre mot de passe"
+
+#: .\templates\auth\reset_password_confirm.html:11
+#, python-format
+msgid "Enter the code sent to %(phone)s and choose a new password."
+msgstr ""
+"Entrez le code envoyé au %(phone)s et choisissez un nouveau mot de passe."
+
+#: .\templates\auth\reset_password_confirm.html:26 .\ui\forms.py:56
+msgid "Verification code"
+msgstr "Code de vérification"
+
+#: .\templates\auth\reset_password_confirm.html:36 .\ui\forms.py:66
+#: .\ui\forms.py:70
+msgid "New password"
+msgstr "Nouveau mot de passe"
+
+#: .\templates\auth\reset_password_confirm.html:46
+msgid "Update Password"
+msgstr "Mettre à jour le mot de passe"
+
+#: .\templates\auth\reset_password_confirm.html:52
+#: .\templates\auth\reset_password_request.html:43
+msgid "Back to login"
+msgstr "Retour à la connexion"
+
+#: .\templates\auth\reset_password_request.html:12
+msgid "Enter your phone number and we will send you a verification code."
+msgstr ""
+"Entrez votre numéro de téléphone et nous vous enverrons un code de "
+"vérification."
+
+#: .\templates\auth\reset_password_request.html:27
+#: .\templates\clients\register.html:55 .\templates\workers\register.html:43
+#: .\ui\forms.py:43
+msgid "Phone number"
+msgstr "Numéro de téléphone"
+
+#: .\templates\auth\reset_password_request.html:37
+msgid "Send verification code"
+msgstr "Envoyer le code de vérification"
+
+#: .\templates\auth\verify_phone.html:4 .\templates\verifications\verify.html:4
+msgid "Verify Phone"
+msgstr "Vérifier le téléphone"
+
+#: .\templates\auth\verify_phone.html:8
+msgid "Verify your phone number"
+msgstr "Vérifiez votre numéro de téléphone"
+
+#: .\templates\auth\verify_phone.html:9
+msgid "Enter the verification code sent to your phone."
+msgstr "Entrez le code de vérification envoyé sur votre téléphone."
+
+#: .\templates\auth\verify_phone.html:13 .\ui\forms.py:61
+msgid "6-digit code"
+msgstr "Code à 6 chiffres"
+
+#: .\templates\auth\verify_phone.html:14
+#: .\templates\verifications\verify.html:10
+msgid "Verify"
+msgstr "Vérifier"
+
+#: .\templates\auth\verify_phone.html:25 .\templates\auth\verify_phone.html:31
+msgid "Resend code"
+msgstr "Renvoyer le code"
+
+#: .\templates\auth\verify_phone.html:32
+msgid "A new verification code has been sent."
+msgstr "Un nouveau code de vérification a été envoyé."
+
+#: .\templates\auth\verify_phone.html:33
+msgid "Unable to resend code."
+msgstr "Impossible de renvoyer le code."
+
+#: .\templates\auth\verify_phone.html:34
+msgid "Network error. Please try again."
+msgstr "Erreur réseau. Veuillez réessayer."
+
+#: .\templates\base.html:1048 .\ui\templates\ui\home.html:564
+msgid "Home"
+msgstr "Accueil"
+
+#: .\templates\base.html:1050 .\ui\templates\ui\home.html:573
+#: .\ui\templates\ui\home.html:660
+msgid "Clients"
+msgstr "Clients"
+
+#: .\templates\base.html:1052 .\ui\templates\ui\home.html:574
+#: .\ui\templates\ui\home.html:668
+msgid "Providers"
+msgstr "Prestataires"
+
+#: .\templates\base.html:1054 .\ui\templates\ui\home.html:575
+#: .\ui\templates\ui\home.html:676
+msgid "Workers"
+msgstr "Travailleurs"
+
+#: .\templates\base.html:1056 .\ui\templates\ui\home.html:578
+msgid "Contact us"
+msgstr "Nous contacter"
+
+#: .\templates\base.html:1070 .\ui\templates\ui\home.html:587
+#: .\ui\templates\ui\home.html:591 .\ui\templates\ui\home.html:595
+msgid "Logout"
+msgstr "Déconnexion"
+
+#: .\templates\base.html:1076 .\templates\ui\signup.html:4
+#: .\ui\templates\ui\home.html:599
+msgid "Sign Up"
+msgstr "S'inscrire"
+
+#: .\templates\base.html:1094 .\templates\portal\client_dashboard.html:152
+msgid "Your profile is incomplete."
+msgstr "Votre profil est incomplet."
+
+#: .\templates\base.html:1095 .\templates\base.html:1102
+#: .\templates\portal\client_dashboard.html:153
+msgid "Complete it here"
+msgstr "Complétez-le ici"
+
+#: .\templates\base.html:1101
+msgid "Your provider profile is incomplete."
+msgstr "Votre profil prestataire est incomplet."
+
+#: .\templates\base.html:1132 .\templates\ui\partials\get_the_app.html:4
+#: .\ui\templates\ui\home.html:645 .\ui\templates\ui\home.html:706
+msgid "Get the app"
+msgstr "Obtenir l'application"
+
+#: .\templates\base.html:1134 .\templates\ui\partials\get_the_app.html:6
+#: .\ui\templates\ui\home.html:708
+msgid ""
+"Launch with a clean web experience first. Add mobile download links when "
+"ready."
+msgstr ""
+"Lancez d'abord avec une expérience web claire. Ajoutez les liens de "
+"téléchargement mobile quand ils seront prêts."
+
+#: .\templates\base.html:1138 .\templates\ui\partials\get_the_app.html:10
+#: .\ui\templates\ui\home.html:711
+msgid "App Store (soon)"
+msgstr "App Store (bientôt)"
+
+#: .\templates\base.html:1139 .\templates\ui\partials\get_the_app.html:11
+#: .\ui\templates\ui\home.html:712
+msgid "Google Play (soon)"
+msgstr "Google Play (bientôt)"
+
+#: .\templates\base.html:1143 .\ui\templates\ui\home.html:718
+msgid "All rights reserved."
+msgstr "Tous droits réservés."
+
+#: .\templates\base.html:1149
+msgid "Hide password"
+msgstr "Masquer le mot de passe"
+
+#: .\templates\clients\account.html:4
+msgid "Client Account Settings"
+msgstr ""
+
+#: .\templates\clients\account.html:7 .\templates\clients\profile.html:27
+#: .\templates\partials\worker_nav.html:8 .\templates\workers\profile.html:57
+msgid "Account Settings"
+msgstr ""
+
+#: .\templates\clients\account.html:8 .\templates\clients\billing.html:8
+#: .\templates\providers\billing.html:8 .\templates\providers\jobs.html:8
+#: .\templates\workers\account.html:6 .\templates\workers\jobs.html:6
+msgid "Coming soon."
+msgstr ""
+
+#: .\templates\clients\activity.html:4
+msgid "Client Activity"
+msgstr ""
+
+#: .\templates\clients\billing.html:4
+msgid "Client Billing"
+msgstr ""
+
+#: .\templates\clients\billing.html:7 .\templates\clients\profile.html:26
+#: .\templates\partials\client_nav.html:8
+#: .\templates\partials\provider_nav.html:12
+#: .\templates\portal\client_dashboard.html:147
+#: .\templates\providers\billing.html:7
+msgid "Billing"
+msgstr "Facturation"
+
+#: .\templates\clients\complete_profile.html:4
+#: .\templates\clients\complete_profile.html:9
+#: .\templates\clients\complete_profile.html:83
+#: .\templates\providers\dashboard.html:45
+msgid "Complete Profile"
+msgstr ""
+
+#: .\templates\clients\complete_profile.html:10
+msgid "Update your address and language preferences to continue."
+msgstr ""
+
+#: .\templates\clients\complete_profile.html:27
+#: .\templates\providers\account.html:290
+#: .\templates\providers\account.html:291
+#: .\templates\providers\service_areas.html:258
+#: .\templates\providers\service_areas.html:259
+#: .\templates\request\create.html:372 .\templates\request\create.html:411
+msgid "Province"
+msgstr "Province"
+
+#: .\templates\clients\complete_profile.html:33
+#: .\templates\marketplace\index.html:76 .\templates\marketplace\index.html:81
+#: .\templates\providers\account.html:295
+#: .\templates\providers\account.html:296
+#: .\templates\providers\service_areas.html:253
+#: .\templates\providers\service_areas.html:254
+#: .\templates\request\create.html:376 .\templates\request\create.html:422
+msgid "City"
+msgstr "Ville"
+
+#: .\templates\clients\complete_profile.html:39
+#: .\templates\marketplace\index.html:61 .\templates\request\create.html:380
+#: .\templates\request\create.html:433
+msgid "Postal code"
+msgstr "Code postal"
+
+#: .\templates\clients\complete_profile.html:45
+#: .\templates\provider\incoming_jobs.html:265
+#: .\templates\request\create.html:384 .\templates\request\create.html:444
+#: .\templates\request\create.html:741 .\templates\request\create.html:765
+msgid "Address"
+msgstr "Adresse"
+
+#: .\templates\clients\complete_profile.html:76
+#: .\templates\workers\profile.html:44
+msgid "I accept the terms."
+msgstr ""
+
+#: .\templates\clients\dashboard.html:4 .\templates\clients\dashboard.html:7
+#: .\templates\portal\client_dashboard.html:4
+#: .\templates\portal\client_dashboard.html:135 .\ui\templates\ui\home.html:569
+msgid "Client Dashboard"
+msgstr "Tableau de bord client"
+
+#: .\templates\clients\dashboard.html:8
+#, python-format
+msgid "Welcome, %(first_name)s."
+msgstr "Bienvenue, %(first_name)s."
+
+#: .\templates\clients\dashboard.html:10 .\templates\clients\profile.html:13
+#: .\templates\providers\profile.html:26
+msgid "Phone verified:"
+msgstr "Téléphone vérifié :"
+
+#: .\templates\clients\dashboard.html:11 .\templates\clients\dashboard.html:15
+#: .\templates\clients\profile.html:14 .\templates\clients\profile.html:18
+#: .\templates\provider\jobs.html:263 .\templates\providers\compliance.html:28
+#: .\templates\providers\compliance.html:36
+#: .\templates\providers\compliance.html:71
+#: .\templates\providers\compliance.html:97
+#: .\templates\providers\compliance.html:225
+#: .\templates\providers\profile.html:26 .\templates\providers\profile.html:27
+#: .\templates\providers\profile.html:28 .\templates\providers\profile.html:29
+msgid "Yes"
+msgstr "Oui"
+
+#: .\templates\clients\dashboard.html:11 .\templates\clients\dashboard.html:15
+#: .\templates\clients\profile.html:14 .\templates\clients\profile.html:18
+#: .\templates\provider\jobs.html:263 .\templates\providers\compliance.html:28
+#: .\templates\providers\compliance.html:36
+#: .\templates\providers\compliance.html:71
+#: .\templates\providers\compliance.html:97
+#: .\templates\providers\compliance.html:225
+#: .\templates\providers\profile.html:26 .\templates\providers\profile.html:27
+#: .\templates\providers\profile.html:28 .\templates\providers\profile.html:29
+msgid "No"
+msgstr "Non"
+
+#: .\templates\clients\dashboard.html:14 .\templates\clients\profile.html:17
+#: .\templates\providers\profile.html:27
+msgid "Profile completed:"
+msgstr "Profil complété :"
+
+#: .\templates\clients\profile.html:4 .\templates\clients\profile.html:7
+msgid "Client Profile"
+msgstr "Profil client"
+
+#: .\templates\clients\profile.html:9
+msgid "Full name:"
+msgstr "Nom complet :"
+
+#: .\templates\clients\profile.html:10
+msgid "Email:"
+msgstr "E-mail :"
+
+#: .\templates\clients\profile.html:11 .\templates\providers\profile.html:25
+msgid "Languages spoken:"
+msgstr "Langues parlées :"
+
+#: .\templates\clients\profile.html:22
+msgid "Quick Links"
+msgstr "Liens rapides"
+
+#: .\templates\clients\profile.html:24 .\templates\partials\client_nav.html:4
+#: .\templates\partials\provider_nav.html:4
+#: .\templates\partials\worker_nav.html:4 .\ui\templates\ui\home.html:567
+msgid "Dashboard"
+msgstr "Tableau de bord"
+
+#: .\templates\clients\profile.html:25 .\templates\partials\client_nav.html:6
+#: .\templates\partials\provider_nav.html:9
+#: .\templates\partials\worker_nav.html:6 .\templates\workers\profile.html:56
+msgid "Activity"
+msgstr "Activité"
+
+#: .\templates\clients\register.html:4
+msgid "Client Register"
+msgstr "Inscription client"
+
+#: .\templates\clients\register.html:8
+msgid "Create your Client account"
+msgstr "Créez votre compte client"
+
+#: .\templates\clients\register.html:11 .\templates\providers\register.html:11
+#: .\templates\workers\register.html:9
+msgid "Fill the information below to continue."
+msgstr "Remplissez les informations ci-dessous pour continuer."
+
+#: .\templates\clients\register.html:15
+msgid "Find and request trusted services."
+msgstr "Trouvez et demandez des services de confiance."
+
+#: .\templates\clients\register.html:20 .\templates\providers\register.html:20
+#: .\templates\workers\register.html:13
+msgid "There was a problem with your submission."
+msgstr "Un problème est survenu lors de l'envoi du formulaire."
+
+#: .\templates\clients\register.html:37 .\templates\workers\register.html:28
+msgid "Full name"
+msgstr "Nom complet"
+
+#: .\templates\clients\register.html:96 .\templates\providers\register.html:102
+#: .\templates\workers\register.html:74
+msgid "Create account"
+msgstr "Créer un compte"
+
+#: .\templates\clients\register.html:101
+#: .\templates\providers\register.html:107 .\templates\workers\register.html:76
+msgid "Already have an account?"
+msgstr "Vous avez déjà un compte ?"
+
+#: .\templates\jobs\_activity_content.html:263
+#: .\templates\request\create.html:739 .\templates\request\create.html:763
+msgid "Date"
+msgstr "Date"
+
+#: .\templates\jobs\_activity_content.html:272
+msgid "Sort"
+msgstr "Trier"
+
+#: .\templates\jobs\_activity_content.html:282
+#: .\templates\providers\financial_summary.html:105
+msgid "Export CSV"
+msgstr "Exporter en CSV"
+
+#: .\templates\jobs\_activity_content.html:286
+msgid "Clear filters"
+msgstr "Effacer les filtres"
+
+#: .\templates\jobs\_activity_content.html:291
+msgid "Activity analytics"
+msgstr "Analytique d'activité"
+
+#: .\templates\jobs\_activity_content.html:293
+#: .\templates\portal\provider_dashboard.html:37
+#: .\templates\providers\financial_summary.html:115
+msgid "Total jobs"
+msgstr "Total des missions"
+
+#: .\templates\jobs\_activity_content.html:297
+#: .\templates\providers\financial_summary.html:119
+msgid "Completed jobs"
+msgstr "Missions terminées"
+
+#: .\templates\jobs\_activity_content.html:301
+#: .\templates\providers\financial_summary.html:123
+msgid "Cancelled jobs"
+msgstr "Missions annulées"
+
+#: .\templates\jobs\_activity_content.html:318
+msgid "Reference"
+msgstr "Référence"
+
+#: .\templates\jobs\_activity_content.html:319
+#: .\templates\jobs\created.html:177 .\templates\marketplace\index.html:47
+#: .\templates\provider\incoming_jobs.html:227
+#: .\templates\request\create.html:738 .\templates\request\create.html:762
+msgid "Service"
+msgstr "Service"
+
+#: .\templates\jobs\_activity_content.html:320
+#: .\templates\jobs\created.html:187
+#: .\templates\provider\incoming_jobs.html:232
+msgid "Location"
+msgstr "Lieu"
+
+#: .\templates\jobs\_activity_content.html:321
+msgid "Schedule"
+msgstr "Horaire"
+
+#: .\templates\jobs\_activity_content.html:323
+#: .\templates\jobs\created.html:161
+#: .\templates\portal\provider_dashboard.html:75
+#: .\templates\providers\certificates.html:48
+#: .\templates\providers\compliance.html:174
+#: .\templates\providers\services_list.html:16
+#: .\templates\request\status.html:241 .\ui\templates\ui\jobs_list.html:13
+msgid "Status"
+msgstr "Statut"
+
+#: .\templates\jobs\_activity_content.html:325
+msgid "Payment"
+msgstr "Paiement"
+
+#: .\templates\jobs\_activity_content.html:338
+#: .\templates\request\status.html:261 .\ui\templates\ui\job_detail.html:93
+#: .\ui\templates\ui\jobs_list.html:14
+msgid "Created"
+msgstr "Créée"
+
+#: .\templates\jobs\_activity_content.html:350
+#: .\templates\jobs\created.html:203 .\templates\provider\jobs.html:248
+#: .\templates\provider\jobs.html:261 .\templates\request\create.html:773
+#: .\templates\request\status.html:274 .\templates\request\status.html:347
+#: .\ui\views_provider.py:67
+msgid "ASAP"
+msgstr "Dès que possible"
+
+#: .\templates\jobs\_activity_content.html:384
+#: .\templates\marketplace\index.html:396
+#: .\templates\portal\provider_dashboard.html:91
+#: .\ui\templates\ui\jobs_list.html:26
+msgid "View"
+msgstr "Voir"
+
+#: .\templates\jobs\_activity_content.html:390
+msgid "No jobs found"
+msgstr "Aucune mission trouvée"
+
+#: .\templates\jobs\_activity_content.html:400
+msgid "Activity pagination"
+msgstr "Pagination de l'activité"
+
+#: .\templates\jobs\_activity_content.html:403
+msgid "Previous"
+msgstr "Précédent"
+
+#: .\templates\jobs\_activity_content.html:408
+#, python-format
+msgid "Page %(page_number)s of %(total_pages)s"
+msgstr "Page %(page_number)s sur %(total_pages)s"
+
+#: .\templates\jobs\_activity_content.html:413
+msgid "Next"
+msgstr "Suivant"
+
+#: .\templates\jobs\created.html:4
+msgid "Job Created"
+msgstr "Demande créée"
+
+#: .\templates\jobs\created.html:143
+msgid "Job created"
+msgstr "Demande créée"
+
+#: .\templates\jobs\created.html:145
+msgid ""
+"Your request was created successfully. You can review the live status any "
+"time while we notify the provider."
+msgstr ""
+"Votre demande a été créée avec succès. Vous pouvez consulter son statut en "
+"direct à tout moment pendant que nous avisons le prestataire."
+
+#: .\templates\jobs\created.html:149
+msgid "View status"
+msgstr "Voir le statut"
+
+#: .\templates\jobs\created.html:150
+msgid "Back to marketplace"
+msgstr "Retour à la place de marché"
+
+#: .\templates\jobs\created.html:156 .\templates\portal\index.html:20
+#: .\templates\request\status.html:236
+msgid "Job ID"
+msgstr "ID de mission"
+
+#: .\templates\jobs\created.html:171 .\templates\request\status.html:254
+msgid "Pending assignment"
+msgstr "Attribution en attente"
+
+#: .\templates\jobs\created.html:195 .\templates\provider\jobs.html:240
+#: .\templates\request\status.html:266
+msgid "Requested time"
+msgstr "Heure demandée"
+
+#: .\templates\jobs\created.html:200 .\templates\provider\jobs.html:245
+#: .\templates\request\status.html:271
+msgid "at"
+msgstr "à"
+
+#: .\templates\jobs\created.html:209
+#: .\templates\provider\incoming_jobs.html:237
+#: .\templates\request\status.html:285
+msgid "Timing"
+msgstr "Délai"
+
+#: .\templates\jobs\created.html:214 .\templates\provider\jobs.html:397
+#: .\templates\request\status.html:290
+msgid "Next step"
+msgstr "Étape suivante"
+
+#: .\templates\jobs\created.html:220
+msgid "Price snapshot"
+msgstr "Aperçu du prix"
+
+#: .\templates\jobs\created.html:224
+msgid "Base line total"
+msgstr "Total de base"
+
+#: .\templates\jobs\created.html:228 .\templates\request\create.html:601
+#: .\templates\request\create.html:759 .\templates\request\status.html:387
+msgid "Subtotal"
+msgstr "Sous-total"
+
+#: .\templates\jobs\created.html:232
+msgid "Tax"
+msgstr "Taxe"
+
+#: .\templates\jobs\created.html:236 .\templates\providers\compliance.html:143
+#: .\templates\request\create.html:613 .\templates\request\create.html:761
+#: .\templates\request\status.html:411
+msgid "Total"
+msgstr "Total"
+
+#: .\templates\jobs\created.html:240
+msgid "Pricing snapshot is not available for this request."
+msgstr "L'aperçu des prix n'est pas disponible pour cette demande."
+
+#: .\templates\marketplace\index.html:7 .\templates\partials\client_nav.html:5
+msgid "Marketplace"
+msgstr "Place de marché"
+
+#: .\templates\marketplace\index.html:22
+msgid "When do you need the service?"
+msgstr "Quand avez-vous besoin du service ?"
+
+#: .\templates\marketplace\index.html:35
+msgid ""
+"Emergency sends your request to immediate dispatch. Urgent prioritizes fast "
+"available options. Scheduled lets you browse and choose providers normally."
+msgstr ""
+"L'urgence envoie votre demande à la répartition immédiate. L'option urgente "
+"privilégie les disponibilités rapides. L'option planifiée vous permet de "
+"parcourir et de choisir les prestataires normalement."
+
+#: .\templates\marketplace\index.html:41
+msgid "Choose when you need the service before searching providers."
+msgstr ""
+"Choisissez quand vous avez besoin du service avant de rechercher des "
+"prestataires."
+
+#: .\templates\marketplace\index.html:49
+msgid "Select service"
+msgstr "Choisir un service"
+
+#: .\templates\marketplace\index.html:66
+msgid "Postal code (example: H2X 1A4)"
+msgstr "Code postal (exemple : H2X 1A4)"
+
+#: .\templates\marketplace\index.html:93
+msgid "Use profile address"
+msgstr "Utiliser l'adresse du profil"
+
+#: .\templates\marketplace\index.html:97
+#: .\templates\partials\language_dropdown.html:12
+msgid "Language"
+msgstr "Langue"
+
+#: .\templates\marketplace\index.html:99
+msgid "Any language"
+msgstr "Toutes les langues"
+
+#: .\templates\marketplace\index.html:110 .\ui\templates\ui\home.html:630
+msgid "Only certified"
+msgstr "Certifiés seulement"
+
+#: .\templates\marketplace\index.html:115 .\ui\templates\ui\home.html:635
+msgid "Only insured"
+msgstr "Assurés seulement"
+
+#: .\templates\marketplace\index.html:118
+#: .\templates\marketplace\index.html:359
+msgid "Search"
+msgstr "Rechercher"
+
+#: .\templates\marketplace\index.html:122
+msgid "Popular Services"
+msgstr "Services populaires"
+
+#: .\templates\marketplace\index.html:130
+#, python-format
+msgid "ID: %(service_type_id)s"
+msgstr "ID : %(service_type_id)s"
+
+#: .\templates\marketplace\index.html:134
+msgid "No services available."
+msgstr "Aucun service disponible."
+
+#: .\templates\marketplace\index.html:141
+msgid "Emergency request"
+msgstr "Demande d'urgence"
+
+#: .\templates\marketplace\index.html:143
+msgid ""
+"Emergency requests are handled through immediate dispatch and do not use the "
+"normal provider marketplace list."
+msgstr ""
+"Les demandes d'urgence sont traitées par répartition immédiate et "
+"n'utilisent pas la liste normale des prestataires de la place de marché."
+
+#: .\templates\marketplace\index.html:149
+msgid "Continue to emergency request"
+msgstr "Continuer vers la demande d'urgence"
+
+#: .\templates\marketplace\index.html:153
+msgid "Add a postal code to continue to the emergency request flow."
+msgstr ""
+"Ajoutez un code postal pour continuer vers le flux de demande d'urgence."
+
+#: .\templates\marketplace\index.html:316
+msgid "Fast options for the next 24 hours"
+msgstr "Options rapides pour les prochaines 24 heures"
+
+#: .\templates\marketplace\index.html:318
+#, python-format
+msgid "%(service_name)s Providers"
+msgstr "Prestataires pour %(service_name)s"
+
+#: .\templates\marketplace\index.html:350
+msgid "Search provider, service, skill or extra"
+msgstr "Rechercher un prestataire, un service, une compétence ou un extra"
+
+#: .\templates\marketplace\index.html:357
+msgid "Search provider name"
+msgstr "Rechercher le nom du prestataire"
+
+#: .\templates\marketplace\index.html:378
+#, python-format
+msgid "Rating %(rating)s"
+msgstr "Note %(rating)s"
+
+#: .\templates\marketplace\index.html:387
+#, python-format
+msgid "From $%(price)s"
+msgstr "À partir de %(price)s $"
+
+#: .\templates\marketplace\index.html:399
+#: .\templates\marketplace\results.html:67
+#: .\templates\providers\nearby.html:288
+msgid "Compliance required"
+msgstr "Conformité requise"
+
+#: .\templates\marketplace\index.html:405
+msgid "No providers found."
+msgstr "Aucun prestataire trouvé."
+
+#: .\templates\marketplace\results.html:4
+msgid "Marketplace Results"
+msgstr "Résultats de la place de marché"
+
+#: .\templates\marketplace\results.html:9
+msgid "Available Providers"
+msgstr "Prestataires disponibles"
+
+#: .\templates\marketplace\results.html:37
+msgid "Certified"
+msgstr "Certifié"
+
+#: .\templates\marketplace\results.html:41
+msgid "Insured"
+msgstr "Assuré"
+
+#: .\templates\marketplace\results.html:63 .\templates\request\create.html:4
+msgid "Request Service"
+msgstr "Demander un service"
+
+#: .\templates\marketplace\results.html:77
+msgid "No providers available in this area."
+msgstr "Aucun prestataire disponible dans cette zone."
+
+#: .\templates\partials\client_nav.html:7
+#: .\templates\partials\provider_nav.html:6
+#: .\templates\partials\worker_nav.html:7
+#: .\templates\portal\client_dashboard.html:146
+msgid "Profile"
+msgstr "Profil"
+
+#: .\templates\partials\language_dropdown.html:5
+msgid "Language selector"
+msgstr "Sélecteur de langue"
+
+#: .\templates\partials\provider_compliance_boxes.html:2
+msgid "this service"
+msgstr ""
+
+#: .\templates\partials\provider_compliance_boxes.html:9
+#, python-format
+msgid "Compliant for %(service_name)s in %(province)s."
+msgstr ""
+
+#: .\templates\partials\provider_compliance_boxes.html:11
+#, python-format
+msgid "Compliant for %(service_name)s."
+msgstr ""
+
+#: .\templates\partials\provider_compliance_boxes.html:14
+msgid "Compliant."
+msgstr ""
+
+#: .\templates\partials\provider_compliance_boxes.html:20
+#, python-format
+msgid "Missing certificates: %(certificates)s"
+msgstr ""
+
+#: .\templates\partials\provider_compliance_boxes.html:25
+msgid ""
+"Insurance is required for this service and province. Verified insurance is "
+"still missing."
+msgstr ""
+
+#: .\templates\partials\provider_compliance_boxes.html:32
+msgid "Insurance is required for this service and province."
+msgstr ""
+
+#: .\templates\partials\provider_nav.html:5
+#: .\templates\portal\provider_services.html:4
+#: .\templates\portal\provider_services.html:192
+#: .\templates\providers\services_list.html:4
+#: .\templates\providers\services_list.html:7
+msgid "My Services"
+msgstr "Mes services"
+
+#: .\templates\partials\provider_nav.html:7
+msgid "Incoming"
+msgstr "Entrantes"
+
+#: .\templates\partials\provider_nav.html:8
+#: .\templates\partials\worker_nav.html:5 .\templates\providers\jobs.html:7
+#: .\templates\workers\profile.html:55 .\ui\templates\ui\base.html:43
+#: .\ui\templates\ui\jobs_list.html:4
+msgid "Jobs"
+msgstr "Missions"
+
+#: .\templates\partials\provider_nav.html:10
+msgid "Financials"
+msgstr "Finances"
+
+#: .\templates\partials\provider_nav.html:11
+#: .\templates\providers\compliance.html:4
+#: .\templates\providers\compliance.html:10
+msgid "Compliance"
+msgstr "Conformité"
+
+#: .\templates\portal\client_dashboard.html:137
+#, python-format
+msgid "Welcome back, %(first_name)s."
+msgstr "Bon retour, %(first_name)s."
+
+#: .\templates\portal\client_dashboard.html:140
+msgid "Languages:"
+msgstr "Langues :"
+
+#: .\templates\portal\client_dashboard.html:144 .\ui\templates\ui\home.html:640
+msgid "Search Marketplace"
+msgstr "Rechercher sur la place de marché"
+
+#: .\templates\portal\client_dashboard.html:145
+#: .\templates\providers\financial_summary.html:106
+msgid "View Activity"
+msgstr "Voir l'activité"
+
+#: .\templates\portal\client_dashboard.html:160
+msgid "Total Jobs"
+msgstr "Total des missions"
+
+#: .\templates\portal\client_dashboard.html:164
+msgid "Open Jobs"
+msgstr "Missions ouvertes"
+
+#: .\templates\portal\client_dashboard.html:168
+msgid "Pending Your Action"
+msgstr "En attente de votre action"
+
+#: .\templates\portal\client_dashboard.html:180
+msgid "Total Finalized Billing"
+msgstr "Facturation finalisée totale"
+
+#: .\templates\portal\client_dashboard.html:186
+msgid "Recent Active Jobs"
+msgstr "Missions actives récentes"
+
+#: .\templates\portal\client_dashboard.html:204
+#: .\templates\request\create.html:296
+msgid "Provider:"
+msgstr "Prestataire :"
+
+#: .\templates\portal\client_dashboard.html:208
+msgid "Not assigned yet"
+msgstr "Pas encore attribué"
+
+#: .\templates\portal\client_dashboard.html:211
+#, python-format
+msgid "Created %(created_at)s"
+msgstr "Créée le %(created_at)s"
+
+#: .\templates\portal\client_dashboard.html:214
+msgid "View Status"
+msgstr "Voir le statut"
+
+#: .\templates\portal\client_dashboard.html:221
+#, python-format
+msgid ""
+"No active jobs right now. Review past requests in <a "
+"href=\"%(activity_url)s\">Activity</a> or explore the marketplace."
+msgstr ""
+"Aucune mission active pour le moment. Consultez vos demandes passées dans <a "
+"href=\"%(activity_url)s\">Activité</a> ou explorez la place de marché."
+
+#: .\templates\portal\client_dashboard.html:226
+msgid "Explore Marketplace"
+msgstr "Explorer la place de marché"
+
+#: .\templates\portal\index.html:4 .\templates\portal\index.html:8
+msgid "NODO Internal Portal"
+msgstr "Portail interne NODO"
+
+#: .\templates\portal\index.html:12
+msgid "Requests"
+msgstr "Demandes"
+
+#: .\templates\portal\index.html:15
+msgid "Open Job by ID:"
+msgstr "Ouvrir une mission par ID :"
+
+#: .\templates\portal\index.html:27
+#: .\templates\portal\provider_dashboard.html:41
+msgid "Open"
+msgstr "Ouvrir"
+
+#: .\templates\portal\index.html:37 .\templates\provider\jobs.html:200
+#: .\templates\providers\jobs.html:4
+msgid "Provider Jobs"
+msgstr "Missions du prestataire"
+
+#: .\templates\portal\index.html:42
+msgid "Analytics"
+msgstr "Analytique"
+
+#: .\templates\portal\index.html:44
+msgid "Marketplace Dashboard"
+msgstr "Tableau de bord de la place de marché"
+
+#: .\templates\portal\index.html:45
+msgid "Analytics JSON"
+msgstr "JSON analytique"
+
+#: .\templates\portal\index.html:50 .\ui\templates\ui\base.html:44
+msgid "Admin"
+msgstr "Admin"
+
+#: .\templates\portal\index.html:52
+msgid "Django Admin"
+msgstr "Admin Django"
+
+#: .\templates\portal\provider_dashboard.html:4
+#: .\templates\portal\provider_dashboard.html:32
+#: .\templates\providers\dashboard.html:4
+#: .\templates\providers\dashboard.html:7 .\ui\templates\ui\home.html:585
+msgid "Provider Dashboard"
+msgstr "Tableau de bord prestataire"
+
+#: .\templates\portal\provider_dashboard.html:33
+msgid "Track your jobs and recent activity."
+msgstr "Suivez vos missions et votre activité récente."
+
+#: .\templates\portal\provider_dashboard.html:45
+#: .\templates\providers\complete_profile.html:385
+#: .\templates\providers\compliance.html:32
+#: .\templates\providers\dashboard.html:13
+#: .\templates\providers\dashboard.html:14
+#: .\templates\providers\dashboard.html:15
+msgid "Pending"
+msgstr "En attente"
+
+#: .\templates\portal\provider_dashboard.html:57
+msgid "Completed revenue"
+msgstr "Revenus des missions terminées"
+
+#: .\templates\portal\provider_dashboard.html:65
+msgid "Based on quoted totals"
+msgstr "Basé sur les montants estimés"
+
+#: .\templates\portal\provider_dashboard.html:70
+msgid "Recent jobs"
+msgstr "Missions récentes"
+
+#: .\templates\portal\provider_dashboard.html:74
+msgid "ID"
+msgstr "ID"
+
+#: .\templates\portal\provider_dashboard.html:76
+msgid "Quoted total"
+msgstr "Total estimé"
+
+#: .\templates\portal\provider_dashboard.html:97
+msgid "No jobs yet."
+msgstr "Aucune mission pour le moment."
+
+#: .\templates\portal\provider_service_add.html:4
+#: .\templates\portal\provider_service_add.html:36
+#: .\templates\providers\service_form.html:5
+#: .\templates\providers\service_form.html:9
+#: .\templates\providers\service_form.html:15
+msgid "Add Service"
+msgstr ""
+
+#: .\templates\portal\provider_service_add.html:38
+msgid "You are adding:"
+msgstr ""
+
+#: .\templates\portal\provider_service_add.html:57
+#: .\templates\portal\provider_service_edit.html:57
+msgid "Choose a common option or select \\"
+msgstr ""
+
+#: .\templates\portal\provider_service_add.html:67
+#: .\templates\portal\provider_service_edit.html:67
+msgid "Add-ons are saved with the ADDON prefix and shown separately."
+msgstr ""
+
+#: .\templates\portal\provider_service_add.html:99
+msgid "Save service"
+msgstr ""
+
+#: .\templates\portal\provider_service_add.html:100
+#: .\templates\portal\provider_service_edit.html:100
+#: .\templates\providers\account.html:341
+#: .\templates\providers\certificates.html:200
+#: .\templates\providers\insurance.html:115 .\templates\request\create.html:748
+#: .\templates\request\create.html:768
+msgid "Cancel"
+msgstr "Annuler"
+
+#: .\templates\portal\provider_service_categories.html:4
+#: .\templates\portal\provider_service_categories.html:9
+msgid "Service Categories"
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:10
+msgid "Choose a category to manage or add services."
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:15
+msgid "Back to services"
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:20
+msgid "Your Categories"
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:30
+msgid "Categories where you already have at least one service."
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:37
+msgid "Manage"
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:42
+#: .\templates\portal\provider_service_categories.html:75
+#: .\templates\portal\provider_services.html:233
+msgid "Add service"
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:52
+msgid "You have not added services in any category yet."
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:59
+msgid "Other Categories"
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:69
+msgid "Active categories available to expand your services."
+msgstr ""
+
+#: .\templates\portal\provider_service_categories.html:84
+msgid "No other categories available."
+msgstr ""
+
+#: .\templates\portal\provider_service_edit.html:4
+#: .\templates\portal\provider_service_edit.html:36
+#: .\templates\providers\service_form.html:5
+#: .\templates\providers\service_form.html:9
+msgid "Edit Service"
+msgstr ""
+
+#: .\templates\portal\provider_service_edit.html:38
+msgid "Service type:"
+msgstr ""
+
+#: .\templates\portal\provider_service_edit.html:99
+msgid "Save changes"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:7
+msgid "Fixed price"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:194
+msgid "Manage your services, pricing, and availability."
+msgstr ""
+
+#: .\templates\portal\provider_services.html:199
+msgid "Categories"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:207
+msgid "Filtered by category:"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:211
+msgid "Back to all services"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:225
+#, python-format
+msgid "%(count)s main offer"
+msgid_plural "%(count)s main offers"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\portal\provider_services.html:227
+#, python-format
+msgid "%(count)s add-on"
+msgid_plural "%(count)s add-ons"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\portal\provider_services.html:238
+msgid "Main Offers"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:239
+msgid "Your standard services visible to clients."
+msgstr ""
+
+#: .\templates\portal\provider_services.html:258
+#: .\templates\portal\provider_services.html:315
+#: .\templates\providers\service_areas.html:289
+#: .\templates\providers\services_list.html:25
+msgid "Active"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:260
+#: .\templates\portal\provider_services.html:317
+#: .\templates\providers\service_areas.html:321
+#: .\templates\providers\services_list.html:25
+msgid "Inactive"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:270
+#: .\templates\portal\provider_services.html:327
+#: .\templates\providers\certificates.html:70
+#: .\templates\providers\services_list.html:27
+msgid "Edit"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:277
+#: .\templates\portal\provider_services.html:334
+#: .\templates\providers\service_areas.html:297
+#: .\templates\providers\services_list.html:31
+msgid "Deactivate"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:281
+#: .\templates\portal\provider_services.html:338
+#: .\templates\providers\service_areas.html:329
+#: .\templates\providers\services_list.html:31
+msgid "Activate"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:290
+msgid "No main offers yet."
+msgstr ""
+
+#: .\templates\portal\provider_services.html:295
+msgid "Add-ons"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:296
+msgid "Optional extras you can attach to a service."
+msgstr ""
+
+#: .\templates\portal\provider_services.html:347
+msgid "No add-ons yet."
+msgstr ""
+
+#: .\templates\portal\provider_services.html:356
+msgid "No services yet"
+msgstr ""
+
+#: .\templates\portal\provider_services.html:358
+msgid "Start by adding a service in a category."
+msgstr ""
+
+#: .\templates\portal\provider_services.html:362
+msgid "Add your first service"
+msgstr ""
+
+#: .\templates\provider\incoming_jobs.html:4
+#: .\templates\provider\incoming_jobs.html:185
+msgid "Incoming Jobs"
+msgstr ""
+
+#: .\templates\provider\incoming_jobs.html:186
+msgid "Review new service requests and respond quickly."
+msgstr ""
+
+#: .\templates\provider\incoming_jobs.html:197
+#, python-format
+msgid ""
+"\n"
+"    %(counter)s incoming request\n"
+"    "
+msgid_plural ""
+"\n"
+"    %(counter)s incoming requests\n"
+"    "
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\provider\incoming_jobs.html:215
+msgid "Request"
+msgstr ""
+
+#: .\templates\provider\incoming_jobs.html:222
+msgid "New service request"
+msgstr ""
+
+#: .\templates\provider\incoming_jobs.html:242
+msgid "Scheduled For"
+msgstr ""
+
+#: .\templates\provider\incoming_jobs.html:247
+#: .\templates\provider\jobs.html:333
+msgid "Estimated Total"
+msgstr "Total estimé"
+
+#: .\templates\provider\incoming_jobs.html:258
+#: .\templates\provider\jobs.html:293
+msgid "Billing Unit"
+msgstr "Unité de facturation"
+
+#: .\templates\provider\incoming_jobs.html:273
+msgid "Unit / Suite"
+msgstr ""
+
+#: .\templates\provider\incoming_jobs.html:280
+msgid "Access Notes"
+msgstr ""
+
+#: .\templates\provider\incoming_jobs.html:289
+#: .\templates\provider\jobs.html:435
+msgid "Accept"
+msgstr "Accepter"
+
+#: .\templates\provider\incoming_jobs.html:294
+#: .\templates\provider\jobs.html:440
+msgid "Decline"
+msgstr "Refuser"
+
+#: .\templates\provider\incoming_jobs.html:302
+msgid "No incoming jobs right now."
+msgstr ""
+
+#: .\templates\provider\jobs.html:201
+msgid "Review requests, confirm details, and take action."
+msgstr "Examinez les demandes, confirmez les détails et passez à l'action."
+
+#: .\templates\provider\jobs.html:213
+msgid "Service Request"
+msgstr "Demande de service"
+
+#: .\templates\provider\jobs.html:217
+#, python-format
+msgid "Request #%(job_id)s"
+msgstr "Demande #%(job_id)s"
+
+#: .\templates\provider\jobs.html:254 .\templates\request\status.html:342
+msgid "Service mode"
+msgstr "Mode du service"
+
+#: .\templates\provider\jobs.html:268
+msgid "Estimated duration"
+msgstr "Durée estimée"
+
+#: .\templates\provider\jobs.html:270
+#, python-format
+msgid "%(duration)s min"
+msgstr "%(duration)s min"
+
+#: .\templates\provider\jobs.html:275 .\templates\providers\account.html:300
+#: .\templates\providers\account.html:301
+msgid "Postal Code"
+msgstr "Code postal"
+
+#: .\templates\provider\jobs.html:282
+msgid "Main Offer"
+msgstr "Offre principale"
+
+#: .\templates\provider\jobs.html:290
+msgid "Pricing"
+msgstr "Tarification"
+
+#: .\templates\provider\jobs.html:300
+msgid "Unit Price"
+msgstr "Prix unitaire"
+
+#: .\templates\provider\jobs.html:311 .\templates\request\create.html:547
+#: .\templates\request\create.html:742 .\templates\request\create.html:766
+#: .\templates\request\status.html:331
+msgid "Quantity"
+msgstr "Quantité"
+
+#: .\templates\provider\jobs.html:322
+msgid "Base Line Total"
+msgstr "Total de base"
+
+#: .\templates\provider\jobs.html:347
+msgid "Requested details"
+msgstr "Détails demandés"
+
+#: .\templates\provider\jobs.html:350
+#, python-format
+msgid "Main Offer: %(offer)s"
+msgstr "Offre principale : %(offer)s"
+
+#: .\templates\provider\jobs.html:354
+#, python-format
+msgid "Subservice: %(subservice)s"
+msgstr "Sous-service : %(subservice)s"
+
+#: .\templates\provider\jobs.html:358
+msgid "Extras:"
+msgstr "Extras :"
+
+#: .\templates\provider\jobs.html:377 .\templates\request\status.html:437
+msgid "Lifecycle"
+msgstr "Cycle de vie"
+
+#: .\templates\provider\jobs.html:380 .\templates\request\status.html:447
+msgid "Started at:"
+msgstr "Commencé à :"
+
+#: .\templates\provider\jobs.html:384 .\templates\request\status.html:448
+msgid "Completed at:"
+msgstr "Terminé à :"
+
+#: .\templates\provider\jobs.html:388 .\templates\request\status.html:449
+#: .\templates\request\status.html:615
+msgid "Confirmed at:"
+msgstr "Confirmé à :"
+
+#: .\templates\provider\jobs.html:398
+msgid "Waiting client confirmation."
+msgstr "En attente de la confirmation du client."
+
+#: .\templates\provider\jobs.html:402
+msgid "Closure"
+msgstr "Clôture"
+
+#: .\templates\provider\jobs.html:404 .\templates\request\status.html:608
+msgid "Service closed."
+msgstr "Service clôturé."
+
+#: .\templates\provider\jobs.html:406
+msgid "Closed automatically after the 72-hour timeout."
+msgstr "Clôturé automatiquement après le délai de 72 heures."
+
+#: .\templates\provider\jobs.html:408
+msgid "Closed by client confirmation."
+msgstr "Clôturé par confirmation du client."
+
+#: .\templates\provider\jobs.html:414
+msgid "Cancellation"
+msgstr "Annulation"
+
+#: .\templates\provider\jobs.html:417
+msgid "Cancelled after dispute approval."
+msgstr "Annulé après approbation du litige."
+
+#: .\templates\provider\jobs.html:419
+msgid "Cancelled because the provider declined the request."
+msgstr "Annulé parce que le prestataire a refusé la demande."
+
+#: .\templates\provider\jobs.html:421
+msgid "Cancelled by the client."
+msgstr "Annulé par le client."
+
+#: .\templates\provider\jobs.html:423
+msgid "Cancelled by automatic timeout."
+msgstr "Annulé par dépassement du délai automatique."
+
+#: .\templates\provider\jobs.html:425 .\templates\request\status.html:639
+msgid "Cancelled."
+msgstr "Annulé."
+
+#: .\templates\provider\jobs.html:448
+msgid "Start"
+msgstr "Démarrer"
+
+#: .\templates\provider\jobs.html:456
+msgid "Mark as Complete"
+msgstr "Marquer comme terminé"
+
+#: .\templates\provider\jobs.html:465
+msgid "No jobs available yet."
+msgstr "Aucune mission disponible pour le moment."
+
+#: .\templates\providers\account.html:4 .\templates\providers\account.html:187
+msgid "Edit Provider Profile"
+msgstr ""
+
+#: .\templates\providers\account.html:188
+msgid "Update your provider account information."
+msgstr ""
+
+#: .\templates\providers\account.html:195
+#: .\templates\providers\account.html:200
+msgid "Provider Type"
+msgstr ""
+
+#: .\templates\providers\account.html:196
+msgid "Choose how your business is registered in the platform."
+msgstr ""
+
+#: .\templates\providers\account.html:213
+msgid "Company Information"
+msgstr ""
+
+#: .\templates\providers\account.html:214
+msgid "Business details stored directly in your provider profile."
+msgstr ""
+
+#: .\templates\providers\account.html:218
+msgid "Company Name"
+msgstr ""
+
+#: .\templates\providers\account.html:228
+msgid "Business Registration Number"
+msgstr ""
+
+#: .\templates\providers\account.html:233
+msgid "Employee Count"
+msgstr ""
+
+#: .\templates\providers\account.html:235 .\templates\request\create.html:493
+#: .\templates\request\create.html:510
+msgid "Select"
+msgstr "Sélectionner"
+
+#: .\templates\providers\account.html:247
+msgid "Contact Information"
+msgstr ""
+
+#: .\templates\providers\account.html:248
+msgid "Primary contact details for your account."
+msgstr ""
+
+#: .\templates\providers\account.html:252
+msgid "Contact First Name"
+msgstr ""
+
+#: .\templates\providers\account.html:257
+msgid "Contact Last Name"
+msgstr ""
+
+#: .\templates\providers\account.html:262
+msgid "Phone Number"
+msgstr ""
+
+#: .\templates\providers\account.html:272
+msgid "Languages Spoken"
+msgstr ""
+
+#: .\templates\providers\account.html:274
+msgid "Example: English, French, Spanish"
+msgstr ""
+
+#: .\templates\providers\account.html:280
+msgid "Business Address"
+msgstr ""
+
+#: .\templates\providers\account.html:281
+msgid "Your main business location and service radius."
+msgstr ""
+
+#: .\templates\providers\account.html:305
+#: .\templates\providers\account.html:306
+msgid "Address Line 1"
+msgstr ""
+
+#: .\templates\providers\account.html:310
+msgid "Service Radius (km)"
+msgstr ""
+
+#: .\templates\providers\account.html:311
+msgid "Service Radius in km"
+msgstr ""
+
+#: .\templates\providers\account.html:317
+msgid "Availability"
+msgstr ""
+
+#: .\templates\providers\account.html:318
+msgid "Operational status stored directly in your provider profile."
+msgstr ""
+
+#: .\templates\providers\account.html:322
+msgid "Availability Mode"
+msgstr ""
+
+#: .\templates\providers\account.html:324
+msgid "Manual"
+msgstr ""
+
+#: .\templates\providers\account.html:325
+msgid "Auto"
+msgstr ""
+
+#: .\templates\providers\account.html:333
+msgid "Available Now"
+msgstr ""
+
+#: .\templates\providers\account.html:340
+#: .\templates\providers\certificates.html:195
+#: .\templates\providers\service_form.html:15
+msgid "Save Changes"
+msgstr ""
+
+#: .\templates\providers\activity.html:4
+msgid "Provider Activity"
+msgstr ""
+
+#: .\templates\providers\billing.html:4
+msgid "Provider Billing"
+msgstr ""
+
+#: .\templates\providers\certificates.html:4
+#: .\templates\providers\certificates.html:14
+#: .\templates\providers\complete_profile.html:547
+#: .\templates\providers\compliance.html:211
+msgid "Manage Certificates"
+msgstr ""
+
+#: .\templates\providers\certificates.html:16
+msgid ""
+"Providers can register certificates here even when they are not required "
+"globally."
+msgstr ""
+
+#: .\templates\providers\certificates.html:20
+#: .\templates\providers\compliance.html:16
+#: .\templates\providers\insurance.html:18
+#: .\templates\providers\service_areas.html:270
+#: .\templates\ui\terms_and_conditions.html:41
+msgid "Back to Profile"
+msgstr ""
+
+#: .\templates\providers\certificates.html:33
+msgid ""
+"This section is open and available. Certificate requirements will later "
+"depend on service type and jurisdiction."
+msgstr ""
+
+#: .\templates\providers\certificates.html:37
+msgid "Total certificates"
+msgstr ""
+
+#: .\templates\providers\certificates.html:46
+#: .\templates\providers\compliance.html:173
+#: .\ui\templates\ui\job_detail.html:91
+msgid "Type"
+msgstr ""
+
+#: .\templates\providers\certificates.html:47
+#: .\templates\providers\services_list.html:14
+msgid "Name"
+msgstr ""
+
+#: .\templates\providers\certificates.html:50
+#: .\templates\providers\compliance.html:175
+msgid "Expires"
+msgstr ""
+
+#: .\templates\providers\certificates.html:77
+msgid "Notes:"
+msgstr ""
+
+#: .\templates\providers\certificates.html:87
+msgid "No certificates added yet."
+msgstr ""
+
+#: .\templates\providers\certificates.html:98
+msgid "Edit Certificate"
+msgstr ""
+
+#: .\templates\providers\certificates.html:100
+msgid "Current status:"
+msgstr ""
+
+#: .\templates\providers\certificates.html:103
+#: .\templates\providers\certificates.html:195
+msgid "Add Certificate"
+msgstr ""
+
+#: .\templates\providers\certificates.html:114
+msgid "Certificate type"
+msgstr ""
+
+#: .\templates\providers\certificates.html:130
+msgid "Taken at"
+msgstr ""
+
+#: .\templates\providers\certificates.html:164
+msgid "Issued date"
+msgstr ""
+
+#: .\templates\providers\certificates.html:171
+msgid "Expires date"
+msgstr ""
+
+#: .\templates\providers\certificates.html:207
+msgid ""
+"This page does not handle uploads yet. It stores certificate details and "
+"status only."
+msgstr ""
+
+#: .\templates\providers\complete_billing.html:4
+msgid "Complete Provider Billing"
+msgstr ""
+
+#: .\templates\providers\complete_billing.html:8
+msgid "Complete Billing Information"
+msgstr ""
+
+#: .\templates\providers\complete_billing.html:12
+msgid "Save Billing Info"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:4
+msgid "Complete Provider Profile"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:351
+msgid "Complete Your Profile"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:353
+msgid ""
+"Finish the remaining requirements to activate your provider account and "
+"unlock the provider dashboard."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:366
+msgid "Completion Status"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:368
+msgid ""
+"This page is now a checklist only. Profile details, service areas, and "
+"insurance are managed in their own pages."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:375
+msgid "Required steps completed"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:380
+msgid "Phone verification"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:391
+#: .\templates\providers\compliance.html:93
+msgid "Insurance"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:396
+#: .\templates\providers\compliance.html:138
+msgid "Certificates"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:403
+msgid "Still missing:"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:414
+msgid "Required Steps"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:416
+msgid ""
+"These are the actual requirements currently used to mark your provider "
+"profile as complete."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:431
+#: .\templates\providers\complete_profile.html:458
+msgid "Complete"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:433
+#: .\templates\providers\complete_profile.html:460
+#: .\templates\providers\complete_profile.html:516
+msgid "Missing"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:436
+#: .\templates\providers\complete_profile.html:530
+#: .\templates\providers\compliance.html:57
+msgid "Edit Profile"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:442
+#: .\templates\providers\compliance.html:39
+msgid "Active service areas"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:444
+msgid "At least one active service area is required for profile completion."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:463
+#: .\templates\providers\complete_profile.html:535
+#: .\templates\providers\compliance.html:58
+#: .\templates\providers\service_areas.html:4
+#: .\templates\providers\service_areas.html:233
+msgid "Manage Service Areas"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:469
+#: .\templates\providers\complete_profile.html:490
+#: .\templates\ui\terms_and_conditions.html:4
+#: .\templates\ui\terms_and_conditions.html:12
+msgid "Terms and Conditions"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:471
+msgid ""
+"You must review and accept the Terms and Conditions before completing your "
+"provider profile."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:488
+msgid "I have read and accept the"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:497
+msgid "Terms already accepted."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:501
+msgid "Acceptance is required to complete your base provider profile."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:504
+msgid "Save Terms Acceptance"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:525
+msgid "Manage Profile Modules"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:526
+msgid "Use these dedicated pages to update each module directly."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:531
+msgid "Update business details, address, and availability."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:536
+msgid "Add, activate, or deactivate the cities where you work."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:540
+#: .\templates\providers\compliance.html:128
+#: .\templates\providers\insurance.html:4
+#: .\templates\providers\insurance.html:14
+msgid "Manage Insurance"
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:542
+msgid "Create or update your insurance details and review verification status."
+msgstr ""
+
+#: .\templates\providers\complete_profile.html:548
+msgid "Manage your certificates from the dedicated certificates page."
+msgstr ""
+
+#: .\templates\providers\compliance.html:12
+msgid "Review your provider readiness and compliance-related status."
+msgstr ""
+
+#: .\templates\providers\compliance.html:24
+msgid "Base Profile"
+msgstr ""
+
+#: .\templates\providers\compliance.html:27
+msgid "Phone verified"
+msgstr ""
+
+#: .\templates\providers\compliance.html:31
+msgid "Terms acceptance status"
+msgstr ""
+
+#: .\templates\providers\compliance.html:35
+msgid "Profile completed"
+msgstr ""
+
+#: .\templates\providers\compliance.html:45
+msgid "Current active areas"
+msgstr ""
+
+#: .\templates\providers\compliance.html:67
+msgid "Payment Setup"
+msgstr ""
+
+#: .\templates\providers\compliance.html:70
+msgid "Billing completed"
+msgstr ""
+
+#: .\templates\providers\compliance.html:75
+msgid ""
+"Payment and payout setup will be handled through an external provider. "
+"Sensitive payment details are not stored directly in this provider profile "
+"flow."
+msgstr ""
+
+#: .\templates\providers\compliance.html:83
+msgid "View Billing"
+msgstr ""
+
+#: .\templates\providers\compliance.html:96
+msgid "Has insurance"
+msgstr ""
+
+#: .\templates\providers\compliance.html:112
+#: .\templates\providers\insurance.html:95
+msgid "Expiry date"
+msgstr ""
+
+#: .\templates\providers\compliance.html:116
+msgid "Verification"
+msgstr ""
+
+#: .\templates\providers\compliance.html:121
+#: .\templates\providers\insurance.html:38
+msgid "Not verified"
+msgstr ""
+
+#: .\templates\providers\compliance.html:155
+msgid "Pending / other"
+msgstr ""
+
+#: .\templates\providers\compliance.html:168
+msgid "Recent certificates"
+msgstr ""
+
+#: .\templates\providers\compliance.html:186
+msgid "Declared"
+msgstr ""
+
+#: .\templates\providers\compliance.html:188
+msgid "Rejected"
+msgstr ""
+
+#: .\templates\providers\compliance.html:201
+msgid "No certificates registered yet."
+msgstr ""
+
+#: .\templates\providers\compliance.html:206
+msgid "Certificate requirements may vary by service type and jurisdiction."
+msgstr ""
+
+#: .\templates\providers\compliance.html:221
+msgid "Operational Status"
+msgstr ""
+
+#: .\templates\providers\compliance.html:224
+msgid "Operational"
+msgstr ""
+
+#: .\templates\providers\compliance.html:230
+msgid ""
+"Your current provider status is operational based on the rules currently "
+"applied by the system."
+msgstr ""
+
+#: .\templates\providers\compliance.html:236
+msgid "Your provider account is not fully operational yet."
+msgstr ""
+
+#: .\templates\providers\compliance.html:240
+msgid "Current known reasons"
+msgstr ""
+
+#: .\templates\providers\compliance.html:248
+msgid ""
+"Operational status may also depend on other internal rules that will be "
+"reviewed next."
+msgstr ""
+
+#: .\templates\providers\dashboard.html:8
+#, python-format
+msgid "Welcome, %(provider_name)s."
+msgstr ""
+
+#: .\templates\providers\dashboard.html:11
+msgid "Account Status"
+msgstr ""
+
+#: .\templates\providers\dashboard.html:13
+msgid "Phone Verification:"
+msgstr ""
+
+#: .\templates\providers\dashboard.html:13
+#: .\templates\providers\dashboard.html:14
+#: .\templates\providers\dashboard.html:15 .\templates\request\create.html:772
+msgid "OK"
+msgstr "OK"
+
+#: .\templates\providers\dashboard.html:14
+msgid "Profile Completed:"
+msgstr ""
+
+#: .\templates\providers\dashboard.html:15
+msgid "Billing Completed:"
+msgstr ""
+
+#: .\templates\providers\dashboard.html:16
+msgid "Active Services:"
+msgstr ""
+
+#: .\templates\providers\dashboard.html:21
+msgid "Your account is operational."
+msgstr ""
+
+#: .\templates\providers\dashboard.html:23
+msgid "Setup in progress."
+msgstr ""
+
+#: .\templates\providers\dashboard.html:27
+msgid "Verify your phone number."
+msgstr ""
+
+#: .\templates\providers\dashboard.html:31
+msgid "Complete your profile."
+msgstr ""
+
+#: .\templates\providers\dashboard.html:35
+msgid "Complete your billing information."
+msgstr ""
+
+#: .\templates\providers\dashboard.html:39
+msgid "Add at least one active service."
+msgstr ""
+
+#: .\templates\providers\dashboard.html:43
+msgid "Manage Services"
+msgstr ""
+
+#: .\templates\providers\dashboard.html:44
+msgid "View Profile"
+msgstr ""
+
+#: .\templates\providers\dashboard.html:46
+msgid "Complete Billing"
+msgstr ""
+
+#: .\templates\providers\financial_summary.html:102
+msgid ""
+"Operational financial summary based on your provider jobs, pricing "
+"snapshots, tickets, and ledger records."
+msgstr ""
+
+#: .\templates\providers\financial_summary.html:127
+#: .\templates\providers\financial_summary.html:146
+msgid "Gross"
+msgstr ""
+
+#: .\templates\providers\financial_summary.html:131
+#: .\templates\providers\financial_summary.html:147
+msgid "Platform fees"
+msgstr ""
+
+#: .\templates\providers\financial_summary.html:135
+#: .\templates\providers\financial_summary.html:148
+msgid "Provider net"
+msgstr ""
+
+#: .\templates\providers\financial_summary.html:141
+msgid "Monthly breakdown"
+msgstr ""
+
+#: .\templates\providers\financial_summary.html:145
+msgid "Month"
+msgstr ""
+
+#: .\templates\providers\financial_summary.html:161
+msgid "No data"
+msgstr ""
+
+#: .\templates\providers\insurance.html:15
+msgid "Create or update your insurance information."
+msgstr ""
+
+#: .\templates\providers\insurance.html:33
+msgid "Verification status"
+msgstr ""
+
+#: .\templates\providers\insurance.html:43
+msgid "Provider ID"
+msgstr ""
+
+#: .\templates\providers\insurance.html:55
+msgid "I have active insurance"
+msgstr ""
+
+#: .\templates\providers\insurance.html:112
+msgid "Save Insurance"
+msgstr ""
+
+#: .\templates\providers\nearby.html:4
+msgid "Providers Nearby"
+msgstr ""
+
+#: .\templates\providers\nearby.html:165
+msgid "Providers near this job"
+msgstr ""
+
+#: .\templates\providers\nearby.html:167
+msgid "Providers available in your area"
+msgstr ""
+
+#: .\templates\providers\nearby.html:172
+msgid "Job:"
+msgstr ""
+
+#: .\templates\providers\nearby.html:173
+msgid "Address:"
+msgstr ""
+
+#: .\templates\providers\nearby.html:175
+msgid "Postal code / area:"
+msgstr ""
+
+#: .\templates\providers\nearby.html:178 .\templates\providers\nearby.html:252
+msgid "Service:"
+msgstr ""
+
+#: .\templates\providers\nearby.html:200
+msgid "Change address"
+msgstr ""
+
+#: .\templates\providers\nearby.html:207
+msgid "Postal code or FSA"
+msgstr ""
+
+#: .\templates\providers\nearby.html:212
+msgid "Rating"
+msgstr ""
+
+#: .\templates\providers\nearby.html:214
+msgid "Any"
+msgstr ""
+
+#: .\templates\providers\nearby.html:215
+msgid "4+ stars"
+msgstr ""
+
+#: .\templates\providers\nearby.html:216
+msgid "4.5+ stars"
+msgstr ""
+
+#: .\templates\providers\nearby.html:221 .\templates\providers\nearby.html:228
+msgid "Search provider, service or extra"
+msgstr ""
+
+#: .\templates\providers\nearby.html:232
+msgid "Update results"
+msgstr ""
+
+#: .\templates\providers\nearby.html:251 .\templates\request\create.html:297
+msgid "Rating:"
+msgstr "Note :"
+
+#: .\templates\providers\nearby.html:254
+msgid "Distance:"
+msgstr ""
+
+#: .\templates\providers\nearby.html:257
+msgid "Score:"
+msgstr ""
+
+#: .\templates\providers\nearby.html:260
+msgid "Price from"
+msgstr ""
+
+#: .\templates\providers\nearby.html:279
+msgid "Distance candidate"
+msgstr ""
+
+#: .\templates\providers\nearby.html:285
+msgid "View Service"
+msgstr ""
+
+#: .\templates\providers\nearby.html:294
+msgid "No providers found in this area."
+msgstr ""
+
+#: .\templates\providers\profile.html:4 .\templates\providers\profile.html:9
+#: .\templates\providers\profile.html:34
+msgid "Provider Profile"
+msgstr ""
+
+#: .\templates\providers\profile.html:10
+msgid "Review your account information and quick access to provider tools."
+msgstr ""
+
+#: .\templates\providers\profile.html:14
+msgid "Your profile is not fully completed yet."
+msgstr ""
+
+#: .\templates\providers\profile.html:17
+msgid "Complete your profile"
+msgstr ""
+
+#: .\templates\providers\profile.html:23
+msgid "Profile details"
+msgstr ""
+
+#: .\templates\providers\profile.html:24
+msgid "Type:"
+msgstr ""
+
+#: .\templates\providers\profile.html:28
+msgid "Billing completed:"
+msgstr ""
+
+#: .\templates\providers\profile.html:29
+msgid "Operational:"
+msgstr ""
+
+#: .\templates\providers\profile.html:36
+msgid ""
+"This page is only for your provider profile summary. Service management, "
+"jobs, and billing should be handled from their dedicated sections."
+msgstr ""
+
+#: .\templates\providers\register.html:4
+msgid "Provider Register"
+msgstr ""
+
+#: .\templates\providers\register.html:8
+msgid "Create your Provider account"
+msgstr ""
+
+#: .\templates\providers\register.html:15
+msgid "Offer services and receive requests."
+msgstr ""
+
+#: .\templates\providers\service_areas.html:234
+msgid "Add, review, and activate the cities where you provide services."
+msgstr ""
+
+#: .\templates\providers\service_areas.html:244
+#: .\templates\providers\service_areas.html:269
+msgid "Add Service Area"
+msgstr ""
+
+#: .\templates\providers\service_areas.html:245
+msgid "Create a new active service area for this provider."
+msgstr ""
+
+#: .\templates\providers\service_areas.html:263
+msgid "Postal Prefix (FSA)"
+msgstr ""
+
+#: .\templates\providers\service_areas.html:264
+msgid "H2X"
+msgstr ""
+
+#: .\templates\providers\service_areas.html:276
+msgid "Active Service Areas"
+msgstr ""
+
+#: .\templates\providers\service_areas.html:277
+msgid "These areas are currently active for profile completion and operations."
+msgstr ""
+
+#: .\templates\providers\service_areas.html:287
+#: .\templates\providers\service_areas.html:319
+#, python-format
+msgid "FSA %(postal_prefix)s"
+msgstr ""
+
+#: .\templates\providers\service_areas.html:303
+msgid "No active service areas yet."
+msgstr ""
+
+#: .\templates\providers\service_areas.html:308
+msgid "Inactive Service Areas"
+msgstr ""
+
+#: .\templates\providers\service_areas.html:309
+msgid "You can reactivate any area when needed."
+msgstr ""
+
+#: .\templates\providers\service_areas.html:335
+msgid "No inactive service areas."
+msgstr ""
+
+#: .\templates\providers\services_list.html:9
+msgid "Add New Service"
+msgstr ""
+
+#: .\templates\providers\services_list.html:13 .\ui\templates\ui\home.html:618
+msgid "Service Type"
+msgstr "Type de service"
+
+#: .\templates\providers\services_list.html:15
+msgid "Price"
+msgstr ""
+
+#: .\templates\providers\services_list.html:17
+msgid "Actions"
+msgstr ""
+
+#: .\templates\providers\services_list.html:38
+msgid "No services added yet."
+msgstr ""
+
+#: .\templates\request\create.html:293
+#, python-format
+msgid "Request Service with %(provider_name)s"
+msgstr "Demander un service avec %(provider_name)s"
+
+#: .\templates\request\create.html:299
+msgid "Service Type:"
+msgstr "Type de service :"
+
+#: .\templates\request\create.html:300
+msgid "Main Offer:"
+msgstr "Offre principale :"
+
+#: .\templates\request\create.html:301 .\templates\request\create.html:573
+msgid "Billing Unit:"
+msgstr "Unité de facturation :"
+
+#: .\templates\request\create.html:315 .\templates\request\create.html:571
+msgid "Unit Price:"
+msgstr "Prix unitaire :"
+
+#: .\templates\request\create.html:318
+msgid "Zone:"
+msgstr "Zone :"
+
+#: .\templates\request\create.html:327
+msgid ""
+"This provider cannot receive requests for this service until compliance is "
+"completed."
+msgstr ""
+"Ce prestataire ne peut pas recevoir de demandes pour ce service tant que la "
+"conformité n'est pas terminée."
+
+#: .\templates\request\create.html:348
+msgid "Client Information"
+msgstr "Informations du client"
+
+#: .\templates\request\create.html:352 .\templates\workers\profile.html:16
+msgid "First name"
+msgstr "Prénom"
+
+#: .\templates\request\create.html:356 .\templates\workers\profile.html:21
+msgid "Last name"
+msgstr "Nom"
+
+#: .\templates\request\create.html:389
+#, python-format
+msgid "Logged in as %(first_name)s %(last_name)s"
+msgstr "Connecté en tant que %(first_name)s %(last_name)s"
+
+#: .\templates\request\create.html:392
+msgid "Service location:"
+msgstr "Lieu du service :"
+
+#: .\templates\request\create.html:407
+msgid "Use another service address"
+msgstr "Utiliser une autre adresse de service"
+
+#: .\templates\request\create.html:458
+msgid "Service Details"
+msgstr "Détails du service"
+
+#: .\templates\request\create.html:464
+msgid "Selected Service"
+msgstr "Service sélectionné"
+
+#: .\templates\request\create.html:484
+msgid "This service is locked for this request."
+msgstr "Ce service est verrouillé pour cette demande."
+
+#: .\templates\request\create.html:485
+msgid "Change service"
+msgstr "Changer de service"
+
+#: .\templates\request\create.html:491 .\templates\request\status.html:280
+msgid "Service type"
+msgstr "Type de service"
+
+#: .\templates\request\create.html:541
+msgid "Choose the specific service you want from this provider."
+msgstr "Choisissez le service précis que vous voulez auprès de ce prestataire."
+
+#: .\templates\request\create.html:559
+msgid "Enter the quantity for the selected billing unit."
+msgstr "Entrez la quantité pour l'unité de facturation sélectionnée."
+
+#: .\templates\request\create.html:570
+msgid "Pricing Preview"
+msgstr "Aperçu du prix"
+
+#: .\templates\request\create.html:572
+msgid "Quantity:"
+msgstr "Quantité :"
+
+#: .\templates\request\create.html:589
+msgid "Base service"
+msgstr "Service de base"
+
+#: .\templates\request\create.html:595 .\templates\request\create.html:664
+#: .\templates\request\create.html:743 .\templates\request\create.html:767
+#: .\templates\request\status.html:355
+msgid "Extras"
+msgstr "Extras"
+
+#: .\templates\request\create.html:607 .\templates\request\create.html:760
+#: .\templates\request\status.html:399
+msgid "Taxes"
+msgstr "Taxes"
+
+#: .\templates\request\create.html:620
+msgid "Taxes calculated based on service location."
+msgstr "Les taxes sont calculées selon le lieu du service."
+
+#: .\templates\request\create.html:622
+msgid "Total including taxes"
+msgstr "Total taxes incluses"
+
+#: .\templates\request\create.html:634
+msgid "Service timing"
+msgstr "Délai du service"
+
+#: .\templates\request\create.html:639 .\templates\request\create.html:776
+msgid "Emergency"
+msgstr "Urgence"
+
+#: .\templates\request\create.html:640
+msgid ""
+"Less than 2 hours. This request is treated as immediate dispatch priority."
+msgstr ""
+"Moins de 2 heures. Cette demande est traitée comme une priorité d'envoi "
+"immédiat."
+
+#: .\templates\request\create.html:642 .\templates\request\create.html:778
+msgid "Urgent"
+msgstr "Urgent"
+
+#: .\templates\request\create.html:643
+msgid "2 to 24 hours. This request prioritizes fast available options."
+msgstr ""
+"De 2 à 24 heures. Cette demande priorise les options disponibles rapidement."
+
+#: .\templates\request\create.html:646
+msgid "More than 24 hours. Choose a date and approximate start time."
+msgstr ""
+"Plus de 24 heures. Choisissez une date et une heure de début approximative."
+
+#: .\templates\request\create.html:653
+msgid "Scheduled date"
+msgstr "Date prévue"
+
+#: .\templates\request\create.html:657
+msgid "Scheduled time"
+msgstr "Heure prévue"
+
+#: .\templates\request\create.html:684
+msgid "Qty"
+msgstr "Qté"
+
+#: .\templates\request\create.html:694
+msgid "0+"
+msgstr "0+"
+
+#: .\templates\request\create.html:698
+msgid "Qty 1"
+msgstr "Qté 1"
+
+#: .\templates\request\create.html:705
+msgid "This provider service has no extras configured."
+msgstr "Ce service prestataire n'a aucun extra configuré."
+
+#: .\templates\request\create.html:713
+msgid "Service not available in this area."
+msgstr "Service non disponible dans cette zone."
+
+#: .\templates\request\create.html:721
+msgid "Submit Request"
+msgstr "Envoyer la demande"
+
+#: .\templates\request\create.html:734 .\templates\request\create.html:751
+#: .\templates\request\create.html:769
+msgid "Confirm Request"
+msgstr "Confirmer la demande"
+
+#: .\templates\request\create.html:735 .\templates\request\create.html:785
+msgid "Review the request details before submitting."
+msgstr "Vérifiez les détails de la demande avant de l'envoyer."
+
+#: .\templates\request\create.html:740 .\templates\request\create.html:764
+msgid "Time"
+msgstr "Heure"
+
+#: .\templates\request\create.html:770
+msgid "Request Error"
+msgstr "Erreur de demande"
+
+#: .\templates\request\create.html:771
+msgid "Message"
+msgstr "Message"
+
+#: .\templates\request\create.html:774
+msgid "Not specified"
+msgstr "Non précisé"
+
+#: .\templates\request\create.html:775
+msgid "Please select a service option."
+msgstr "Veuillez sélectionner une option de service."
+
+#: .\templates\request\create.html:777
+msgid "Less than 2 hours"
+msgstr "Moins de 2 heures"
+
+#: .\templates\request\create.html:779
+msgid "Within 24 hours"
+msgstr "Dans les 24 heures"
+
+#: .\templates\request\create.html:780
+msgid "Please select a service date."
+msgstr "Veuillez sélectionner une date de service."
+
+#: .\templates\request\create.html:781
+msgid "Please select a service time."
+msgstr "Veuillez sélectionner une heure de service."
+
+#: .\templates\request\create.html:782
+msgid "Extra"
+msgstr "Extra"
+
+#: .\templates\request\create.html:783
+msgid "None"
+msgstr "Aucun"
+
+#: .\templates\request\create.html:784
+msgid ""
+"Review the request details before submitting. Taxes are calculated based on "
+"service location."
+msgstr ""
+"Vérifiez les détails de la demande avant de l'envoyer. Les taxes sont "
+"calculées selon le lieu du service."
+
+#: .\templates\request\status.html:5 .\templates\request\status.html:223
+msgid "Request Status"
+msgstr "Statut de la demande"
+
+#: .\templates\request\status.html:217
+msgid "Back to Activity"
+msgstr "Retour à l'activité"
+
+#: .\templates\request\status.html:220
+msgid "Return to Marketplace"
+msgstr "Retour à la place de marché"
+
+#: .\templates\request\status.html:232
+msgid "Request summary"
+msgstr "Résumé de la demande"
+
+#: .\templates\request\status.html:249
+msgid "Pending reassignment"
+msgstr "Réattribution en attente"
+
+#: .\templates\request\status.html:297
+msgid "Service details"
+msgstr "Détails du service"
+
+#: .\templates\request\status.html:301
+msgid "Main offer"
+msgstr "Offre principale"
+
+#: .\templates\request\status.html:307
+msgid "Subservice"
+msgstr "Sous-service"
+
+#: .\templates\request\status.html:320
+msgid "Unit price"
+msgstr "Prix unitaire"
+
+#: .\templates\request\status.html:372
+msgid "Price breakdown"
+msgstr "Détail du prix"
+
+#: .\templates\request\status.html:376
+msgid "Base service total"
+msgstr "Total du service de base"
+
+#: .\templates\request\status.html:424
+msgid "Service address"
+msgstr "Adresse du service"
+
+#: .\templates\request\status.html:431
+msgid "Access notes:"
+msgstr "Notes d'accès :"
+
+#: .\templates\request\status.html:441
+msgid "In Progress"
+msgstr "En cours"
+
+#: .\templates\request\status.html:455
+msgid "Job timeline"
+msgstr "Chronologie de la mission"
+
+#: .\templates\request\status.html:473
+msgid "Push delivery"
+msgstr "Envoi push"
+
+#: .\templates\request\status.html:477
+msgid "Last push status"
+msgstr "Dernier statut push"
+
+#: .\templates\request\status.html:482
+msgid "Last push target"
+msgstr "Dernière cible push"
+
+#: .\templates\request\status.html:487
+msgid "Last push sent"
+msgstr "Dernier push envoyé"
+
+#: .\templates\request\status.html:496 .\templates\request\status.html:508
+#: .\templates\request\status.html:520 .\templates\request\status.html:532
+msgid "Update"
+msgstr "Mise à jour"
+
+#: .\templates\request\status.html:498
+msgid ""
+"The previous provider declined your request. We are looking for another "
+"provider. You can keep waiting or cancel this request."
+msgstr ""
+"Le prestataire précédent a refusé votre demande. Nous cherchons un autre "
+"prestataire. Vous pouvez continuer d'attendre ou annuler cette demande."
+
+#: .\templates\request\status.html:510
+msgid "A provider accepted your request."
+msgstr "Un prestataire a accepté votre demande."
+
+#: .\templates\request\status.html:513 .\templates\request\status.html:525
+#: .\templates\request\status.html:537 .\templates\request\status.html:650
+msgid "Refresh status"
+msgstr "Actualiser le statut"
+
+#: .\templates\request\status.html:522
+msgid "Your service is in progress."
+msgstr "Votre service est en cours."
+
+#: .\templates\request\status.html:534
+msgid "Your service has been completed."
+msgstr "Votre service est terminé."
+
+#: .\templates\request\status.html:545
+msgid ""
+"You are closing this service even though provider did not mark it as "
+"completed."
+msgstr ""
+"Vous fermez ce service même si le prestataire ne l'a pas marqué comme "
+"terminé."
+
+#: .\templates\request\status.html:573
+msgid "Confirm & Close"
+msgstr "Confirmer et clôturer"
+
+#: .\templates\request\status.html:604
+msgid "Cancel Request"
+msgstr "Annuler la demande"
+
+#: .\templates\request\status.html:609
+msgid "This service has been permanently closed."
+msgstr "Ce service a été clôturé définitivement."
+
+#: .\templates\request\status.html:610
+msgid "No further actions are available."
+msgstr "Aucune autre action n'est disponible."
+
+#: .\templates\request\status.html:612
+msgid "Job Reference:"
+msgstr "Référence de la mission :"
+
+#: .\templates\request\status.html:620
+msgid "Closed automatically (72h timeout)"
+msgstr "Clôturé automatiquement (délai de 72 h)"
+
+#: .\templates\request\status.html:622
+msgid "Closed by client"
+msgstr "Clôturé par le client"
+
+#: .\templates\request\status.html:629
+msgid "Service cancelled."
+msgstr "Service annulé."
+
+#: .\templates\request\status.html:631
+msgid "Cancelled - Dispute approved."
+msgstr "Annulé - Litige approuvé."
+
+#: .\templates\request\status.html:633
+msgid "Cancelled - Provider rejected."
+msgstr "Annulé - Prestataire refusé."
+
+#: .\templates\request\status.html:635
+msgid "Cancelled - Client cancelled the request."
+msgstr "Annulé - Le client a annulé la demande."
+
+#: .\templates\request\status.html:637
+msgid "Cancelled - Automatic timeout."
+msgstr "Annulé - Délai automatique dépassé."
+
+#: .\templates\request\status.html:644
+msgid "Request expired."
+msgstr "La demande a expiré."
+
+#: .\templates\request\status.html:645
+msgid "No provider accepted your request in time."
+msgstr "Aucun prestataire n'a accepté votre demande à temps."
+
+#: .\templates\request\status.html:646
+msgid "The live request timed out before a provider confirmed it."
+msgstr "La demande en direct a expiré avant qu'un prestataire ne la confirme."
+
+#: .\templates\request\status.html:649
+msgid "Search again"
+msgstr "Rechercher de nouveau"
+
+#: .\templates\request\status.html:658
+msgid "Dispute resolved."
+msgstr "Litige résolu."
+
+#: .\templates\request\success.html:5 .\templates\request\success.html:28
+msgid "Request sent"
+msgstr "Demande envoyée"
+
+#: .\templates\request\success.html:29
+msgid ""
+"Your request was registered and is now waiting for the provider response."
+msgstr ""
+"Votre demande a été enregistrée et attend maintenant la réponse du "
+"prestataire."
+
+#: .\templates\request\success.html:30
+msgid "Return to marketplace"
+msgstr "Retour à la place de marché"
+
+#: .\templates\ui\login.html:9
+msgid "Welcome back"
+msgstr "Bon retour"
+
+#: .\templates\ui\login.html:12
+msgid "Choose how you want to continue"
+msgstr "Choisissez comment vous voulez continuer"
+
+#: .\templates\ui\login.html:22
+msgid "Find and request trusted services near you"
+msgstr "Trouvez et demandez des services de confiance près de chez vous"
+
+#: .\templates\ui\login.html:37
+msgid "Offer services and manage your requests"
+msgstr "Offrez des services et gérez vos demandes"
+
+#: .\templates\ui\login.html:49 .\templates\ui\signup.html:50 .\ui\views.py:183
+msgid "Worker"
+msgstr "Travailleur"
+
+#: .\templates\ui\login.html:52
+msgid "Join providers and complete service jobs"
+msgstr "Rejoignez des prestataires et réalisez des missions de service"
+
+#: .\templates\ui\partials\get_the_app.html:12 .\ui\templates\ui\home.html:713
+msgid "Use web marketplace"
+msgstr "Utiliser la place de marché en ligne"
+
+#: .\templates\ui\signup.html:10
+msgid "Create an account"
+msgstr "Créer un compte"
+
+#: .\templates\ui\signup.html:13
+msgid "Choose how you want to sign up"
+msgstr "Choisissez comment vous souhaitez vous inscrire"
+
+#: .\templates\ui\signup.html:23
+msgid "Find and request trusted local services"
+msgstr "Trouvez et demandez des services locaux de confiance"
+
+#: .\templates\ui\signup.html:27
+msgid "Sign up as Client"
+msgstr "S'inscrire comme client"
+
+#: .\templates\ui\signup.html:38
+msgid "Offer services and manage service requests"
+msgstr "Offrez des services et gérez les demandes de service"
+
+#: .\templates\ui\signup.html:42
+msgid "Sign up as Provider"
+msgstr "S'inscrire comme prestataire"
+
+#: .\templates\ui\signup.html:53
+msgid "Work with providers and complete service jobs"
+msgstr "Travaillez avec des prestataires et réalisez des missions de service"
+
+#: .\templates\ui\signup.html:57
+msgid "Sign up as Worker"
+msgstr "S'inscrire comme travailleur"
+
+#: .\templates\ui\terms_and_conditions.html:13
+msgid "These terms apply to provider onboarding and account use on NODO."
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:16
+#, fuzzy
+#| msgid "Client Information"
+msgid "1. Accurate Information"
+msgstr "Informations du client"
+
+#: .\templates\ui\terms_and_conditions.html:17
+msgid ""
+"Providers must submit accurate, current, and complete information when "
+"creating and maintaining their account."
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:19
+#, fuzzy
+#| msgid "Service option"
+msgid "2. Service Information"
+msgstr "Option de service"
+
+#: .\templates\ui\terms_and_conditions.html:20
+msgid ""
+"Providers are responsible for keeping service areas, service details, and "
+"other profile information updated."
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:22
+msgid "3. Compliance Responsibilities"
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:23
+msgid ""
+"Providers are responsible for complying with applicable local laws, permits, "
+"certifications, and insurance requirements related to the services they "
+"offer."
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:25
+#, fuzzy
+#| msgid "Payment"
+msgid "4. Payment Setup"
+msgstr "Paiement"
+
+#: .\templates\ui\terms_and_conditions.html:26
+msgid ""
+"Payment and payout setup may be handled through third-party providers. "
+"Sensitive payment details are not stored directly in this onboarding flow."
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:28
+msgid "5. Platform Rules"
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:29
+msgid ""
+"NODO may review, restrict, or remove access if account information is "
+"inaccurate, incomplete, or inconsistent with platform requirements."
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:36
+msgid "7. Draft Status"
+msgstr ""
+
+#: .\templates\ui\terms_and_conditions.html:37
+msgid ""
+"This is a draft version for the current development phase and may be updated "
+"later."
+msgstr ""
+
+#: .\templates\verifications\verify.html:9
+msgid "Enter code"
+msgstr ""
+
+#: .\templates\workers\account.html:5
+msgid "Worker Account Settings"
+msgstr ""
+
+#: .\templates\workers\complete_profile.html:5
+#: .\templates\workers\profile.html:7
+#, fuzzy
+#| msgid "Create a Worker Profile"
+msgid "Complete Worker Profile"
+msgstr "Créer un profil travailleur"
+
+#: .\templates\workers\complete_profile.html:6
+msgid "Confirm your identity details and accept the terms to continue."
+msgstr ""
+
+#: .\templates\workers\complete_profile.html:10
+#: .\templates\workers\profile.html:50
+msgid "Save and Continue"
+msgstr ""
+
+#: .\templates\workers\jobs.html:5
+#, fuzzy
+#| msgid "Assigned"
+msgid "Assigned Jobs"
+msgstr "Attribuée"
+
+#: .\templates\workers\profile.html:8
+msgid "Confirm your identity details and language preferences to continue."
+msgstr ""
+
+#: .\templates\workers\profile.html:53 .\ui\templates\ui\home.html:571
+msgid "Worker Dashboard"
+msgstr "Tableau de bord travailleur"
+
+#: .\templates\workers\register.html:8
+#, fuzzy
+#| msgid "Create your Client account"
+msgid "Create your Worker account"
+msgstr "Créez votre compte client"
+
+#: .\templates\workers\register.html:10
+#, fuzzy
+#| msgid "Join providers and complete service jobs"
+msgid "Join providers and complete jobs."
+msgstr "Rejoignez des prestataires et réalisez des missions de service"
+
+#: .\ui\forms.py:47
+msgid "+1 514 000 0000"
+msgstr ""
+
+#: .\ui\templates\ui\base.html:8
+msgid "NODO UI"
+msgstr "NODO UI"
+
+#: .\ui\templates\ui\home.html:8
+msgid "Find & Book Trusted Services"
+msgstr "Trouvez et réservez des services de confiance"
+
+#: .\ui\templates\ui\home.html:11
+msgid ""
+"NODO connects clients with trusted local providers. Marketplace now. "
+"Independent workers next."
+msgstr ""
+"NODO met en relation les clients avec des prestataires locaux de confiance. "
+"Place de marché maintenant. Travailleurs indépendants ensuite."
+
+#: .\ui\templates\ui\home.html:558
+msgid "NODO home"
+msgstr "Accueil NODO"
+
+#: .\ui\templates\ui\home.html:563
+msgid "Primary"
+msgstr "Principal"
+
+#: .\ui\templates\ui\home.html:607
+msgid "Find & book trusted local services."
+msgstr "Trouvez et réservez des services locaux de confiance."
+
+#: .\ui\templates\ui\home.html:610
+msgid ""
+"\n"
+"            NODO connects clients with trusted providers across Quebec and "
+"Canada.\n"
+"            Search by service type and filter results with verified "
+"requirements.\n"
+"            "
+msgstr ""
+"\n"
+"            NODO met en relation les clients avec des prestataires de "
+"confiance partout au Québec et au Canada.\n"
+"            Recherchez par type de service et filtrez les résultats selon "
+"des critères vérifiés.\n"
+"            "
+
+#: .\ui\templates\ui\home.html:620
+msgid "Select service type"
+msgstr "Sélectionnez un type de service"
+
+#: .\ui\templates\ui\home.html:646
+msgid "Become a Provider"
+msgstr "Devenir prestataire"
+
+#: .\ui\templates\ui\home.html:652
+msgid "One platform, three roles."
+msgstr "Une plateforme, trois rôles."
+
+#: .\ui\templates\ui\home.html:654
+msgid ""
+"Today: Marketplace for clients and providers. Next phase: independent "
+"workers (on-demand assignments)."
+msgstr ""
+"Aujourd'hui : place de marché pour les clients et les prestataires. "
+"Prochaine phase : travailleurs indépendants (missions à la demande)."
+
+#: .\ui\templates\ui\home.html:661 .\ui\templates\ui\home.html:669
+msgid "Live"
+msgstr "En ligne"
+
+#: .\ui\templates\ui\home.html:663
+msgid ""
+"Browse categories, compare providers, and request service with clear status "
+"updates."
+msgstr ""
+"Parcourez les catégories, comparez les prestataires et demandez un service "
+"avec des mises à jour de statut claires."
+
+#: .\ui\templates\ui\home.html:671
+msgid ""
+"List services, define service areas, and build trust with compliance and "
+"reliability signals."
+msgstr ""
+"Ajoutez vos services, définissez vos zones de service et inspirez confiance "
+"grâce aux indicateurs de conformité et de fiabilité."
+
+#: .\ui\templates\ui\home.html:677
+msgid "Coming soon"
+msgstr "Bientôt disponible"
+
+#: .\ui\templates\ui\home.html:679
+msgid ""
+"Independent workers can accept jobs when providers need extra hands (flex "
+"staffing)."
+msgstr ""
+"Les travailleurs indépendants pourront accepter des missions lorsque les "
+"prestataires auront besoin de renfort."
+
+#: .\ui\templates\ui\home.html:685
+msgid "How it works"
+msgstr "Comment ça marche"
+
+#: .\ui\templates\ui\home.html:689
+msgid "Choose a service"
+msgstr "Choisissez un service"
+
+#: .\ui\templates\ui\home.html:690
+msgid "Pick what you need in the marketplace and filter by verified signals."
+msgstr ""
+"Choisissez le service qu'il vous faut dans la place de marché et filtrez "
+"selon des critères vérifiés."
+
+#: .\ui\templates\ui\home.html:694
+msgid "Request confidently"
+msgstr "Demandez en toute confiance"
+
+#: .\ui\templates\ui\home.html:695
+msgid ""
+"Providers appear ranked by compliance and reliability (no random lists)."
+msgstr ""
+"Les prestataires sont classés selon la conformité et la fiabilité (pas de "
+"listes aléatoires)."
+
+#: .\ui\templates\ui\home.html:699
+msgid "Track & close"
+msgstr "Suivre et clôturer"
+
+#: .\ui\templates\ui\home.html:700
+msgid ""
+"Status updates keep both sides aligned. Close the job and leave a review."
+msgstr ""
+"Les mises à jour de statut gardent tout le monde aligné. Clôturez la mission "
+"et laissez un avis."
+
+#: .\ui\templates\ui\home.html:720
+msgid "Terms"
+msgstr "Conditions"
+
+#: .\ui\templates\ui\home.html:721
+msgid "Privacy"
+msgstr "Confidentialité"
+
+#: .\ui\templates\ui\home.html:722
+msgid "Contact"
+msgstr "Contact"
+
+#: .\ui\templates\ui\job_detail.html:4
+#, python-format
+msgid "Job %(job_id)s"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:7
+#, python-format
+msgid "Job #%(job_id)s"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:11 .\ui\templates\ui\job_detail.html:54
+#: .\ui\templates\ui\job_detail.html:72
+msgid "Status:"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:12
+msgid "Created:"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:13
+msgid "Client ID:"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:14
+msgid "Provider ID:"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:20
+msgid "Confirm closed by client"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:25
+msgid "Financial Snapshot"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:30
+msgid "Client Paid"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:36
+msgid "Provider Net"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:42
+msgid "Platform Fee"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:50
+msgid "Client Ticket"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:59 .\ui\templates\ui\job_detail.html:77
+msgid "Subtotal:"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:60 .\ui\templates\ui\job_detail.html:78
+msgid "Tax:"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:61 .\ui\templates\ui\job_detail.html:79
+msgid "Total:"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:62 .\ui\templates\ui\job_detail.html:80
+msgid "Created at:"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:65
+msgid "No client ticket."
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:68
+msgid "Provider Ticket"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:83
+msgid "No provider ticket."
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:86
+msgid "Ledger Entries"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:92
+msgid "Amount (gross_cents)"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:94
+msgid "Run ID"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:105
+msgid "adjustment"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:107
+msgid "final"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:109
+msgid "base"
+msgstr ""
+
+#: .\ui\templates\ui\job_detail.html:129
+msgid "No ledger entries."
+msgstr ""
+
+#: .\ui\templates\ui\jobs_list.html:7
+msgid "Jobs (latest 100)"
+msgstr ""
+
+#: .\ui\templates\ui\jobs_list.html:32
+msgid "No jobs."
+msgstr ""
+
+#: .\ui\views.py:624
+msgid "Invalid credentials."
+msgstr ""
+
+#: .\ui\views.py:702
+msgid "Verification code not found."
+msgstr ""
+
+#: .\ui\views.py:706 .\ui\views.py:712
+msgid "Code expired."
+msgstr ""
+
+#: .\ui\views.py:715
+msgid "Invalid verification code."
+msgstr ""
+
+#: .\ui\views.py:729
+msgid "No account is linked to this phone number."
+msgstr ""
+
+#: .\ui\views.py:765
+msgid "Invalid request"
+msgstr ""
+
+#: .\ui\views.py:771
+msgid "Session expired"
+msgstr ""
+
+#: .\ui\views.py:781
+msgid "Please wait before requesting again."
+msgstr ""
+
+#: .\ui\views.py:849
+#, python-format
+msgid "Your NODO reset code is: %(code)s"
+msgstr ""
+
+#: .\ui\views.py:884 .\ui\views.py:888 .\ui\views.py:894
+msgid "Reset code expired."
+msgstr ""
+
+#: .\ui\views.py:897
+msgid "Invalid reset code."
+msgstr ""
+
+#: .\ui\views.py:914
+msgid "No account is linked to that phone number."
+msgstr ""
+
+#: .\ui\views.py:919
+msgid "Password updated. You can log in now."
+msgstr ""
+
+#: .\ui\views.py:1176
+msgid "Job has no location."
+msgstr ""
+
+#: .\ui\views.py:1178
+msgid "Job has no service type."
+msgstr ""
+
+#: .\ui\views.py:1280 .\ui\views.py:1291 .\ui\views.py:2085
+msgid "Invalid service type."
+msgstr ""
+
+#: .\ui\views.py:1283
+msgid "Postal area is required."
+msgstr ""
+
+#: .\ui\views.py:1308
+msgid "Invalid rating filter."
+msgstr ""
+
+#: .\ui\views.py:1832 .\ui\views.py:2110
+msgid "This service cannot be requested until provider compliance is complete."
+msgstr ""
+
+#: .\ui\views.py:2044
+msgid "Complete all required fields."
+msgstr ""
+
+#: .\ui\views.py:2046
+msgid "Invalid service timing."
+msgstr ""
+
+#: .\ui\views.py:2050
+msgid "Scheduled mode requires date and time."
+msgstr ""
+
+#: .\ui\views.py:2058
+msgid "Scheduled mode requires a valid date and time."
+msgstr ""
+
+#: .\ui\views.py:2060
+msgid "Scheduled mode requires a future date."
+msgstr ""
+
+#: .\ui\views.py:2065
+msgid "Quantity is required."
+msgstr ""
+
+#: .\ui\views.py:2070
+msgid "Invalid quantity."
+msgstr ""
+
+#: .\ui\views.py:2073
+msgid "Quantity must be greater than zero."
+msgstr ""
+
+#: .\ui\views.py:2094
+msgid "Invalid provider service."
+msgstr ""
+
+#: .\ui\views.py:2096
+msgid "Invalid provider service for this service type."
+msgstr ""
+
+#: .\ui\views.py:2105
+msgid "Provider must have an active priced service for this service type."
+msgstr ""
+
+#: .\ui\views.py:2123
+msgid "The postal code does not belong to the selected province."
+msgstr ""
+
+#: .\ui\views.py:2159
+msgid "Invalid subservice."
+msgstr ""
+
+#: .\ui\views.py:2170
+msgid "Invalid extra selection."
+msgstr ""
+
+#: .\ui\views.py:2181 .\ui\views.py:2185
+#, python-format
+msgid "Invalid quantity for %(name)s."
+msgstr ""
+
+#: .\ui\views.py:2227
+msgid "You must complete your profile before creating a job."
+msgstr ""
+
+#: .\ui\views.py:2357
+msgid "Phone verification is required before creating a request."
+msgstr ""
+
+#: .\ui\views.py:2361
+msgid "The request could not be created."
+msgstr ""
+
+#: .\ui\views.py:2621
+msgid "This request can no longer be cancelled."
+msgstr ""
+
+#: .\ui\views.py:2654
+msgid "Request cancelled successfully."
+msgstr ""
+
+#: .\ui\views.py:2658 .\ui\views.py:2849
+msgid "Invalid action."
+msgstr ""
+
+#: .\ui\views.py:2661
+msgid "This job has no client assigned."
+msgstr ""
+
+#: .\ui\views.py:2672 .\ui\views.py:3061
+#, python-format
+msgid "Unable to close service: %(error)s"
+msgstr ""
+
+#: .\ui\views.py:2677 .\ui\views.py:3066
+#, python-format
+msgid "Permission denied: %(error)s"
+msgstr ""
+
+#: .\ui\views.py:2682 .\ui\views.py:3071
+#, python-format
+msgid "Closure processed: %(result)s"
+msgstr ""
+
+#: .\ui\views.py:2816 .\ui\views.py:2823 .\ui\views_provider.py:243
+#: .\ui\views_provider.py:268
+msgid "Not authorized."
+msgstr ""
+
+#: .\ui\views.py:3050
+msgid "Cannot confirm: the job has no client_id."
+msgstr ""
+
+#: .\ui\views_provider.py:202
+msgid "Service request"
+msgstr ""
+
+#: .\ui\views_provider.py:245
+msgid "Job not eligible for acceptance."
+msgstr ""
+
+#: .\ui\views_provider.py:250
+msgid "Complete your profile and add a service to accept jobs."
+msgstr ""
+
+#: .\ui\views_provider.py:260
+msgid "Invalid job state."
+msgstr ""
+
+#: .\ui\views_provider.py:262
+msgid "Request accepted."
+msgstr ""
+
+#: .\ui\views_provider.py:270
+msgid "Invalid status."
+msgstr ""
+
+#: .\ui\views_provider.py:313
+msgid "Request declined."
+msgstr ""
+
+#: .\verifications\views_html.py:24
+#, fuzzy
+#| msgid "Unable to resend code."
+msgid "Invalid or expired code."
+msgstr "Impossible de renvoyer le code."
+
+#: .\workers\forms.py:38
+msgid "A worker with this email already exists."
+msgstr "Un travailleur avec cet e-mail existe déjà."
+
+#: .\workers\forms.py:52
+msgid "A worker with this phone number already exists."
+msgstr "Un travailleur avec ce numéro de téléphone existe déjà."
+
+#~ msgid "Choose your language"
+#~ msgstr "Choisissez votre langue"
+
+#~ msgid "Switch to French"
+#~ msgstr "Passer en français"
+
+#~ msgid "Switch to English"
+#~ msgstr "Passer en anglais"
+
+#~ msgid "Switch to Spanish"
+#~ msgstr "Passer en espagnol"
+
+#~ msgid "Pending confirmation"
+#~ msgstr "En attente de confirmation"

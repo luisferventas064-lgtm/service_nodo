@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Edit Provider Profile{% endblock %}
+{% block title %}{% trans "Edit Provider Profile" %}{% endblock %}
 
 {% block content %}
 <style>
@@ -183,20 +184,20 @@
 
 <div class="page">
   <div class="page-header">
-    <h1>Edit Provider Profile</h1>
-    <p>Update your provider account information.</p>
+    <h1>{% trans "Edit Provider Profile" %}</h1>
+    <p>{% trans "Update your provider account information." %}</p>
   </div>
 
   <form method="post">
     {% csrf_token %}
 
     <div class="card">
-      <h2>Provider Type</h2>
-      <p class="muted">Choose how your business is registered in the platform.</p>
+      <h2>{% trans "Provider Type" %}</h2>
+      <p class="muted">{% trans "Choose how your business is registered in the platform." %}</p>
 
       <div class="form-grid">
         <div class="field full">
-          <label for="provider_type">Provider Type</label>
+          <label for="provider_type">{% trans "Provider Type" %}</label>
           <select id="provider_type" name="provider_type">
             {% for value, label in provider_type_choices %}
               <option value="{{ value }}" {% if provider.provider_type == value %}selected{% endif %}>
@@ -209,29 +210,29 @@
     </div>
 
     <div class="card">
-      <h2>Company Information</h2>
-      <p class="muted">Business details stored directly in your provider profile.</p>
+      <h2>{% trans "Company Information" %}</h2>
+      <p class="muted">{% trans "Business details stored directly in your provider profile." %}</p>
 
       <div class="form-grid">
         <div class="field">
-          <label for="company_name">Company Name</label>
+          <label for="company_name">{% trans "Company Name" %}</label>
           <input type="text" id="company_name" name="company_name" value="{{ provider.company_name|default:'' }}">
         </div>
 
         <div class="field">
-          <label for="legal_name">Legal Name</label>
+          <label for="legal_name">{% trans "Legal Name" %}</label>
           <input type="text" id="legal_name" name="legal_name" value="{{ provider.legal_name|default:'' }}">
         </div>
 
         <div class="field">
-          <label for="business_registration_number">Business Registration Number</label>
+          <label for="business_registration_number">{% trans "Business Registration Number" %}</label>
           <input type="text" id="business_registration_number" name="business_registration_number" value="{{ provider.business_registration_number|default:'' }}">
         </div>
 
         <div class="field">
-          <label for="employee_count">Employee Count</label>
+          <label for="employee_count">{% trans "Employee Count" %}</label>
           <select id="employee_count" name="employee_count">
-            <option value="">Select</option>
+            <option value="">{% trans "Select" %}</option>
             {% for value, label in employee_choices %}
               <option value="{{ value }}" {% if provider.employee_count == value %}selected{% endif %}>
                 {{ label }}
@@ -243,85 +244,85 @@
     </div>
 
     <div class="card">
-      <h2>Contact Information</h2>
-      <p class="muted">Primary contact details for your account.</p>
+      <h2>{% trans "Contact Information" %}</h2>
+      <p class="muted">{% trans "Primary contact details for your account." %}</p>
 
       <div class="form-grid">
         <div class="field">
-          <label for="contact_first_name">Contact First Name</label>
+          <label for="contact_first_name">{% trans "Contact First Name" %}</label>
           <input type="text" id="contact_first_name" name="contact_first_name" value="{{ provider.contact_first_name|default:'' }}">
         </div>
 
         <div class="field">
-          <label for="contact_last_name">Contact Last Name</label>
+          <label for="contact_last_name">{% trans "Contact Last Name" %}</label>
           <input type="text" id="contact_last_name" name="contact_last_name" value="{{ provider.contact_last_name|default:'' }}">
         </div>
 
         <div class="field">
-          <label for="phone_number">Phone Number</label>
+          <label for="phone_number">{% trans "Phone Number" %}</label>
           <input type="text" id="phone_number" name="phone_number" value="{{ provider.phone_number|default:'' }}">
         </div>
 
         <div class="field">
-          <label for="email">Email</label>
+          <label for="email">{% trans "Email" %}</label>
           <input type="email" id="email" name="email" value="{{ provider.email|default:'' }}">
         </div>
 
         <div class="field full">
-          <label for="languages_spoken">Languages Spoken</label>
+          <label for="languages_spoken">{% trans "Languages Spoken" %}</label>
           <input type="text" id="languages_spoken" name="languages_spoken" value="{{ provider.languages_spoken|default:'' }}">
-          <div class="note">Example: English, French, Spanish</div>
+          <div class="note">{% trans "Example: English, French, Spanish" %}</div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h2>Business Address</h2>
-      <p class="muted">Your main business location and service radius.</p>
+      <h2>{% trans "Business Address" %}</h2>
+      <p class="muted">{% trans "Your main business location and service radius." %}</p>
 
       <div class="form-grid">
         <div class="field">
-          <label for="country">Country</label>
-          <input type="text" id="country" name="country" value="{{ provider.country|default:'Canada' }}" placeholder="Country">
+          <label for="country">{% trans "Country" %}</label>
+          <input type="text" id="country" name="country" value="{{ provider.country|default:'Canada' }}" placeholder="{% trans 'Country' %}">
         </div>
 
         <div class="field">
-          <label for="province">Province</label>
-          <input type="text" id="province" name="province" value="{{ provider.province|default:'' }}" placeholder="Province">
+          <label for="province">{% trans "Province" %}</label>
+          <input type="text" id="province" name="province" value="{{ provider.province|default:'' }}" placeholder="{% trans 'Province' %}">
         </div>
 
         <div class="field">
-          <label for="city">City</label>
-          <input type="text" id="city" name="city" value="{{ provider.city|default:'' }}" placeholder="City">
+          <label for="city">{% trans "City" %}</label>
+          <input type="text" id="city" name="city" value="{{ provider.city|default:'' }}" placeholder="{% trans 'City' %}">
         </div>
 
         <div class="field">
-          <label for="postal_code">Postal Code</label>
-          <input type="text" id="postal_code" name="postal_code" value="{{ provider.postal_code|default:'' }}" placeholder="Postal Code">
+          <label for="postal_code">{% trans "Postal Code" %}</label>
+          <input type="text" id="postal_code" name="postal_code" value="{{ provider.postal_code|default:'' }}" placeholder="{% trans 'Postal Code' %}">
         </div>
 
         <div class="field full">
-          <label for="address_line1">Address Line 1</label>
-          <input type="text" id="address_line1" name="address_line1" value="{{ provider.address_line1|default:'' }}" placeholder="Address Line 1">
+          <label for="address_line1">{% trans "Address Line 1" %}</label>
+          <input type="text" id="address_line1" name="address_line1" value="{{ provider.address_line1|default:'' }}" placeholder="{% trans 'Address Line 1' %}">
         </div>
 
         <div class="field">
-          <label for="service_radius_km">Service Radius (km)</label>
-          <input type="number" id="service_radius_km" name="service_radius_km" min="0" value="{{ provider.service_radius_km|default:10 }}" placeholder="Service Radius in km">
+          <label for="service_radius_km">{% trans "Service Radius (km)" %}</label>
+          <input type="number" id="service_radius_km" name="service_radius_km" min="0" value="{{ provider.service_radius_km|default:10 }}" placeholder="{% trans 'Service Radius in km' %}">
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h2>Availability</h2>
-      <p class="muted">Operational status stored directly in your provider profile.</p>
+      <h2>{% trans "Availability" %}</h2>
+      <p class="muted">{% trans "Operational status stored directly in your provider profile." %}</p>
 
       <div class="form-grid">
         <div class="field">
-          <label for="availability_mode">Availability Mode</label>
+          <label for="availability_mode">{% trans "Availability Mode" %}</label>
           <select id="availability_mode" name="availability_mode">
-            <option value="manual" {% if provider.availability_mode == "manual" %}selected{% endif %}>Manual</option>
-            <option value="auto" {% if provider.availability_mode == "auto" %}selected{% endif %}>Auto</option>
+            <option value="manual" {% if provider.availability_mode == "manual" %}selected{% endif %}>{% trans "Manual" %}</option>
+            <option value="auto" {% if provider.availability_mode == "auto" %}selected{% endif %}>{% trans "Auto" %}</option>
           </select>
         </div>
 
@@ -329,15 +330,15 @@
           <label>&nbsp;</label>
           <label class="check-item">
             <input type="checkbox" name="is_available_now" value="1" {% if provider.is_available_now %}checked{% endif %}>
-            Available Now
+            {% trans "Available Now" %}
           </label>
         </div>
       </div>
     </div>
 
     <div class="actions">
-      <button type="submit" class="btn btn-primary">Save Changes</button>
-      <a href="{% url 'provider_profile' %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">{% trans "Save Changes" %}</button>
+      <a href="{% url 'provider_profile' %}" class="btn btn-secondary">{% trans "Cancel" %}</a>
     </div>
   </form>
 </div>

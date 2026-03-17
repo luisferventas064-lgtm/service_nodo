@@ -3,6 +3,7 @@ from datetime import time, timedelta
 from django.test import TestCase
 from django.utils import timezone
 
+from assignments.models import JobAssignment
 from jobs.models import Job
 from jobs.services import (
     MARKETPLACE_ACTION_CANCEL_JOB,
@@ -144,3 +145,38 @@ class MarketplaceClientDecisionTests(TestCase):
         self.assertIsNone(job.marketplace_search_started_at)
         self.assertIsNone(job.client_confirmation_started_at)
         self.assertIsNone(job.selected_provider_id)
+
+    def test_cancel_job_from_pending_client_confirmation_deactivates_assignment(self):
+        job = self._mk_job(status=Job.JobStatus.PENDING_CLIENT_CONFIRMATION)
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Provider",
+            contact_last_name="CancelAssignment",
+            phone_number="555-888-0002",
+            email="provider.cancel.assignment.market@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7N1A1",
+            address_line1="10 Provider St",
+        )
+        job.selected_provider = provider
+        job.client_confirmation_started_at = timezone.now() - timedelta(minutes=5)
+        job.save(update_fields=["selected_provider", "client_confirmation_started_at"])
+        assignment = JobAssignment.objects.create(
+            job=job,
+            provider=provider,
+            is_active=True,
+            assignment_status="assigned",
+        )
+
+        result = apply_client_marketplace_decision(
+            job_id=job.job_id,
+            action=MARKETPLACE_ACTION_CANCEL_JOB,
+        )
+        self.assertEqual(result, "cancelled")
+
+        job.refresh_from_db()
+        assignment.refresh_from_db()
+        self.assertEqual(job.job_status, Job.JobStatus.CANCELLED)
+        self.assertFalse(assignment.is_active)
+        self.assertEqual(assignment.assignment_status, "cancelled")

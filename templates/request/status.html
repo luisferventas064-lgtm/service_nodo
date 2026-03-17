@@ -1,7 +1,8 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Request Status</title>
+    <title>{% trans "Request Status" %}</title>
     <style>
         body { font-family: Arial; background:#f5f7fa; padding:40px; }
         .container {
@@ -25,6 +26,10 @@
         .flash.error {
             background: #fee2e2;
             color: #991b1b;
+        }
+        .flash.info {
+            background: #eff6ff;
+            color: #1d4ed8;
         }
         .lifecycle {
             display:flex;
@@ -120,6 +125,12 @@
         .status-closed p {
             margin: 8px 0 0;
         }
+        .status-closed-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
         .dispute-resolution {
             margin-top: 16px;
             background: #eff6ff;
@@ -203,13 +214,13 @@
 <div class="container">
     <div class="top-actions">
         {% if next_url %}
-            <a class="btn btn-secondary back-to-activity" href="{{ next_url }}">Back to Activity</a>
+            <a class="btn btn-secondary back-to-activity" href="{{ next_url }}">{% trans "Back to Activity" %}</a>
         {% endif %}
-        <button class="btn btn-secondary" type="button" onclick="history.back()">Back</button>
-        <a class="btn btn-secondary" href="{% url 'ui:marketplace_search' %}">Return to Marketplace</a>
+        <button class="btn btn-secondary" type="button" onclick="history.back()">{% trans "Back" %}</button>
+        <a class="btn btn-secondary" href="{% url 'ui:marketplace_search' %}">{% trans "Return to Marketplace" %}</a>
     </div>
 
-    <h2>Request Status</h2>
+    <h2>{% trans "Request Status" %}</h2>
 
     {% if messages %}
         {% for message in messages %}
@@ -218,91 +229,95 @@
     {% endif %}
 
     <div class="request-box">
-        <span class="request-meta-label">Request summary</span>
+        <span class="request-meta-label">{% trans "Request summary" %}</span>
 
         <div class="request-meta-grid">
             <div class="request-meta-box">
-                <span class="request-meta-label">Job ID</span>
+                <span class="request-meta-label">{% trans "Job ID" %}</span>
                 <div class="request-meta-value">{{ job.job_id }}</div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Status</span>
+                <span class="request-meta-label">{% trans "Status" %}</span>
                 <div class="request-meta-value">{{ job_status_label }}</div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Provider</span>
+                <span class="request-meta-label">{% trans "Provider" %}</span>
                 <div class="request-meta-value">
                     {% if job.job_status == "posted" and job.cancel_reason == "provider_rejected" %}
-                        Pending reassignment
+                        {% trans "Pending reassignment" %}
                     {% else %}
-                        {{ job.display_provider|default:"Pending assignment" }}
+                        {% if job.display_provider %}
+                            {{ job.display_provider }}
+                        {% else %}
+                            {% trans "Pending assignment" %}
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Created</span>
+                <span class="request-meta-label">{% trans "Created" %}</span>
                 <div class="request-meta-value">{{ job.created_at|date:"M j, Y g:i A" }}</div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Requested time</span>
+                <span class="request-meta-label">{% trans "Requested time" %}</span>
                 <div class="request-meta-value">
                     {% if job.job_mode == "scheduled" %}
                         {{ job.scheduled_date|date:"M j, Y" }}
                         {% if job.scheduled_start_time %}
-                            at {{ job.scheduled_start_time|time:"g:i A" }}
+                            {% trans "at" %} {{ job.scheduled_start_time|time:"g:i A" }}
                         {% endif %}
                     {% else %}
-                        ASAP
+                        {% trans "ASAP" %}
                     {% endif %}
                 </div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Service type</span>
+                <span class="request-meta-label">{% trans "Service type" %}</span>
                 <div class="request-meta-value">{{ job.service_type.name }}</div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Timing</span>
+                <span class="request-meta-label">{% trans "Timing" %}</span>
                 <div class="request-meta-value">{{ service_timing_label }}</div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Next step</span>
+                <span class="request-meta-label">{% trans "Next step" %}</span>
                 <div class="request-meta-value">{{ next_step_label }}</div>
             </div>
         </div>
     </div>
 
     <div class="request-box">
-        <span class="request-meta-label">Service details</span>
+        <span class="request-meta-label">{% trans "Service details" %}</span>
 
         <div class="request-meta-grid">
             <div class="request-meta-box">
-                <span class="request-meta-label">Main offer</span>
+                <span class="request-meta-label">{% trans "Main offer" %}</span>
                 <div class="request-meta-value">{{ job.provider_service_name_display|default:"-" }}</div>
             </div>
 
             {% if job.requested_subservice_name %}
                 <div class="request-meta-box">
-                    <span class="request-meta-label">Subservice</span>
+                    <span class="request-meta-label">{% trans "Subservice" %}</span>
                     <div class="request-meta-value">{{ job.requested_subservice_name }}</div>
                 </div>
             {% endif %}
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Billing unit</span>
+                <span class="request-meta-label">{% trans "Billing unit" %}</span>
                 <div class="request-meta-value">
                     {{ job.requested_billing_unit_display|default:"-" }}
                 </div>
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Unit price</span>
+                <span class="request-meta-label">{% trans "Unit price" %}</span>
                 <div class="request-meta-value">
                     {% if job.requested_unit_price_snapshot != None %}
                         ${{ job.requested_unit_price_snapshot|floatformat:2 }}
@@ -313,7 +328,7 @@
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Quantity</span>
+                <span class="request-meta-label">{% trans "Quantity" %}</span>
                 <div class="request-meta-value">
                     {% if job.requested_quantity_snapshot != None %}
                         {{ job.requested_quantity_snapshot }}
@@ -324,12 +339,12 @@
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Service mode</span>
+                <span class="request-meta-label">{% trans "Service mode" %}</span>
                 <div class="request-meta-value">
                     {% if job.job_mode == "scheduled" %}
-                        Scheduled
+                        {% trans "Scheduled" %}
                     {% else %}
-                        ASAP
+                        {% trans "ASAP" %}
                     {% endif %}
                 </div>
             </div>
@@ -337,7 +352,7 @@
 
         {% if job.requested_extras_list %}
             <div style="margin-top: 14px;">
-                <span class="request-meta-label">Extras</span>
+                <span class="request-meta-label">{% trans "Extras" %}</span>
                 {% for requested_extra in job.requested_extras_list %}
                     <div class="request-meta-value" style="margin-top: 6px;">
                         {{ requested_extra.extra_name_snapshot }} x {{ requested_extra.quantity }}
@@ -354,11 +369,11 @@
     </div>
 
     <div class="request-box">
-        <span class="request-meta-label">Price breakdown</span>
+        <span class="request-meta-label">{% trans "Price breakdown" %}</span>
 
         <div class="request-meta-grid">
             <div class="request-meta-box">
-                <span class="request-meta-label">Base service total</span>
+                <span class="request-meta-label">{% trans "Base service total" %}</span>
                 <div class="request-meta-value">
                     {% if job.requested_base_line_total_snapshot != None %}
                         ${{ job.requested_base_line_total_snapshot|floatformat:2 }}
@@ -369,7 +384,7 @@
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Subtotal</span>
+                <span class="request-meta-label">{% trans "Subtotal" %}</span>
                 <div class="request-meta-value">
                     {% if job.requested_subtotal_snapshot != None %}
                         ${{ job.requested_subtotal_snapshot|floatformat:2 }}
@@ -381,7 +396,7 @@
 
             <div class="request-meta-box">
                 <span class="request-meta-label">
-                    Taxes{% if job.requested_tax_region_code_snapshot %} ({{ job.requested_tax_region_code_snapshot }}){% endif %}
+                    {% trans "Taxes" %}{% if job.requested_tax_region_code_snapshot %} ({{ job.requested_tax_region_code_snapshot }}){% endif %}
                 </span>
                 <div class="request-meta-value">
                     {% if job.requested_tax_snapshot != None %}
@@ -393,7 +408,7 @@
             </div>
 
             <div class="request-meta-box">
-                <span class="request-meta-label">Total</span>
+                <span class="request-meta-label">{% trans "Total" %}</span>
                 <div class="request-meta-value">
                     {% if job.requested_total_snapshot != None %}
                         <strong>${{ job.requested_total_snapshot|floatformat:2 }}</strong>
@@ -406,38 +421,38 @@
     </div>
 
     <div class="request-box">
-        <span class="request-meta-label">Service address</span>
+        <span class="request-meta-label">{% trans "Service address" %}</span>
         <div class="request-meta-value">
             {{ job.address_line1 }}{% if job.address_line2 %}, {{ job.address_line2 }}{% endif %},
             {{ job.city }}, {{ job.province }}, {{ job.postal_code }}
         </div>
         {% if job.access_notes %}
             <div class="request-meta-value" style="margin-top: 6px;">
-                Access notes: {{ job.access_notes }}
+                {% trans "Access notes:" %} {{ job.access_notes }}
             </div>
         {% endif %}
     </div>
 
     <div class="request-box">
-        <span class="request-meta-label">Lifecycle</span>
+        <span class="request-meta-label">{% trans "Lifecycle" %}</span>
 
         <div class="lifecycle">
-            <span class="{% if job.job_status == 'assigned' or job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Accepted</span>
-            <span class="{% if job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">In Progress</span>
-            <span class="{% if job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">Completed</span>
-            <span class="{% if job.job_status == 'confirmed' %}active{% endif %}">Confirmed</span>
+            <span class="{% if job.job_status == 'assigned' or job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">{% trans "Accepted" %}</span>
+            <span class="{% if job.job_status == 'in_progress' or job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">{% trans "In Progress" %}</span>
+            <span class="{% if job.job_status == 'completed' or job.job_status == 'confirmed' %}active{% endif %}">{% trans "Completed" %}</span>
+            <span class="{% if job.job_status == 'confirmed' %}active{% endif %}">{% trans "Confirmed" %}</span>
         </div>
 
         <div class="timestamps">
-            <p><strong>Started at:</strong> {% if job.local_started_at %}{{ job.local_started_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
-            <p><strong>Completed at:</strong> {% if job.local_completed_at %}{{ job.local_completed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
-            <p><strong>Confirmed at:</strong> {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+            <p><strong>{% trans "Started at:" %}</strong> {% if job.local_started_at %}{{ job.local_started_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+            <p><strong>{% trans "Completed at:" %}</strong> {% if job.local_completed_at %}{{ job.local_completed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
+            <p><strong>{% trans "Confirmed at:" %}</strong> {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</p>
         </div>
     </div>
 
     {% if job_events %}
         <div class="request-box">
-            <span class="request-meta-label">Job timeline</span>
+            <span class="request-meta-label">{% trans "Job timeline" %}</span>
 
             <div class="timeline">
                 {% for event in job_events %}
@@ -453,12 +468,73 @@
         </div>
     {% endif %}
 
+    {% if show_push_debug and last_push_attempt %}
+        <div class="request-box">
+            <span class="request-meta-label">{% trans "Push delivery" %}</span>
+
+            <div class="request-meta-grid">
+                <div class="request-meta-box">
+                    <span class="request-meta-label">{% trans "Last push status" %}</span>
+                    <div class="request-meta-value">{{ last_push_attempt.status }}</div>
+                </div>
+
+                <div class="request-meta-box">
+                    <span class="request-meta-label">{% trans "Last push target" %}</span>
+                    <div class="request-meta-value">{{ last_push_attempt.device.role }}</div>
+                </div>
+
+                <div class="request-meta-box">
+                    <span class="request-meta-label">{% trans "Last push sent" %}</span>
+                    <div class="request-meta-value">{{ last_push_attempt.created_at|date:"M j, Y g:i A" }}</div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
     {% if job.job_status == "posted" and job.cancel_reason == "provider_rejected" %}
         <div class="request-box">
-            <span class="request-meta-label">Update</span>
+            <span class="request-meta-label">{% trans "Update" %}</span>
             <div class="request-meta-value">
+                {% blocktrans trimmed %}
                 The previous provider declined your request. We are looking for another provider.
                 You can keep waiting or cancel this request.
+                {% endblocktrans %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if job.job_status == "assigned" %}
+        <div class="request-box">
+            <span class="request-meta-label">{% trans "Update" %}</span>
+            <div class="flash success" style="margin-bottom: 0;">
+                {% trans "A provider accepted your request." %}
+            </div>
+            <div style="margin-top: 12px;">
+                <a class="btn btn-secondary" href="{{ refresh_status_url }}">{% trans "Refresh status" %}</a>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if job.job_status == "in_progress" %}
+        <div class="request-box">
+            <span class="request-meta-label">{% trans "Update" %}</span>
+            <div class="flash info" style="margin-bottom: 0;">
+                {% trans "Your service is in progress." %}
+            </div>
+            <div style="margin-top: 12px;">
+                <a class="btn btn-secondary" href="{{ refresh_status_url }}">{% trans "Refresh status" %}</a>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if job.job_status == "completed" %}
+        <div class="request-box">
+            <span class="request-meta-label">{% trans "Update" %}</span>
+            <div class="flash success" style="margin-bottom: 0;">
+                {% trans "Your service has been completed." %}
+            </div>
+            <div style="margin-top: 12px;">
+                <a class="btn btn-secondary" href="{{ refresh_status_url }}">{% trans "Refresh status" %}</a>
             </div>
         </div>
     {% endif %}
@@ -466,7 +542,7 @@
     <div class="action-box">
         {% if job.job_status == "in_progress" or job.job_status == "completed" %}
             {% if job.job_status == "in_progress" %}
-                <p class="warning">You are closing this service even though provider did not mark it as completed.</p>
+                <p class="warning">{% trans "You are closing this service even though provider did not mark it as completed." %}</p>
             {% endif %}
             <form method="post">
                 {% csrf_token %}
@@ -476,11 +552,60 @@
                 {% if service_timing %}
                     <input type="hidden" name="service_timing" value="{{ service_timing }}">
                 {% endif %}
-                <button class="btn" name="action" value="confirm_close">Confirm &amp; Close</button>
+                {% if service_type_id %}
+                    <input type="hidden" name="service_type" value="{{ service_type_id }}">
+                {% endif %}
+                {% if postal_code %}
+                    <input type="hidden" name="postal_code" value="{{ postal_code }}">
+                {% endif %}
+                {% if city %}
+                    <input type="hidden" name="city" value="{{ city }}">
+                {% endif %}
+                {% if province %}
+                    <input type="hidden" name="province" value="{{ province }}">
+                {% endif %}
+                {% if search %}
+                    <input type="hidden" name="search" value="{{ search }}">
+                {% endif %}
+                {% if provider_name %}
+                    <input type="hidden" name="provider_name" value="{{ provider_name }}">
+                {% endif %}
+                <button class="btn" name="action" value="confirm_close">{% trans "Confirm & Close" %}</button>
             </form>
         {% endif %}
 
-        {% if job.job_status == "posted" or job.job_status == "waiting_provider_response" or job.job_status == "assigned" %}
+        {% if job.job_status == "pending_client_confirmation" %}
+            <form method="post" style="display:flex; gap:8px; flex-wrap:wrap;">
+                {% csrf_token %}
+                {% if next_url %}
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+                {% if service_timing %}
+                    <input type="hidden" name="service_timing" value="{{ service_timing }}">
+                {% endif %}
+                {% if service_type_id %}
+                    <input type="hidden" name="service_type" value="{{ service_type_id }}">
+                {% endif %}
+                {% if postal_code %}
+                    <input type="hidden" name="postal_code" value="{{ postal_code }}">
+                {% endif %}
+                {% if city %}
+                    <input type="hidden" name="city" value="{{ city }}">
+                {% endif %}
+                {% if province %}
+                    <input type="hidden" name="province" value="{{ province }}">
+                {% endif %}
+                {% if search %}
+                    <input type="hidden" name="search" value="{{ search }}">
+                {% endif %}
+                {% if provider_name %}
+                    <input type="hidden" name="provider_name" value="{{ provider_name }}">
+                {% endif %}
+                <button class="btn" name="action" value="confirm_provider">{% trans "Confirm Provider" %}</button>
+                <button class="btn btn-secondary" name="action" value="reject_provider">{% trans "Reject Provider" %}</button>
+                <button class="btn btn-danger" name="action" value="cancel_request">{% trans "Cancel Request" %}</button>
+            </form>
+        {% elif job.job_status == "posted" or job.job_status == "waiting_provider_response" or job.job_status == "assigned" %}
             <form method="post">
                 {% csrf_token %}
                 {% if next_url %}
@@ -489,50 +614,79 @@
                 {% if service_timing %}
                     <input type="hidden" name="service_timing" value="{{ service_timing }}">
                 {% endif %}
-                <button class="btn btn-danger" name="action" value="cancel_request">Cancel Request</button>
+                {% if service_type_id %}
+                    <input type="hidden" name="service_type" value="{{ service_type_id }}">
+                {% endif %}
+                {% if postal_code %}
+                    <input type="hidden" name="postal_code" value="{{ postal_code }}">
+                {% endif %}
+                {% if city %}
+                    <input type="hidden" name="city" value="{{ city }}">
+                {% endif %}
+                {% if province %}
+                    <input type="hidden" name="province" value="{{ province }}">
+                {% endif %}
+                {% if search %}
+                    <input type="hidden" name="search" value="{{ search }}">
+                {% endif %}
+                {% if provider_name %}
+                    <input type="hidden" name="provider_name" value="{{ provider_name }}">
+                {% endif %}
+                <button class="btn btn-danger" name="action" value="cancel_request">{% trans "Cancel Request" %}</button>
             </form>
         {% elif job.job_status == "confirmed" %}
             <div class="status-closed">
-                <strong>Service closed.</strong><br>
-                This service has been permanently closed.
-                No further actions are available.
+                <strong>{% trans "Service closed." %}</strong><br>
+                {% trans "This service has been permanently closed." %}
+                {% trans "No further actions are available." %}
                 <hr>
-                <div><strong>Job Reference:</strong> {{ job.public_reference }}</div>
+                <div><strong>{% trans "Job Reference:" %}</strong> {{ job.public_reference }}</div>
                 {% if job.confirmed_event %}
                     <div>
-                        <strong>Confirmed at:</strong>
+                        <strong>{% trans "Confirmed at:" %}</strong>
                         {{ job.local_confirmed_at|date:"Y-m-d H:i" }}
                     </div>
                     <p>
                         {% if job.confirmed_event.note == "auto_timeout_72h" %}
-                            Closed automatically (72h timeout)
+                            {% trans "Closed automatically (72h timeout)" %}
                         {% else %}
-                            Closed by client
+                            {% trans "Closed by client" %}
                         {% endif %}
                     </p>
                 {% endif %}
             </div>
         {% elif job.job_status == "cancelled" %}
             <div class="status-closed">
-                <strong>Service cancelled.</strong><br>
+                <strong>{% trans "Service cancelled." %}</strong><br>
                 {% if job.cancel_reason == "dispute_approved" %}
-                    Cancelled - Dispute approved.
+                    {% trans "Cancelled - Dispute approved." %}
                 {% elif job.cancel_reason == "provider_rejected" %}
-                    Cancelled - Provider rejected.
+                    {% trans "Cancelled - Provider rejected." %}
                 {% elif job.cancel_reason == "client_cancelled" %}
-                    Cancelled - Client cancelled the request.
+                    {% trans "Cancelled - Client cancelled the request." %}
                 {% elif job.cancel_reason == "auto_timeout" %}
-                    Cancelled - Automatic timeout.
+                    {% trans "Cancelled - Automatic timeout." %}
                 {% else %}
-                    Cancelled.
+                    {% trans "Cancelled." %}
                 {% endif %}
+            </div>
+        {% elif job.job_status == "expired" %}
+            <div class="status-closed">
+                <strong>{% trans "Request expired." %}</strong><br>
+                <p class="warning">{% trans "No provider accepted your request in time." %}</p>
+                {% trans "The live request timed out before a provider confirmed it." %}
+                <hr>
+                <div class="status-closed-actions">
+                    <a class="btn" href="{{ marketplace_retry_url }}">{% trans "Search again" %}</a>
+                    <a class="btn btn-secondary" href="{{ refresh_status_url }}">{% trans "Refresh status" %}</a>
+                </div>
             </div>
         {% endif %}
     </div>
 
     {% if job.dispute and job.dispute.status == "resolved" %}
         <div class="dispute-resolution">
-            <strong>Dispute resolved.</strong><br>
+            <strong>{% trans "Dispute resolved." %}</strong><br>
             {{ job.dispute.public_resolution_note }}
         </div>
     {% endif %}

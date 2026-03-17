@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Manage Service Areas{% endblock %}
+{% block title %}{% trans "Manage Service Areas" %}{% endblock %}
 
 {% block content %}
 <style>
@@ -229,8 +230,8 @@
 
 <div class="page">
   <div class="page-header">
-    <h1>Manage Service Areas</h1>
-    <p>Add, review, and activate the cities where you provide services.</p>
+    <h1>{% trans "Manage Service Areas" %}</h1>
+    <p>{% trans "Add, review, and activate the cities where you provide services." %}</p>
   </div>
 
   {% if messages %}
@@ -240,8 +241,8 @@
   {% endif %}
 
   <div class="card">
-    <h2>Add Service Area</h2>
-    <p class="muted">Create a new active service area for this provider.</p>
+    <h2>{% trans "Add Service Area" %}</h2>
+    <p class="muted">{% trans "Create a new active service area for this provider." %}</p>
 
     <form method="post">
       {% csrf_token %}
@@ -249,31 +250,31 @@
 
       <div class="form-grid">
         <div class="field">
-          <label for="city">City</label>
-          <input type="text" id="city" name="city" placeholder="City" required>
+          <label for="city">{% trans "City" %}</label>
+          <input type="text" id="city" name="city" placeholder="{% trans 'City' %}" required>
         </div>
 
         <div class="field">
-          <label for="province">Province</label>
-          <input type="text" id="province" name="province" placeholder="Province" required>
+          <label for="province">{% trans "Province" %}</label>
+          <input type="text" id="province" name="province" placeholder="{% trans 'Province' %}" required>
         </div>
 
         <div class="field">
-          <label for="postal_prefix">Postal Prefix (FSA)</label>
-          <input type="text" id="postal_prefix" name="postal_prefix" placeholder="H2X" maxlength="3">
+          <label for="postal_prefix">{% trans "Postal Prefix (FSA)" %}</label>
+          <input type="text" id="postal_prefix" name="postal_prefix" placeholder="{% trans 'H2X' %}" maxlength="3">
         </div>
       </div>
 
       <div class="actions">
-        <button type="submit" class="btn btn-primary">Add Service Area</button>
-        <a href="{% url 'provider_profile' %}" class="btn btn-secondary">Back to Profile</a>
+        <button type="submit" class="btn btn-primary">{% trans "Add Service Area" %}</button>
+        <a href="{% url 'provider_profile' %}" class="btn btn-secondary">{% trans "Back to Profile" %}</a>
       </div>
     </form>
   </div>
 
   <div class="card">
-    <h2>Active Service Areas</h2>
-    <p class="muted">These areas are currently active for profile completion and operations.</p>
+    <h2>{% trans "Active Service Areas" %}</h2>
+    <p class="muted">{% trans "These areas are currently active for profile completion and operations." %}</p>
 
     {% if active_areas %}
       <div class="area-list">
@@ -283,9 +284,9 @@
               <div class="area-title">{{ area.city }}, {{ area.province }}</div>
               <div class="area-subtitle">
                 {% if area.postal_prefix %}
-                  <span>FSA {{ area.postal_prefix }}</span>
+                  <span>{% blocktrans with postal_prefix=area.postal_prefix %}FSA {{ postal_prefix }}{% endblocktrans %}</span>
                 {% endif %}
-                <span class="badge badge-active">Active</span>
+                <span class="badge badge-active">{% trans "Active" %}</span>
               </div>
             </div>
 
@@ -293,19 +294,19 @@
               {% csrf_token %}
               <input type="hidden" name="action" value="toggle">
               <input type="hidden" name="area_id" value="{{ area.provider_service_area_id }}">
-              <button type="submit" class="btn btn-secondary">Deactivate</button>
+              <button type="submit" class="btn btn-secondary">{% trans "Deactivate" %}</button>
             </form>
           </div>
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty">No active service areas yet.</div>
+      <div class="empty">{% trans "No active service areas yet." %}</div>
     {% endif %}
   </div>
 
   <div class="card">
-    <h2>Inactive Service Areas</h2>
-    <p class="muted">You can reactivate any area when needed.</p>
+    <h2>{% trans "Inactive Service Areas" %}</h2>
+    <p class="muted">{% trans "You can reactivate any area when needed." %}</p>
 
     {% if inactive_areas %}
       <div class="area-list">
@@ -315,9 +316,9 @@
               <div class="area-title">{{ area.city }}, {{ area.province }}</div>
               <div class="area-subtitle">
                 {% if area.postal_prefix %}
-                  <span>FSA {{ area.postal_prefix }}</span>
+                  <span>{% blocktrans with postal_prefix=area.postal_prefix %}FSA {{ postal_prefix }}{% endblocktrans %}</span>
                 {% endif %}
-                <span class="badge badge-inactive">Inactive</span>
+                <span class="badge badge-inactive">{% trans "Inactive" %}</span>
               </div>
             </div>
 
@@ -325,13 +326,13 @@
               {% csrf_token %}
               <input type="hidden" name="action" value="toggle">
               <input type="hidden" name="area_id" value="{{ area.provider_service_area_id }}">
-              <button type="submit" class="btn btn-primary">Activate</button>
+              <button type="submit" class="btn btn-primary">{% trans "Activate" %}</button>
             </form>
           </div>
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty">No inactive service areas.</div>
+      <div class="empty">{% trans "No inactive service areas." %}</div>
     {% endif %}
   </div>
 </div>

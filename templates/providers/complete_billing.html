@@ -1,12 +1,15 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Complete Provider Billing{% endblock %}
+{% block title %}{% trans "Complete Provider Billing" %}{% endblock %}
 
 {% block content %}
-<h2>Complete Billing Information</h2>
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Save Billing Info</button>
-</form>
+<div class="card">
+  <h2>{% trans "Complete Billing Information" %}</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">{% trans "Save Billing Info" %}</button>
+  </form>
+</div>
 {% endblock %}

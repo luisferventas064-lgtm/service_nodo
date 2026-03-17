@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class Provider(models.Model):
@@ -336,11 +337,11 @@ class ProviderServiceArea(models.Model):
 
 class ProviderService(models.Model):
     BILLING_UNIT_CHOICES = [
-        ("hour", "Per Hour"),
-        ("fixed", "Fixed Price"),
-        ("sqm", "Per Square Meter"),
-        ("km", "Per Kilometer"),
-        ("day", "Per Day"),
+        ("hour", _("Per Hour")),
+        ("fixed", _("Fixed Price")),
+        ("sqm", _("Per Square Meter")),
+        ("km", _("Per Kilometer")),
+        ("day", _("Per Day")),
     ]
 
     provider = models.ForeignKey(

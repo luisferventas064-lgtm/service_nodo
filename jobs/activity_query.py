@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.core.paginator import Paginator
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from assignments.models import JobAssignment
 from .activity_financial_adapter import build_activity_financial_data_map
@@ -15,12 +16,12 @@ from .models import Job
 
 
 ACTIVITY_STATUS_CHOICES = (
-    ("all", "All"),
-    (Job.JobStatus.POSTED, "Posted"),
-    (Job.JobStatus.ASSIGNED, "Assigned"),
-    (Job.JobStatus.IN_PROGRESS, "In progress"),
-    ("completed", "Completed"),
-    (Job.JobStatus.CANCELLED, "Cancelled"),
+    ("all", _("All")),
+    (Job.JobStatus.POSTED, _("Posted")),
+    (Job.JobStatus.ASSIGNED, _("Assigned")),
+    (Job.JobStatus.IN_PROGRESS, _("In progress")),
+    ("completed", _("Completed")),
+    (Job.JobStatus.CANCELLED, _("Cancelled")),
 )
 
 ACTIVITY_STATUS_FILTERS = {
@@ -36,20 +37,20 @@ ACTIVITY_STATUS_FILTERS = {
 }
 
 ACTIVITY_COUNTERPARTY_LABELS = {
-    "client": "Provider",
-    "provider": "Client",
-    "worker": "Client",
+    "client": _("Provider"),
+    "provider": _("Client"),
+    "worker": _("Client"),
 }
 DATE_RANGE_CHOICES = (
-    ("", "All time"),
-    ("today", "Today"),
-    ("7d", "Last 7 days"),
-    ("30d", "Last 30 days"),
+    ("", _("All time")),
+    ("today", _("Today")),
+    ("7d", _("Last 7 days")),
+    ("30d", _("Last 30 days")),
 )
 SORT_CHOICES = (
-    ("newest", "Newest first"),
-    ("oldest", "Oldest first"),
-    ("status", "Status A-Z"),
+    ("newest", _("Newest first")),
+    ("oldest", _("Oldest first")),
+    ("status", _("Status A-Z")),
 )
 PAGE_SIZE = 10
 ACTIVITY_SELECT_RELATED = (

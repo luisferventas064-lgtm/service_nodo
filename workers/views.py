@@ -5,6 +5,7 @@ from django.contrib.auth.hashers import make_password
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from core.auth_session import require_role
 from core.services.sms_service import send_sms
@@ -187,7 +188,7 @@ def worker_activity(request):
         "workers/activity.html",
         {
             "worker": worker,
-            "activity_page_title": "Activity History",
+            "activity_page_title": _("Activity History"),
             **build_activity_view_context(
                 "worker",
                 worker,

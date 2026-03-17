@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 
-from jobs.models import Job, JobBroadcastAttempt, JobLocation
+from jobs.models import Job, JobBroadcastAttempt, JobLocation, JobProviderExclusion
 from jobs.services import process_marketplace_job
 from providers.models import Provider, ProviderLocation, ProviderService, ProviderServiceArea
 from service_type.models import ServiceType
@@ -120,6 +120,31 @@ class MarketplaceTickTests(TestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.marketplace_attempts, 2)
+
+    @patch("jobs.services.MARKETPLACE_BATCH_SIZE", 2)
+    def test_marketplace_wave_excludes_provider_who_already_declined_same_job(self):
+        declined_provider = self._make_provider(1)
+        eligible_provider = self._make_provider(2)
+        job = self._make_scheduled_job()
+        JobProviderExclusion.objects.create(
+            job=job,
+            provider=declined_provider,
+            reason=JobProviderExclusion.Reason.DECLINED,
+        )
+
+        result = process_marketplace_job(job.job_id)
+
+        self.assertEqual(result[0], "dispatched_wave")
+        self.assertEqual(result[1], 1)
+        self.assertEqual(
+            list(
+                JobBroadcastAttempt.objects.filter(job=job).values_list(
+                    "provider_id",
+                    flat=True,
+                )
+            ),
+            [eligible_provider.provider_id],
+        )
 
     def test_search_timeout_moves_to_pending_client_decision(self):
         self._make_provider(1)

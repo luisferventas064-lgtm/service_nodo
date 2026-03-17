@@ -1,38 +1,39 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Provider Profile{% endblock %}
+{% block title %}{% trans "Provider Profile" %}{% endblock %}
 
 {% block content %}
 <div class="page">
   <div class="card">
-    <h2 class="card-title">Provider Profile</h2>
-    <p class="muted">Review your account information and quick access to provider tools.</p>
+    <h2 class="card-title">{% trans "Provider Profile" %}</h2>
+    <p class="muted">{% trans "Review your account information and quick access to provider tools." %}</p>
 
     {% if not provider.profile_completed %}
       <div class="status-banner provider" role="status">
-        Your profile is not fully completed yet.
+        {% trans "Your profile is not fully completed yet." %}
       </div>
       <div class="auth-actions">
-        <a class="btn primary" href="{% url 'provider_complete_profile' %}">Complete your profile</a>
+        <a class="btn primary" href="{% url 'provider_complete_profile' %}">{% trans "Complete your profile" %}</a>
       </div>
     {% endif %}
   </div>
 
   <div class="card">
-    <h3 style="margin:0 0 12px 0;">Profile details</h3>
-    <p class="form-row"><strong>Type:</strong> {{ provider.provider_type }}</p>
-    <p class="form-row"><strong>Languages spoken:</strong> {{ provider.languages_spoken|default:"-" }}</p>
-    <p class="form-row"><strong>Phone verified:</strong> {{ provider.is_phone_verified }}</p>
-    <p class="form-row"><strong>Profile completed:</strong> {{ provider.profile_completed }}</p>
-    <p class="form-row"><strong>Billing completed:</strong> {{ provider.billing_profile_completed }}</p>
-    <p class="form-row"><strong>Operational:</strong> {{ provider.is_operational }}</p>
+    <h3 style="margin:0 0 12px 0;">{% trans "Profile details" %}</h3>
+    <p class="form-row"><strong>{% trans "Type:" %}</strong> {% trans provider.get_provider_type_display %}</p>
+    <p class="form-row"><strong>{% trans "Languages spoken:" %}</strong> {{ provider.languages_spoken|default:"-" }}</p>
+    <p class="form-row"><strong>{% trans "Phone verified:" %}</strong> {% if provider.is_phone_verified %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</p>
+    <p class="form-row"><strong>{% trans "Profile completed:" %}</strong> {% if provider.profile_completed %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</p>
+    <p class="form-row"><strong>{% trans "Billing completed:" %}</strong> {% if provider.billing_profile_completed %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</p>
+    <p class="form-row"><strong>{% trans "Operational:" %}</strong> {% if provider.is_operational %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</p>
   </div>
 
   <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
-      <h3 class="h5 mb-2">Provider Profile</h3>
+      <h3 class="h5 mb-2">{% trans "Provider Profile" %}</h3>
       <p class="text-muted mb-0">
-        This page is only for your provider profile summary. Service management, jobs, and billing should be handled from their dedicated sections.
+        {% trans "This page is only for your provider profile summary. Service management, jobs, and billing should be handled from their dedicated sections." %}
       </p>
     </div>
   </div>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block content %}
 <style>
@@ -196,8 +197,8 @@
 </style>
 
 <div class="provider-jobs-wrap">
-  <h1 class="provider-jobs-title">Provider Jobs</h1>
-  <p class="provider-jobs-subtitle">Review requests, confirm details, and take action.</p>
+  <h1 class="provider-jobs-title">{% trans "Provider Jobs" %}</h1>
+  <p class="provider-jobs-subtitle">{% trans "Review requests, confirm details, and take action." %}</p>
 
   {% if jobs %}
     <div class="jobs-grid">
@@ -206,10 +207,14 @@
           <div class="job-card-top">
             <div>
               <h2 class="job-title">
-                {{ job.service_type.name|default:"Service Request" }}
+                {% if job.service_type.name %}
+                  {{ job.service_type.name }}
+                {% else %}
+                  {% trans "Service Request" %}
+                {% endif %}
               </h2>
               <div class="job-reference">
-                Request #{{ job.job_id }}
+                {% blocktrans trimmed with job_id=job.job_id %}Request #{{ job_id }}{% endblocktrans %}
                 {% if job.public_reference %}
                   &middot; {{ job.public_reference }}
                 {% endif %}
@@ -225,56 +230,56 @@
 
           <div class="job-meta-grid">
             <div class="job-meta-box">
-              <span class="job-meta-label">Client</span>
+              <span class="job-meta-label">{% trans "Client" %}</span>
               <div class="job-meta-value">
                 {{ job.client|default:"-" }}
               </div>
             </div>
 
             <div class="job-meta-box">
-              <span class="job-meta-label">Requested time</span>
+              <span class="job-meta-label">{% trans "Requested time" %}</span>
               <div class="job-meta-value">
                 {% if job.scheduled_date %}
                   {{ job.scheduled_date|date:"M j, Y" }}
                   {% if job.scheduled_start_time %}
-                    at {{ job.scheduled_start_time|time:"g:i A" }}
+                    {% trans "at" %} {{ job.scheduled_start_time|time:"g:i A" }}
                   {% endif %}
                 {% else %}
-                  ASAP
+                  {% trans "ASAP" %}
                 {% endif %}
               </div>
             </div>
 
             <div class="job-meta-box">
-              <span class="job-meta-label">Service mode</span>
+              <span class="job-meta-label">{% trans "Service mode" %}</span>
               <div class="job-meta-value">
                 {{ job.get_job_mode_display }}
               </div>
             </div>
 
             <div class="job-meta-box">
-              <span class="job-meta-label">ASAP</span>
+              <span class="job-meta-label">{% trans "ASAP" %}</span>
               <div class="job-meta-value">
-                {% if job.is_asap %}Yes{% else %}No{% endif %}
+                {% if job.is_asap %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}
               </div>
             </div>
 
             <div class="job-meta-box">
-              <span class="job-meta-label">Estimated duration</span>
+              <span class="job-meta-label">{% trans "Estimated duration" %}</span>
               <div class="job-meta-value">
-                {{ job.estimated_duration_min }} min
+                {% blocktrans trimmed with duration=job.estimated_duration_min %}{{ duration }} min{% endblocktrans %}
               </div>
             </div>
 
             <div class="job-meta-box">
-              <span class="job-meta-label">Postal Code</span>
+              <span class="job-meta-label">{% trans "Postal Code" %}</span>
               <div class="job-meta-value">
                 {{ job.postal_code|default:"-" }}
               </div>
             </div>
 
             <div class="job-meta-box">
-              <span class="job-meta-label">Main Offer</span>
+              <span class="job-meta-label">{% trans "Main Offer" %}</span>
               <div class="job-meta-value">
                 {{ job.provider_service_name_display|default:"-" }}
               </div>
@@ -282,17 +287,17 @@
           </div>
 
           <div class="job-notes">
-            <span class="job-meta-label">Pricing</span>
+            <span class="job-meta-label">{% trans "Pricing" %}</span>
             <div class="job-meta-grid">
               <div class="job-meta-box">
-                <span class="job-meta-label">Billing Unit</span>
+                <span class="job-meta-label">{% trans "Billing Unit" %}</span>
                 <div class="job-meta-value">
                   {{ job.requested_billing_unit_display|default:"-" }}
                 </div>
               </div>
 
               <div class="job-meta-box">
-                <span class="job-meta-label">Unit Price</span>
+                <span class="job-meta-label">{% trans "Unit Price" %}</span>
                 <div class="job-meta-value">
                   {% if job.requested_unit_price_snapshot != None %}
                     ${{ job.requested_unit_price_snapshot|floatformat:2 }}
@@ -303,7 +308,7 @@
               </div>
 
               <div class="job-meta-box">
-                <span class="job-meta-label">Quantity</span>
+                <span class="job-meta-label">{% trans "Quantity" %}</span>
                 <div class="job-meta-value">
                   {% if job.requested_quantity_snapshot != None %}
                     {{ job.requested_quantity_snapshot }}
@@ -314,7 +319,7 @@
               </div>
 
               <div class="job-meta-box">
-                <span class="job-meta-label">Base Line Total</span>
+                <span class="job-meta-label">{% trans "Base Line Total" %}</span>
                 <div class="job-meta-value">
                   {% if job.requested_base_line_total_snapshot != None %}
                     ${{ job.requested_base_line_total_snapshot|floatformat:2 }}
@@ -325,7 +330,7 @@
               </div>
 
               <div class="job-meta-box">
-                <span class="job-meta-label">Estimated Total</span>
+                <span class="job-meta-label">{% trans "Estimated Total" %}</span>
                 <div class="job-meta-value">
                   {% if job.requested_total_snapshot != None %}
                     ${{ job.requested_total_snapshot|floatformat:2 }}
@@ -339,14 +344,18 @@
 
           {% if job.requested_subservice_name or job.requested_extras_list or job.has_requested_pricing_snapshot %}
             <div class="job-notes">
-              <span class="job-meta-label">Requested details</span>
+              <span class="job-meta-label">{% trans "Requested details" %}</span>
               <div class="job-requested-list">
-                <div class="job-meta-value">Main Offer: {{ job.provider_service_name_display|default:"-" }}</div>
+                <div class="job-meta-value">
+                  {% blocktrans trimmed with offer=job.provider_service_name_display|default:"-" %}Main Offer: {{ offer }}{% endblocktrans %}
+                </div>
                 {% if job.requested_subservice_name %}
-                  <div class="job-meta-value">Subservice: {{ job.requested_subservice_name }}</div>
+                  <div class="job-meta-value">
+                    {% blocktrans trimmed with subservice=job.requested_subservice_name %}Subservice: {{ subservice }}{% endblocktrans %}
+                  </div>
                 {% endif %}
                 {% if job.requested_extras_list %}
-                  <div class="job-meta-value">Extras:</div>
+                  <div class="job-meta-value">{% trans "Extras:" %}</div>
                   {% for requested_extra in job.requested_extras_list %}
                     <div class="job-meta-value">
                       {{ requested_extra.extra_name_snapshot }} x {{ requested_extra.quantity }}
@@ -365,18 +374,18 @@
 
           {% if job.local_started_at or job.local_completed_at or job.local_confirmed_at %}
             <div class="job-notes">
-              <span class="job-meta-label">Lifecycle</span>
+              <span class="job-meta-label">{% trans "Lifecycle" %}</span>
               <div class="job-timestamps">
                 <div class="job-meta-value">
-                  Started at:
+                  {% trans "Started at:" %}
                   {% if job.local_started_at %}{{ job.local_started_at|date:"M j, Y g:i A" }}{% else %}-{% endif %}
                 </div>
                 <div class="job-meta-value">
-                  Completed at:
+                  {% trans "Completed at:" %}
                   {% if job.local_completed_at %}{{ job.local_completed_at|date:"M j, Y g:i A" }}{% else %}-{% endif %}
                 </div>
                 <div class="job-meta-value">
-                  Confirmed at:
+                  {% trans "Confirmed at:" %}
                   {% if job.local_confirmed_at %}{{ job.local_confirmed_at|date:"M j, Y g:i A" }}{% else %}-{% endif %}
                 </div>
               </div>
@@ -385,35 +394,35 @@
 
           {% if job.job_status == "completed" %}
             <div class="job-notes">
-              <span class="job-meta-label">Next step</span>
-              <div class="job-meta-value">Waiting client confirmation.</div>
+              <span class="job-meta-label">{% trans "Next step" %}</span>
+              <div class="job-meta-value">{% trans "Waiting client confirmation." %}</div>
             </div>
           {% elif job.job_status == "confirmed" %}
             <div class="job-notes">
-              <span class="job-meta-label">Closure</span>
+              <span class="job-meta-label">{% trans "Closure" %}</span>
               <div class="job-meta-value">
-                Service closed.
+                {% trans "Service closed." %}
                 {% if job.confirmed_event and job.confirmed_event.note == "auto_timeout_72h" %}
-                  Closed automatically after the 72-hour timeout.
+                  {% trans "Closed automatically after the 72-hour timeout." %}
                 {% else %}
-                  Closed by client confirmation.
+                  {% trans "Closed by client confirmation." %}
                 {% endif %}
               </div>
             </div>
           {% elif job.job_status == "cancelled" %}
             <div class="job-notes">
-              <span class="job-meta-label">Cancellation</span>
+              <span class="job-meta-label">{% trans "Cancellation" %}</span>
               <div class="job-meta-value">
                 {% if job.cancel_reason == "dispute_approved" %}
-                  Cancelled after dispute approval.
+                  {% trans "Cancelled after dispute approval." %}
                 {% elif job.cancel_reason == "provider_rejected" %}
-                  Cancelled because the provider declined the request.
+                  {% trans "Cancelled because the provider declined the request." %}
                 {% elif job.cancel_reason == "client_cancelled" %}
-                  Cancelled by the client.
+                  {% trans "Cancelled by the client." %}
                 {% elif job.cancel_reason == "auto_timeout" %}
-                  Cancelled by automatic timeout.
+                  {% trans "Cancelled by automatic timeout." %}
                 {% else %}
-                  Cancelled.
+                  {% trans "Cancelled." %}
                 {% endif %}
               </div>
             </div>
@@ -421,16 +430,14 @@
 
           <div class="job-actions">
             {% if job.job_status == "waiting_provider_response" %}
-              <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
+              <form method="post" action="{% url 'ui:provider_accept_job' job.job_id %}">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="accept">
-                <button type="submit" class="btn-job btn-job-primary">Accept</button>
+                <button type="submit" class="btn-job btn-job-primary">{% trans "Accept" %}</button>
               </form>
 
-              <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
+              <form method="post" action="{% url 'ui:provider_decline_job' job.job_id %}">
                 {% csrf_token %}
-                <input type="hidden" name="action" value="reject">
-                <button type="submit" class="btn-job btn-job-danger">Decline</button>
+                <button type="submit" class="btn-job btn-job-danger">{% trans "Decline" %}</button>
               </form>
             {% endif %}
 
@@ -438,7 +445,7 @@
               <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="start">
-                <button type="submit" class="btn-job btn-job-primary">Start</button>
+                <button type="submit" class="btn-job btn-job-primary">{% trans "Start" %}</button>
               </form>
             {% endif %}
 
@@ -446,7 +453,7 @@
               <form method="post" action="{% url 'ui:provider_job_action' job.job_id %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="complete">
-                <button type="submit" class="btn-job btn-job-soft">Mark as Complete</button>
+                <button type="submit" class="btn-job btn-job-soft">{% trans "Mark as Complete" %}</button>
               </form>
             {% endif %}
           </div>
@@ -455,7 +462,7 @@
     </div>
   {% else %}
     <div class="empty-jobs">
-      No jobs available yet.
+      {% trans "No jobs available yet." %}
     </div>
   {% endif %}
 </div>

@@ -1,10 +1,17 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Client Dashboard{% endblock %}
+{% block title %}{% trans "Client Dashboard" %}{% endblock %}
 
 {% block content %}
-<h1>Client Dashboard</h1>
-<p>Welcome, {{ client.first_name }}.</p>
-<p>Phone verified: {% if client.is_phone_verified %}Yes{% else %}No{% endif %}</p>
-<p>Profile completed: {% if client.profile_completed %}Yes{% else %}No{% endif %}</p>
+<h1>{% trans "Client Dashboard" %}</h1>
+<p>{% blocktrans with first_name=client.first_name %}Welcome, {{ first_name }}.{% endblocktrans %}</p>
+<p>
+  {% trans "Phone verified:" %}
+  {% if client.is_phone_verified %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}
+</p>
+<p>
+  {% trans "Profile completed:" %}
+  {% if client.profile_completed %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}
+</p>
 {% endblock %}

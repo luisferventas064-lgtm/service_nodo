@@ -6,8 +6,6 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 
-from providers.models import Provider
-
 from .models import ApiIdempotencyKey, Job
 from .services import confirm_service_closed_by_client, start_service_by_provider
 from .services_extras import add_extra_line_for_job
@@ -49,20 +47,16 @@ def match_providers(request, job_id: int):
 
 @require_http_methods(["POST", "GET"])
 def assign_provider(request, job_id: int, provider_id: int):
-    job = get_object_or_404(Job, pk=job_id)
-    provider = get_object_or_404(Provider, pk=provider_id)
-
-    job.selected_provider = provider
-    job.job_status = "assigned"
-    job.save(update_fields=["selected_provider", "job_status", "updated_at"])
-
+    _ = request
+    _ = job_id
+    _ = provider_id
     return JsonResponse(
         {
-            "ok": True,
-            "job_id": job.job_id,
-            "job_status": job.job_status,
-            "selected_provider_id": job.selected_provider_id,
-        }
+            "ok": False,
+            "error": "legacy_assign_provider_endpoint_disabled",
+            "detail": "Use canonical marketplace acceptance flow.",
+        },
+        status=400,
     )
 
 

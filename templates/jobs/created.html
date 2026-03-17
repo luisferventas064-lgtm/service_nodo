@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Job Created{% endblock %}
+{% block title %}{% trans "Job Created" %}{% endblock %}
 
 {% block content %}
 <style>
@@ -138,36 +139,42 @@
 
 <div class="job-created-wrap">
   <div class="job-created-card">
-    <span class="job-created-kicker">Confirmed</span>
-    <h1 class="job-created-title">Job created</h1>
+    <span class="job-created-kicker">{% trans "Confirmed" %}</span>
+    <h1 class="job-created-title">{% trans "Job created" %}</h1>
     <p class="job-created-copy">
-      Your request was created successfully. You can review the live status any time while we notify the provider.
+      {% trans "Your request was created successfully. You can review the live status any time while we notify the provider." %}
     </p>
 
     <div class="job-created-actions">
-      <a class="job-created-btn job-created-btn-primary" href="{% url 'ui:request_status' job_id=job.job_id %}{% if service_timing %}?service_timing={{ service_timing|urlencode }}{% endif %}">View status</a>
-      <a class="job-created-btn job-created-btn-secondary" href="{% url 'ui:marketplace_search' %}">Back to marketplace</a>
+      <a class="job-created-btn job-created-btn-primary" href="{{ request_status_url }}">{% trans "View status" %}</a>
+      <a class="job-created-btn job-created-btn-secondary" href="{% url 'ui:marketplace_search' %}">{% trans "Back to marketplace" %}</a>
     </div>
   </div>
 
   <div class="job-created-grid">
     <div class="job-created-panel">
-      <span class="job-created-label">Job ID</span>
+      <span class="job-created-label">{% trans "Job ID" %}</span>
       <div class="job-created-value">{{ job.job_id }}</div>
     </div>
 
     <div class="job-created-panel">
-      <span class="job-created-label">Status</span>
+      <span class="job-created-label">{% trans "Status" %}</span>
       <div class="job-created-value">{{ job_status_label }}</div>
     </div>
 
     <div class="job-created-panel">
-      <span class="job-created-label">Provider</span>
-      <div class="job-created-value">{{ job.display_provider|default:"Pending assignment" }}</div>
+      <span class="job-created-label">{% trans "Provider" %}</span>
+      <div class="job-created-value">
+        {% if job.display_provider %}
+          {{ job.display_provider }}
+        {% else %}
+          {% trans "Pending assignment" %}
+        {% endif %}
+      </div>
     </div>
 
     <div class="job-created-panel">
-      <span class="job-created-label">Service</span>
+      <span class="job-created-label">{% trans "Service" %}</span>
       <div class="job-created-value">
         {{ job.service_type.name }}
         {% if job.provider_service_name_display %}
@@ -177,7 +184,7 @@
     </div>
 
     <div class="job-created-panel">
-      <span class="job-created-label">Location</span>
+      <span class="job-created-label">{% trans "Location" %}</span>
       <div class="job-created-value">
         {% if job.address_line1 %}{{ job.address_line1 }}<br>{% endif %}
         {{ job.city }}, {{ job.province }} {{ job.postal_code }}
@@ -185,52 +192,52 @@
     </div>
 
     <div class="job-created-panel">
-      <span class="job-created-label">Requested time</span>
+      <span class="job-created-label">{% trans "Requested time" %}</span>
       <div class="job-created-value">
         {% if job.job_mode == "scheduled" %}
           {{ job.scheduled_date|date:"M j, Y" }}
           {% if job.scheduled_start_time %}
-            at {{ job.scheduled_start_time|time:"g:i A" }}
+            {% trans "at" %} {{ job.scheduled_start_time|time:"g:i A" }}
           {% endif %}
         {% else %}
-          ASAP
+          {% trans "ASAP" %}
         {% endif %}
       </div>
     </div>
 
     <div class="job-created-panel">
-      <span class="job-created-label">Timing</span>
+      <span class="job-created-label">{% trans "Timing" %}</span>
       <div class="job-created-value">{{ service_timing_label }}</div>
     </div>
 
     <div class="job-created-panel">
-      <span class="job-created-label">Next step</span>
+      <span class="job-created-label">{% trans "Next step" %}</span>
       <div class="job-created-value">{{ next_step_label }}</div>
     </div>
   </div>
 
   <div class="job-created-card job-created-pricing">
-    <h3>Price snapshot</h3>
+    <h3>{% trans "Price snapshot" %}</h3>
 
     {% if job.has_requested_pricing_snapshot %}
       <div class="job-created-pricing-line">
-        <span>Base line total</span>
+        <span>{% trans "Base line total" %}</span>
         <strong>${{ job.requested_base_line_total_snapshot|default:0|floatformat:2 }}</strong>
       </div>
       <div class="job-created-pricing-line">
-        <span>Subtotal</span>
+        <span>{% trans "Subtotal" %}</span>
         <strong>${{ job.requested_subtotal_snapshot|default:0|floatformat:2 }}</strong>
       </div>
       <div class="job-created-pricing-line">
-        <span>Tax{% if job.requested_tax_region_code_snapshot %} ({{ job.requested_tax_region_code_snapshot }}){% endif %}</span>
+        <span>{% trans "Tax" %}{% if job.requested_tax_region_code_snapshot %} ({{ job.requested_tax_region_code_snapshot }}){% endif %}</span>
         <strong>${{ job.requested_tax_snapshot|default:0|floatformat:2 }}</strong>
       </div>
       <div class="job-created-pricing-line job-created-pricing-total">
-        <span>Total</span>
+        <span>{% trans "Total" %}</span>
         <strong>${{ job.requested_total_snapshot|default:0|floatformat:2 }}</strong>
       </div>
     {% else %}
-      <div class="job-created-value">Pricing snapshot is not available for this request.</div>
+      <div class="job-created-value">{% trans "Pricing snapshot is not available for this request." %}</div>
     {% endif %}
   </div>
 </div>

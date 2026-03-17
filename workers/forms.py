@@ -1,20 +1,21 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from core.utils.phone import PHONE_COUNTRY_CHOICES, PHONE_COUNTRY_NAMES, normalize_phone
 
 from .models import Worker
 
 LANGUAGE_CHOICES = [
-    ("English", "English"),
-    ("French", "French"),
-    ("Spanish", "Spanish"),
-    ("Arabic", "Arabic"),
-    ("Mandarin", "Mandarin"),
-    ("Italian", "Italian"),
-    ("Portuguese", "Portuguese"),
-    ("Russian", "Russian"),
-    ("Punjabi", "Punjabi"),
-    ("Vietnamese", "Vietnamese"),
+    ("English", _("English")),
+    ("French", _("French")),
+    ("Spanish", _("Spanish")),
+    ("Arabic", _("Arabic")),
+    ("Mandarin", _("Mandarin")),
+    ("Italian", _("Italian")),
+    ("Portuguese", _("Portuguese")),
+    ("Russian", _("Russian")),
+    ("Punjabi", _("Punjabi")),
+    ("Vietnamese", _("Vietnamese")),
 ]
 
 
@@ -22,7 +23,7 @@ class WorkerRegisterForm(forms.Form):
     full_name = forms.CharField(max_length=255)
     email = forms.EmailField()
     country = forms.ChoiceField(choices=PHONE_COUNTRY_CHOICES, initial="CA")
-    phone_local = forms.CharField(max_length=20, label="Phone")
+    phone_local = forms.CharField(max_length=20, label=_("Phone"))
     languages_spoken = forms.MultipleChoiceField(
         choices=LANGUAGE_CHOICES,
         widget=forms.CheckboxSelectMultiple,
@@ -34,7 +35,7 @@ class WorkerRegisterForm(forms.Form):
     def clean_email(self):
         email = self.cleaned_data["email"]
         if Worker.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError("A worker with this email already exists.")
+            raise forms.ValidationError(_("A worker with this email already exists."))
         return email
 
     def clean(self):
@@ -48,7 +49,7 @@ class WorkerRegisterForm(forms.Form):
                 self.add_error("phone_local", str(exc))
             else:
                 if Worker.objects.filter(phone_number=phone_number).exists():
-                    self.add_error("phone_local", "A worker with this phone number already exists.")
+                    self.add_error("phone_local", _("A worker with this phone number already exists."))
                 else:
                     cleaned_data["phone_number"] = phone_number
                     cleaned_data["country_name"] = PHONE_COUNTRY_NAMES.get(country, "Canada")
@@ -56,7 +57,7 @@ class WorkerRegisterForm(forms.Form):
         p1 = cleaned_data.get("password")
         p2 = cleaned_data.get("confirm_password")
         if p1 and p2 and p1 != p2:
-            raise forms.ValidationError("Passwords do not match.")
+            raise forms.ValidationError(_("Passwords do not match."))
 
         cleaned_data["languages_spoken"] = ", ".join(cleaned_data.get("languages_spoken", []))
 

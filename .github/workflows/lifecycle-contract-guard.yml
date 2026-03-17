@@ -1,0 +1,41 @@
+name: Lifecycle Contract Guard
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  guard-no-direct-status-writes:
+    runs-on: windows-latest
+    env:
+      DB_ENGINE: django.db.backends.sqlite3
+      DB_NAME: guard_ci.sqlite3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Migrate database
+        shell: pwsh
+        run: python manage.py migrate --noinput
+
+      - name: Run lifecycle guard
+        shell: pwsh
+        run: ./scripts/guard_no_direct_status_writes.ps1
+
+      - name: Run assignment integrity guard
+        shell: pwsh
+        run: python ./scripts/guard_assignment_integrity.py

@@ -31,8 +31,8 @@ def _resolve_fcm_credentials():
             "google-auth is required when PUSH_PROVIDER=fcm"
         ) from exc
 
-    project_id = getattr(settings, "FCM_PROJECT_ID", "").strip()
-    credentials_file = getattr(settings, "FCM_CREDENTIALS_FILE", "").strip() or os.getenv(
+    project_id = (getattr(settings, "FCM_PROJECT_ID", "") or "").strip()
+    credentials_file = (getattr(settings, "FCM_CREDENTIALS_FILE", "") or "").strip() or os.getenv(
         "GOOGLE_APPLICATION_CREDENTIALS",
         "",
     ).strip()

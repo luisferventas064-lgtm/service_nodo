@@ -1,18 +1,19 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Compliance{% endblock %}
+{% block title %}{% trans "Compliance" %}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-1">Compliance</h1>
+            <h1 class="h3 mb-1">{% trans "Compliance" %}</h1>
             <p class="text-muted mb-0">
-                Review your provider readiness and compliance-related status.
+                {% trans "Review your provider readiness and compliance-related status." %}
             </p>
         </div>
         <a href="{% url 'provider_profile' %}" class="btn btn-outline-secondary">
-            Back to Profile
+            {% trans "Back to Profile" %}
         </a>
     </div>
 
@@ -20,28 +21,28 @@
         <div class="col-lg-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Base Profile</h2>
+                    <h2 class="h5 mb-3">{% trans "Base Profile" %}</h2>
 
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Phone verified</span>
-                        <strong>{% if phone_verified %}Yes{% else %}No{% endif %}</strong>
+                        <span>{% trans "Phone verified" %}</span>
+                        <strong>{% if phone_verified %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</strong>
                     </div>
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Terms acceptance status</span>
-                        <strong>{% if accepts_terms %}Accepted{% else %}Pending{% endif %}</strong>
+                        <span>{% trans "Terms acceptance status" %}</span>
+                        <strong>{% if accepts_terms %}{% trans "Accepted" %}{% else %}{% trans "Pending" %}{% endif %}</strong>
                     </div>
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Profile completed</span>
-                        <strong>{% if profile_completed %}Yes{% else %}No{% endif %}</strong>
+                        <span>{% trans "Profile completed" %}</span>
+                        <strong>{% if profile_completed %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</strong>
                     </div>
                     <div class="d-flex justify-content-between py-2">
-                        <span>Active service areas</span>
+                        <span>{% trans "Active service areas" %}</span>
                         <strong>{{ active_service_areas_count }}</strong>
                     </div>
 
                     {% if active_service_areas %}
                         <div class="mt-3">
-                            <div class="small text-muted mb-2">Current active areas</div>
+                            <div class="small text-muted mb-2">{% trans "Current active areas" %}</div>
                             <div class="d-flex flex-wrap gap-2">
                                 {% for area in active_service_areas %}
                                     <span class="badge text-bg-light border">
@@ -53,8 +54,8 @@
                     {% endif %}
 
                     <div class="d-flex gap-2 mt-4">
-                        <a href="{% url 'provider_edit' %}" class="btn btn-primary btn-sm">Edit Profile</a>
-                        <a href="{% url 'provider_service_areas' %}" class="btn btn-outline-primary btn-sm">Manage Service Areas</a>
+                        <a href="{% url 'provider_edit' %}" class="btn btn-primary btn-sm">{% trans "Edit Profile" %}</a>
+                        <a href="{% url 'provider_service_areas' %}" class="btn btn-outline-primary btn-sm">{% trans "Manage Service Areas" %}</a>
                     </div>
                 </div>
             </div>
@@ -63,21 +64,23 @@
         <div class="col-lg-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Payment Setup</h2>
+                    <h2 class="h5 mb-3">{% trans "Payment Setup" %}</h2>
 
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Billing completed</span>
-                        <strong>{% if billing_completed %}Yes{% else %}No{% endif %}</strong>
+                        <span>{% trans "Billing completed" %}</span>
+                        <strong>{% if billing_completed %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</strong>
                     </div>
 
                     <div class="mt-3 text-muted">
+                        {% blocktrans trimmed %}
                         Payment and payout setup will be handled through an external provider.
                         Sensitive payment details are not stored directly in this provider profile flow.
+                        {% endblocktrans %}
                     </div>
 
                     <div class="mt-4">
                         <a href="{% url 'provider_billing' %}" class="btn btn-outline-primary btn-sm">
-                            View Billing
+                            {% trans "View Billing" %}
                         </a>
                     </div>
                 </div>
@@ -87,42 +90,42 @@
         <div class="col-lg-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Insurance</h2>
+                    <h2 class="h5 mb-3">{% trans "Insurance" %}</h2>
 
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Has insurance</span>
-                        <strong>{% if insurance and insurance.has_insurance %}Yes{% else %}No{% endif %}</strong>
+                        <span>{% trans "Has insurance" %}</span>
+                        <strong>{% if insurance and insurance.has_insurance %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</strong>
                     </div>
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Company</span>
+                        <span>{% trans "Company" %}</span>
                         <strong>{{ insurance.insurance_company|default:"-" }}</strong>
                     </div>
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Policy number</span>
+                        <span>{% trans "Policy number" %}</span>
                         <strong>{{ insurance.policy_number|default:"-" }}</strong>
                     </div>
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Coverage amount</span>
+                        <span>{% trans "Coverage amount" %}</span>
                         <strong>{{ insurance.coverage_amount|default:"-" }}</strong>
                     </div>
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Expiry date</span>
+                        <span>{% trans "Expiry date" %}</span>
                         <strong>{{ insurance.expiry_date|default:"-" }}</strong>
                     </div>
                     <div class="d-flex justify-content-between py-2">
-                        <span>Verification</span>
+                        <span>{% trans "Verification" %}</span>
                         <strong>
                             {% if insurance and insurance.is_verified %}
-                                Verified
+                                {% trans "Verified" %}
                             {% else %}
-                                Not verified
+                                {% trans "Not verified" %}
                             {% endif %}
                         </strong>
                     </div>
 
                     <div class="mt-4">
                         <a href="{% url 'provider_insurance' %}" class="btn btn-outline-primary btn-sm">
-                            Manage Insurance
+                            {% trans "Manage Insurance" %}
                         </a>
                     </div>
                 </div>
@@ -132,51 +135,61 @@
         <div class="col-lg-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Certificates</h2>
+                    <h2 class="h5 mb-3">{% trans "Certificates" %}</h2>
 
                     <div class="row g-3 mb-3">
                         <div class="col-6">
                             <div class="border rounded p-3 bg-light">
-                                <div class="small text-muted">Total</div>
+                                <div class="small text-muted">{% trans "Total" %}</div>
                                 <div class="h5 mb-0">{{ total_certificates }}</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="border rounded p-3 bg-light">
-                                <div class="small text-muted">Verified</div>
+                                <div class="small text-muted">{% trans "Verified" %}</div>
                                 <div class="h5 mb-0">{{ verified_certificates }}</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="border rounded p-3 bg-light">
-                                <div class="small text-muted">Pending / other</div>
+                                <div class="small text-muted">{% trans "Pending / other" %}</div>
                                 <div class="h5 mb-0">{{ pending_certificates }}</div>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="border rounded p-3 bg-light">
-                                <div class="small text-muted">Expired</div>
+                                <div class="small text-muted">{% trans "Expired" %}</div>
                                 <div class="h5 mb-0">{{ expired_certificates }}</div>
                             </div>
                         </div>
                     </div>
 
                     {% if certificates %}
-                        <div class="small text-muted mb-2">Recent certificates</div>
+                        <div class="small text-muted mb-2">{% trans "Recent certificates" %}</div>
                         <div class="table-responsive">
                             <table class="table table-sm align-middle">
                                 <thead>
                                     <tr>
-                                        <th>Type</th>
-                                        <th>Status</th>
-                                        <th>Expires</th>
+                                        <th>{% trans "Type" %}</th>
+                                        <th>{% trans "Status" %}</th>
+                                        <th>{% trans "Expires" %}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for cert in certificates %}
                                         <tr>
                                             <td>{{ cert.cert_type|default:"-" }}</td>
-                                            <td>{{ cert.status|default:"-" }}</td>
+                                            <td>
+                                                {% if cert.status == "verified" %}
+                                                    {% trans "Verified" %}
+                                                {% elif cert.status == "declared" %}
+                                                    {% trans "Declared" %}
+                                                {% elif cert.status == "rejected" %}
+                                                    {% trans "Rejected" %}
+                                                {% else %}
+                                                    {{ cert.status|default:"-" }}
+                                                {% endif %}
+                                            </td>
                                             <td>{{ cert.expires_date|default:"-" }}</td>
                                         </tr>
                                     {% endfor %}
@@ -185,17 +198,17 @@
                         </div>
                     {% else %}
                         <div class="text-muted">
-                            No certificates registered yet.
+                            {% trans "No certificates registered yet." %}
                         </div>
                     {% endif %}
 
                     <div class="mt-3 text-muted">
-                        Certificate requirements may vary by service type and jurisdiction.
+                        {% trans "Certificate requirements may vary by service type and jurisdiction." %}
                     </div>
 
                     <div class="mt-4">
                         <a href="{% url 'provider_certificates' %}" class="btn btn-outline-primary btn-sm">
-                            Manage Certificates
+                            {% trans "Manage Certificates" %}
                         </a>
                     </div>
                 </div>
@@ -205,24 +218,26 @@
         <div class="col-12">
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
-                    <h2 class="h5 mb-3">Operational Status</h2>
+                    <h2 class="h5 mb-3">{% trans "Operational Status" %}</h2>
 
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>Operational</span>
-                        <strong>{% if operational %}Yes{% else %}No{% endif %}</strong>
+                        <span>{% trans "Operational" %}</span>
+                        <strong>{% if operational %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</strong>
                     </div>
 
                     {% if operational %}
                         <div class="alert alert-success mt-3 mb-0">
+                            {% blocktrans trimmed %}
                             Your current provider status is operational based on the rules currently applied by the system.
+                            {% endblocktrans %}
                         </div>
                     {% else %}
                         <div class="alert alert-warning mt-3">
-                            Your provider account is not fully operational yet.
+                            {% trans "Your provider account is not fully operational yet." %}
                         </div>
 
                         {% if operational_reasons %}
-                            <div class="small text-muted mb-2">Current known reasons</div>
+                            <div class="small text-muted mb-2">{% trans "Current known reasons" %}</div>
                             <ul class="mb-0">
                                 {% for reason in operational_reasons %}
                                     <li>{{ reason }}</li>
@@ -230,7 +245,7 @@
                             </ul>
                         {% else %}
                             <div class="text-muted">
-                                Operational status may also depend on other internal rules that will be reviewed next.
+                                {% trans "Operational status may also depend on other internal rules that will be reviewed next." %}
                             </div>
                         {% endif %}
                     {% endif %}

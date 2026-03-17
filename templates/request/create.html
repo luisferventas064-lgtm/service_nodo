@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Request Service{% endblock %}
+{% block title %}{% trans "Request Service" %}{% endblock %}
 
 {% block content %}
 <style>
@@ -289,19 +290,32 @@
 
 <div class="request-create-wrap">
   <div class="request-create-card">
-    <h2 style="margin-top: 0;">Request Service with {{ provider }}</h2>
+    <h2 style="margin-top: 0;">{% blocktrans with provider_name=provider %}Request Service with {{ provider_name }}{% endblocktrans %}</h2>
 
     <div class="request-create-summary">
-      <strong>Provider:</strong> {{ provider }}<br>
-      <strong>Rating:</strong> {{ provider.avg_rating }}<br>
+      <strong>{% trans "Provider:" %}</strong> {{ provider }}<br>
+      <strong>{% trans "Rating:" %}</strong> {{ provider.avg_rating }}<br>
       {% if selected_offer %}
-        <strong>Service Type:</strong> {{ selected_offer.service_type.name }}<br>
-        <strong>Main Offer:</strong> {{ selected_offer.custom_name }}<br>
-        <strong>Billing Unit:</strong> {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}<br>
-        <strong>Unit Price:</strong> $<span id="request-summary-unit-price">{{ pricing.base_unit_price|default:selected_offer.display_price|floatformat:2 }}</span><br>
+        <strong>{% trans "Service Type:" %}</strong> {{ selected_offer.service_type.name }}<br>
+        <strong>{% trans "Main Offer:" %}</strong> {{ selected_offer.custom_name }}<br>
+        <strong>{% trans "Billing Unit:" %}</strong>
+        {% if selected_offer.billing_unit == "hour" %}
+          {% trans "Per Hour" %}
+        {% elif selected_offer.billing_unit == "fixed" %}
+          {% trans "Fixed Price" %}
+        {% elif selected_offer.billing_unit == "sqm" %}
+          {% trans "Per Square Meter" %}
+        {% elif selected_offer.billing_unit == "km" %}
+          {% trans "Per Kilometer" %}
+        {% elif selected_offer.billing_unit == "day" %}
+          {% trans "Per Day" %}
+        {% else %}
+          {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}
+        {% endif %}<br>
+        <strong>{% trans "Unit Price:" %}</strong> $<span id="request-summary-unit-price">{{ pricing.base_unit_price|default:selected_offer.display_price|floatformat:2 }}</span><br>
       {% endif %}
       {% if provider.zone %}
-        <strong>Zone:</strong> {{ provider.zone.name }}
+        <strong>{% trans "Zone:" %}</strong> {{ provider.zone.name }}
       {% endif %}
     </div>
 
@@ -310,7 +324,7 @@
     {% endif %}
     {% if compliance_blocked %}
       <div class="request-create-alert request-create-alert-warning">
-        This provider cannot receive requests for this service until compliance is completed.
+        {% trans "This provider cannot receive requests for this service until compliance is completed." %}
       </div>
     {% endif %}
 
@@ -331,51 +345,51 @@
         {% endif %}
 
         {% if not client_authenticated %}
-          <h3 class="request-create-section-title" style="margin-top: 0;">Client Information</h3>
+          <h3 class="request-create-section-title" style="margin-top: 0;">{% trans "Client Information" %}</h3>
 
           <div class="request-create-grid">
             <div>
-              <label class="request-create-label" for="first_name">First name</label>
+              <label class="request-create-label" for="first_name">{% trans "First name" %}</label>
               <input id="first_name" class="request-create-input" type="text" name="first_name" required value="{{ form_data.first_name|default:'' }}">
             </div>
             <div>
-              <label class="request-create-label" for="last_name">Last name</label>
+              <label class="request-create-label" for="last_name">{% trans "Last name" %}</label>
               <input id="last_name" class="request-create-input" type="text" name="last_name" required value="{{ form_data.last_name|default:'' }}">
             </div>
             <div>
-              <label class="request-create-label" for="phone_number">Phone</label>
+              <label class="request-create-label" for="phone_number">{% trans "Phone" %}</label>
               <input id="phone_number" class="request-create-input" type="text" name="phone_number" required value="{{ form_data.phone_number|default:'' }}">
             </div>
             <div>
-              <label class="request-create-label" for="email">Email</label>
+              <label class="request-create-label" for="email">{% trans "Email" %}</label>
               <input id="email" class="request-create-input" type="email" name="email" required value="{{ form_data.email|default:'' }}">
             </div>
             <div>
-              <label class="request-create-label" for="country">Country</label>
+              <label class="request-create-label" for="country">{% trans "Country" %}</label>
               <input id="country" class="request-create-input" type="text" name="country" required value="{{ form_data.country|default:'CA' }}">
             </div>
             <div>
-              <label class="request-create-label" for="province">Province</label>
+              <label class="request-create-label" for="province">{% trans "Province" %}</label>
               <input id="province" class="request-create-input" type="text" name="province" required value="{{ form_data.province|default:'' }}">
             </div>
             <div>
-              <label class="request-create-label" for="city">City</label>
+              <label class="request-create-label" for="city">{% trans "City" %}</label>
               <input id="city" class="request-create-input" type="text" name="city" required value="{{ form_data.city|default:'' }}">
             </div>
             <div>
-              <label class="request-create-label" for="postal_code">Postal code</label>
+              <label class="request-create-label" for="postal_code">{% trans "Postal code" %}</label>
               <input id="postal_code" class="request-create-input" type="text" name="postal_code" required value="{{ form_data.postal_code|default:'' }}">
             </div>
             <div class="request-create-field-full">
-              <label class="request-create-label" for="address_line1">Address</label>
+              <label class="request-create-label" for="address_line1">{% trans "Address" %}</label>
               <input id="address_line1" class="request-create-input" type="text" name="address_line1" required value="{{ form_data.address_line1|default:'' }}">
             </div>
           </div>
         {% else %}
-          <p style="margin-top: 0; margin-bottom: 24px;">Logged in as {{ client.first_name }} {{ client.last_name }}</p>
-          {% if form_data.service_timing == "emergency" or form_data.service_timing == "scheduled" or form_data.service_timing == "urgent" %}
+          <p style="margin-top: 0; margin-bottom: 24px;">{% blocktrans with first_name=client.first_name last_name=client.last_name %}Logged in as {{ first_name }} {{ last_name }}{% endblocktrans %}</p>
+          {% if not show_service_address_editor %}
             <p class="request-create-location-summary">
-              Service location: {{ form_data.city }}, {{ form_data.province }} {{ form_data.postal_code }}
+              {% trans "Service location:" %} {{ form_data.city }}, {{ form_data.province }} {{ form_data.postal_code }}
             </p>
             <input type="hidden" id="province" name="province" value="{{ form_data.province|default:'' }}">
             <input type="hidden" id="city" name="city" value="{{ form_data.city|default:'' }}">
@@ -390,11 +404,11 @@
                 value="1"
                 {% if form_data.use_other_address %}checked{% endif %}
               >
-              Use another service address
+              {% trans "Use another service address" %}
             </label>
             <div class="request-create-grid" style="margin-bottom: 24px;">
               <div>
-                <label class="request-create-label" for="province">Province</label>
+                <label class="request-create-label" for="province">{% trans "Province" %}</label>
                 <input
                   id="province"
                   class="request-create-input"
@@ -405,7 +419,7 @@
                 >
               </div>
               <div>
-                <label class="request-create-label" for="city">City</label>
+                <label class="request-create-label" for="city">{% trans "City" %}</label>
                 <input
                   id="city"
                   class="request-create-input"
@@ -416,7 +430,7 @@
                 >
               </div>
               <div>
-                <label class="request-create-label" for="postal_code">Postal code</label>
+                <label class="request-create-label" for="postal_code">{% trans "Postal code" %}</label>
                 <input
                   id="postal_code"
                   class="request-create-input"
@@ -427,7 +441,7 @@
                 >
               </div>
               <div class="request-create-field-full">
-                <label class="request-create-label" for="address_line1">Address</label>
+                <label class="request-create-label" for="address_line1">{% trans "Address" %}</label>
                 <input
                   id="address_line1"
                   class="request-create-input"
@@ -441,28 +455,42 @@
           {% endif %}
         {% endif %}
 
-        <h3 class="request-create-section-title">Service Details</h3>
+        <h3 class="request-create-section-title">{% trans "Service Details" %}</h3>
 
         <div class="request-create-grid">
           {% if locked_provider_service_id %}
             <div class="request-create-field-full">
               <div class="request-create-option-card">
-                <strong>Selected Service</strong><br>
+                <strong>{% trans "Selected Service" %}</strong><br>
                 {% if selected_offer %}
                   {{ selected_offer.service_type.name }}<br>
-                  {{ selected_offer.custom_name }} - ${{ selected_offer.display_price|floatformat:2 }}{% if selected_offer.billing_unit %} / {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}{% endif %}
+                  {{ selected_offer.custom_name }} - ${{ selected_offer.display_price|floatformat:2 }}{% if selected_offer.billing_unit %} /
+                    {% if selected_offer.billing_unit == "hour" %}
+                      {% trans "Per Hour" %}
+                    {% elif selected_offer.billing_unit == "fixed" %}
+                      {% trans "Fixed Price" %}
+                    {% elif selected_offer.billing_unit == "sqm" %}
+                      {% trans "Per Square Meter" %}
+                    {% elif selected_offer.billing_unit == "km" %}
+                      {% trans "Per Kilometer" %}
+                    {% elif selected_offer.billing_unit == "day" %}
+                      {% trans "Per Day" %}
+                    {% else %}
+                      {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}
+                    {% endif %}
+                  {% endif %}
                 {% endif %}
                 <p class="request-create-help" style="margin-bottom: 0;">
-                  This service is locked for this request.
-                  <a href="{% url 'ui:marketplace_search' %}">Change service</a>
+                  {% trans "This service is locked for this request." %}
+                  <a href="{% url 'ui:marketplace_search' %}">{% trans "Change service" %}</a>
                 </p>
               </div>
             </div>
           {% else %}
             <div class="request-create-field-full">
-              <label class="request-create-label" for="service_type">Service type</label>
+              <label class="request-create-label" for="service_type">{% trans "Service type" %}</label>
               <select id="service_type" class="request-create-select" name="service_type" required>
-                <option value="">Select</option>
+                <option value="">{% trans "Select" %}</option>
                 {% for option in service_options %}
                   {% if not service_type_id or option.service_type.service_type_id|stringformat:"s" == service_type_id %}
                     <option
@@ -477,9 +505,9 @@
             </div>
 
             <div class="request-create-field-full">
-              <label class="request-create-label" for="provider_service_id">Service option</label>
+              <label class="request-create-label" for="provider_service_id">{% trans "Service option" %}</label>
               <select id="provider_service_id" class="request-create-select" name="provider_service_id" required>
-                <option value="">Select</option>
+                <option value="">{% trans "Select" %}</option>
                 {% for option in service_options %}
                   {% if not service_type_id or option.service_type.service_type_id|stringformat:"s" == service_type_id %}
                     {% if form_data.service_type == option.service_type.service_type_id|stringformat:"s" %}
@@ -488,7 +516,21 @@
                           value="{{ offer.id }}"
                           {% if form_data.provider_service_id == offer.id %}selected{% endif %}
                         >
-                          {{ offer.custom_name }} - ${{ offer.price_display|floatformat:2 }}{% if offer.billing_unit %} / {{ offer.billing_unit }}{% endif %}
+                          {{ offer.custom_name }} - ${{ offer.price_display|floatformat:2 }}{% if offer.billing_unit %} /
+                            {% if offer.billing_unit == "hour" %}
+                              {% trans "Per Hour" %}
+                            {% elif offer.billing_unit == "fixed" %}
+                              {% trans "Fixed Price" %}
+                            {% elif offer.billing_unit == "sqm" %}
+                              {% trans "Per Square Meter" %}
+                            {% elif offer.billing_unit == "km" %}
+                              {% trans "Per Kilometer" %}
+                            {% elif offer.billing_unit == "day" %}
+                              {% trans "Per Day" %}
+                            {% else %}
+                              {{ offer.billing_unit }}
+                            {% endif %}
+                          {% endif %}
                         </option>
                       {% endfor %}
                     {% endif %}
@@ -496,13 +538,13 @@
                 {% endfor %}
               </select>
               <p class="request-create-help">
-                Choose the specific service you want from this provider.
+                {% trans "Choose the specific service you want from this provider." %}
               </p>
             </div>
           {% endif %}
 
           <div>
-            <label class="request-create-label" for="requested_quantity">Quantity</label>
+            <label class="request-create-label" for="requested_quantity">{% trans "Quantity" %}</label>
             <input
               id="requested_quantity"
               class="request-create-input"
@@ -514,7 +556,7 @@
               value="{{ form_data.requested_quantity|default:'1' }}"
             >
             <p class="request-create-help">
-              Enter the quantity for the selected billing unit.
+              {% trans "Enter the quantity for the selected billing unit." %}
             </p>
           </div>
 
@@ -525,46 +567,59 @@
                 id="request-pricing-card"
                 data-offer-base-price="{{ selected_offer.display_price|floatformat:2 }}"
               >
-                <strong>Pricing Preview</strong><br>
-                Unit Price: $<span id="request-pricing-unit-price">{{ pricing.base_unit_price|default:selected_offer.display_price|floatformat:2 }}</span><br>
-                Quantity: {{ form_data.requested_quantity|default:"1" }}<br>
-                Billing Unit: {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}
+                <strong>{% trans "Pricing Preview" %}</strong><br>
+                {% trans "Unit Price:" %} $<span id="request-pricing-unit-price">{{ pricing.base_unit_price|default:selected_offer.display_price|floatformat:2 }}</span><br>
+                {% trans "Quantity:" %} {{ form_data.requested_quantity|default:"1" }}<br>
+                {% trans "Billing Unit:" %}
+                {% if selected_offer.billing_unit == "hour" %}
+                  {% trans "Per Hour" %}
+                {% elif selected_offer.billing_unit == "fixed" %}
+                  {% trans "Fixed Price" %}
+                {% elif selected_offer.billing_unit == "sqm" %}
+                  {% trans "Per Square Meter" %}
+                {% elif selected_offer.billing_unit == "km" %}
+                  {% trans "Per Kilometer" %}
+                {% elif selected_offer.billing_unit == "day" %}
+                  {% trans "Per Day" %}
+                {% else %}
+                  {{ selected_offer.get_billing_unit_display|default:selected_offer.billing_unit }}
+                {% endif %}
                 <div class="request-pricing-preview" id="request-pricing-preview">
                   <div class="request-pricing-line">
-                    <span>Base service</span>
+                    <span>{% trans "Base service" %}</span>
                     <span id="request-pricing-base-service">
                       {% if pricing %}${{ pricing.base_line_total|floatformat:2 }}{% else %}-{% endif %}
                     </span>
                   </div>
                   <div class="request-pricing-line">
-                    <span>Extras</span>
+                    <span>{% trans "Extras" %}</span>
                     <span id="request-pricing-extras">
                       {% if pricing %}${{ pricing.extras_total|floatformat:2 }}{% else %}-{% endif %}
                     </span>
                   </div>
                   <div class="request-pricing-line">
-                    <span>Subtotal</span>
+                    <span>{% trans "Subtotal" %}</span>
                     <span id="request-pricing-subtotal">
                       {% if pricing %}${{ pricing.subtotal|floatformat:2 }}{% else %}-{% endif %}
                     </span>
                   </div>
                   <div class="request-pricing-line">
-                    <span>Taxes (<span id="request-pricing-region">{{ pricing.tax_region_code|default:form_data.province|upper }}</span>)</span>
+                    <span>{% trans "Taxes" %} (<span id="request-pricing-region">{{ pricing.tax_region_code|default:form_data.province|upper }}</span>)</span>
                     <span id="request-pricing-tax">
                       {% if pricing %}${{ pricing.tax|floatformat:2 }}{% else %}-{% endif %}
                     </span>
                   </div>
                   <div class="request-pricing-line request-pricing-total">
-                    <strong>Total</strong>
+                    <strong>{% trans "Total" %}</strong>
                     <strong id="request-pricing-total">
                       {% if pricing %}${{ pricing.total|floatformat:2 }}{% else %}-{% endif %}
                     </strong>
                   </div>
                 </div>
                 <p class="request-confirm-note">
-                  Taxes calculated based on service location.
+                  {% trans "Taxes calculated based on service location." %}
                   {% if pricing %}
-                    Total including taxes (<span id="request-pricing-note-region">{{ pricing.tax_region_code }}</span>):
+                    {% trans "Total including taxes" %} (<span id="request-pricing-note-region">{{ pricing.tax_region_code }}</span>):
                     <strong id="request-pricing-note-total">${{ pricing.total|floatformat:2 }}</strong>
                   {% else %}
                     <span id="request-pricing-note-region"></span>
@@ -576,37 +631,37 @@
           {% endif %}
 
           <div class="request-create-field-full">
-            <label class="request-create-label">Service timing</label>
+            <label class="request-create-label">{% trans "Service timing" %}</label>
             <input type="hidden" name="service_timing" value="{{ form_data.service_timing|default:'urgent' }}">
             <input type="hidden" name="job_mode" value="{{ form_data.job_mode|default:'on_demand' }}">
             <div class="request-create-option-card">
               {% if form_data.service_timing == "emergency" %}
-                <strong>Emergency</strong>
-                <p class="request-create-help">Less than 2 hours. This request is treated as immediate dispatch priority.</p>
+                <strong>{% trans "Emergency" %}</strong>
+                <p class="request-create-help">{% trans "Less than 2 hours. This request is treated as immediate dispatch priority." %}</p>
               {% elif form_data.service_timing == "urgent" %}
-                <strong>Urgent</strong>
-                <p class="request-create-help">2 to 24 hours. This request prioritizes fast available options.</p>
+                <strong>{% trans "Urgent" %}</strong>
+                <p class="request-create-help">{% trans "2 to 24 hours. This request prioritizes fast available options." %}</p>
               {% else %}
-                <strong>Scheduled</strong>
-                <p class="request-create-help">More than 24 hours. Choose a date and approximate start time.</p>
+                <strong>{% trans "Scheduled" %}</strong>
+                <p class="request-create-help">{% trans "More than 24 hours. Choose a date and approximate start time." %}</p>
               {% endif %}
             </div>
           </div>
 
           {% if form_data.service_timing == "scheduled" %}
             <div>
-              <label class="request-create-label" for="scheduled_date">Scheduled date</label>
+              <label class="request-create-label" for="scheduled_date">{% trans "Scheduled date" %}</label>
               <input id="scheduled_date" class="request-create-input" type="date" name="scheduled_date" value="{{ form_data.scheduled_date|default:'' }}">
             </div>
             <div>
-              <label class="request-create-label" for="scheduled_time">Scheduled time</label>
+              <label class="request-create-label" for="scheduled_time">{% trans "Scheduled time" %}</label>
               <input id="scheduled_time" class="request-create-input" type="time" name="scheduled_time" value="{{ form_data.scheduled_start_time|default:'' }}">
             </div>
           {% endif %}
         </div>
       {% endwith %}
 
-      <h3 class="request-create-section-title">Extras</h3>
+      <h3 class="request-create-section-title">{% trans "Extras" %}</h3>
       {% if request_extra_options %}
         <div class="request-create-options">
           {% for option in request_extra_options %}
@@ -626,7 +681,7 @@
 
                 {% if option.extra.allows_quantity %}
                   <label class="request-create-extra-qty">
-                    Qty
+                    {% trans "Qty" %}
                     <input
                       class="request-create-input"
                       type="number"
@@ -636,18 +691,18 @@
                       data-extra-qty="{{ option.extra.id }}"
                       {% if not option.selected %}disabled{% endif %}
                     >
-                    <span>0+</span>
+                    <span>{% trans "0+" %}</span>
                   </label>
                 {% else %}
                   <input type="hidden" name="extra_qty_{{ option.extra.id }}" value="1">
-                  <span class="request-create-help" style="margin: 0;">Qty 1</span>
+                  <span class="request-create-help" style="margin: 0;">{% trans "Qty 1" %}</span>
                 {% endif %}
               </div>
             </div>
           {% endfor %}
         </div>
       {% else %}
-        <p class="request-create-empty">This provider service has no extras configured.</p>
+        <p class="request-create-empty">{% trans "This provider service has no extras configured." %}</p>
       {% endif %}
 
       <div
@@ -655,7 +710,7 @@
         class="request-create-alert request-create-alert-error"
         style="display: none;"
       >
-        Service not available in this area.
+        {% trans "Service not available in this area." %}
       </div>
 
       <button
@@ -663,7 +718,7 @@
         class="request-create-submit"
         {% if compliance_blocked or not selected_offer %}disabled aria-disabled="true"{% endif %}
       >
-        Submit Request
+        {% trans "Submit Request" %}
       </button>
     </form>
   </div>
@@ -676,24 +731,24 @@
     aria-modal="true"
     aria-labelledby="request-confirm-title"
   >
-    <h3 id="request-confirm-title" class="request-confirm-title">Confirm Request</h3>
-    <p class="request-confirm-copy">Review the request details before submitting.</p>
+    <h3 id="request-confirm-title" class="request-confirm-title">{% trans "Confirm Request" %}</h3>
+    <p class="request-confirm-copy">{% trans "Review the request details before submitting." %}</p>
 
     <div id="request-confirm-summary" class="request-summary">
-      <div><strong>Service</strong><br><span id="request-confirm-service">-</span></div>
-      <div><strong>Date</strong><br><span id="request-confirm-date">-</span></div>
-      <div><strong>Time</strong><br><span id="request-confirm-time">-</span></div>
-      <div><strong>Address</strong><br><span id="request-confirm-address">-</span></div>
-      <div><strong>Quantity</strong><br><span id="request-confirm-quantity">-</span></div>
-      <div><strong>Extras</strong><br><span id="request-confirm-extras">-</span></div>
+      <div><strong>{% trans "Service" %}</strong><br><span id="request-confirm-service">-</span></div>
+      <div><strong>{% trans "Date" %}</strong><br><span id="request-confirm-date">-</span></div>
+      <div><strong>{% trans "Time" %}</strong><br><span id="request-confirm-time">-</span></div>
+      <div><strong>{% trans "Address" %}</strong><br><span id="request-confirm-address">-</span></div>
+      <div><strong>{% trans "Quantity" %}</strong><br><span id="request-confirm-quantity">-</span></div>
+      <div><strong>{% trans "Extras" %}</strong><br><span id="request-confirm-extras">-</span></div>
     </div>
 
     <div class="request-confirm-actions">
       <button type="button" id="request-confirm-cancel" class="request-confirm-btn request-confirm-btn-secondary">
-        Cancel
+        {% trans "Cancel" %}
       </button>
       <button type="button" id="request-confirm-submit" class="request-confirm-btn request-confirm-btn-primary">
-        Confirm Request
+        {% trans "Confirm Request" %}
       </button>
     </div>
   </div>
@@ -701,7 +756,64 @@
 
 {{ provider_postal_prefixes|json_script:"provider-postal-prefixes" }}
 {{ request_tax_rates|json_script:"request-tax-rates" }}
+{% trans "Subtotal" as js_subtotal %}
+{% trans "Taxes" as js_taxes %}
+{% trans "Total" as js_total %}
+{% trans "Service" as js_service %}
+{% trans "Date" as js_date %}
+{% trans "Time" as js_time %}
+{% trans "Address" as js_address %}
+{% trans "Quantity" as js_quantity %}
+{% trans "Extras" as js_extras %}
+{% trans "Cancel" as js_cancel %}
+{% trans "Confirm Request" as js_confirm_request %}
+{% trans "Request Error" as js_request_error %}
+{% trans "Message" as js_message %}
+{% trans "OK" as js_ok %}
+{% trans "ASAP" as js_asap %}
+{% trans "Not specified" as js_not_specified %}
+{% trans "Please select a service option." as js_select_service_option %}
+{% trans "Emergency" as js_emergency %}
+{% trans "Less than 2 hours" as js_less_than_two_hours %}
+{% trans "Urgent" as js_urgent %}
+{% trans "Within 24 hours" as js_within_24_hours %}
+{% trans "Please select a service date." as js_select_service_date %}
+{% trans "Please select a service time." as js_select_service_time %}
+{% trans "Extra" as js_extra %}
+{% trans "None" as js_none %}
+{% trans "Review the request details before submitting. Taxes are calculated based on service location." as js_review_submit_taxes %}
+{% trans "Review the request details before submitting." as js_review_submit %}
 <script>
+  var requestI18n = {
+    subtotal: "{{ js_subtotal|escapejs }}",
+    taxes: "{{ js_taxes|escapejs }}",
+    total: "{{ js_total|escapejs }}",
+    service: "{{ js_service|escapejs }}",
+    date: "{{ js_date|escapejs }}",
+    time: "{{ js_time|escapejs }}",
+    address: "{{ js_address|escapejs }}",
+    quantity: "{{ js_quantity|escapejs }}",
+    extras: "{{ js_extras|escapejs }}",
+    cancel: "{{ js_cancel|escapejs }}",
+    confirmRequest: "{{ js_confirm_request|escapejs }}",
+    requestError: "{{ js_request_error|escapejs }}",
+    message: "{{ js_message|escapejs }}",
+    ok: "{{ js_ok|escapejs }}",
+    asap: "{{ js_asap|escapejs }}",
+    notSpecified: "{{ js_not_specified|escapejs }}",
+    selectServiceOption: "{{ js_select_service_option|escapejs }}",
+    emergency: "{{ js_emergency|escapejs }}",
+    lessThanTwoHours: "{{ js_less_than_two_hours|escapejs }}",
+    urgent: "{{ js_urgent|escapejs }}",
+    within24Hours: "{{ js_within_24_hours|escapejs }}",
+    selectServiceDate: "{{ js_select_service_date|escapejs }}",
+    selectServiceTime: "{{ js_select_service_time|escapejs }}",
+    extra: "{{ js_extra|escapejs }}",
+    none: "{{ js_none|escapejs }}",
+    reviewSubmitTaxes: "{{ js_review_submit_taxes|escapejs }}",
+    reviewSubmit: "{{ js_review_submit|escapejs }}"
+  };
+
   function escapeRequestModalHtml(value) {
     return String(value || "")
       .replace(/&/g, "&amp;")
@@ -717,20 +829,20 @@
 
   function buildRequestPricingRows(pricingData) {
     return (
-      '<div><strong>Subtotal</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.subtotalCents)) + '</div>' +
-      '<div><strong>Taxes (' + escapeRequestModalHtml(pricingData.taxRegionCode) + ')</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.taxCents)) + '</div>' +
-      '<div><strong>Total</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.totalCents)) + '</div>'
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.subtotal) + '</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.subtotalCents)) + '</div>' +
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.taxes) + ' (' + escapeRequestModalHtml(pricingData.taxRegionCode) + ')</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.taxCents)) + '</div>' +
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.total) + '</strong><br>' + escapeRequestModalHtml(formatPricingCents(pricingData.totalCents)) + '</div>'
     );
   }
 
   function buildRequestSummaryRows(confirmationData, pricingData) {
     return (
-      '<div><strong>Service</strong><br>' + escapeRequestModalHtml(confirmationData.service) + '</div>' +
-      '<div><strong>Date</strong><br>' + escapeRequestModalHtml(confirmationData.date) + '</div>' +
-      '<div><strong>Time</strong><br>' + escapeRequestModalHtml(confirmationData.time) + '</div>' +
-      '<div><strong>Address</strong><br>' + escapeRequestModalHtml(confirmationData.address) + '</div>' +
-      '<div><strong>Quantity</strong><br>' + escapeRequestModalHtml(confirmationData.quantity) + '</div>' +
-      '<div><strong>Extras</strong><br>' + escapeRequestModalHtml(confirmationData.extras) + '</div>' +
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.service) + '</strong><br>' + escapeRequestModalHtml(confirmationData.service) + '</div>' +
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.date) + '</strong><br>' + escapeRequestModalHtml(confirmationData.date) + '</div>' +
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.time) + '</strong><br>' + escapeRequestModalHtml(confirmationData.time) + '</div>' +
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.address) + '</strong><br>' + escapeRequestModalHtml(confirmationData.address) + '</div>' +
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.quantity) + '</strong><br>' + escapeRequestModalHtml(confirmationData.quantity) + '</div>' +
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.extras) + '</strong><br>' + escapeRequestModalHtml(confirmationData.extras) + '</div>' +
       (pricingData ? buildRequestPricingRows(pricingData) : '')
     );
   }
@@ -752,8 +864,8 @@
     copyElement.textContent = modalOptions.description || "";
     summaryElement.innerHTML = rowsHtml;
     summaryElement.hidden = false;
-    cancelButton.textContent = modalOptions.cancelText || "Cancel";
-    submitButton.textContent = modalOptions.submitText || "Confirm Request";
+    cancelButton.textContent = modalOptions.cancelText || requestI18n.cancel;
+    submitButton.textContent = modalOptions.submitText || requestI18n.confirmRequest;
     submitButton.style.display = modalOptions.hideSubmit ? "none" : "";
     modal.hidden = false;
     modal.setAttribute("aria-hidden", "false");
@@ -767,10 +879,10 @@
 
   function showRequestError(message) {
     openRequestModal(
-      "Request Error",
-      '<div><strong>Message</strong><br>' + escapeRequestModalHtml(message) + '</div>',
+      requestI18n.requestError,
+      '<div><strong>' + escapeRequestModalHtml(requestI18n.message) + '</strong><br>' + escapeRequestModalHtml(message) + '</div>',
       {
-        cancelText: "OK",
+        cancelText: requestI18n.ok,
         hideSubmit: true
       }
     );
@@ -778,7 +890,7 @@
 
   function formatDateHuman(dateValue) {
     if (!dateValue) {
-      return "ASAP";
+      return requestI18n.asap;
     }
 
     var date = new Date(dateValue + "T00:00:00");
@@ -791,7 +903,7 @@
 
   function formatTimeHuman(timeValue) {
     if (!timeValue) {
-      return "ASAP";
+      return requestI18n.asap;
     }
 
     var timeParts = timeValue.split(":");
@@ -816,32 +928,32 @@
     var selectedMode = selectedModeInput ? selectedModeInput.value : "";
     var selectedTiming = selectedTimingInput ? selectedTimingInput.value : "scheduled";
     var service = "{{ selected_offer.service_type.name|default:''|escapejs }} - {{ selected_offer.custom_name|default:''|escapejs }}";
-    var date = "Not specified";
-    var time = "Not specified";
-    var address = (addressInput && addressInput.value) || "{{ form_data.address_line1|default:''|escapejs }}" || "Not specified";
+    var date = requestI18n.notSpecified;
+    var time = requestI18n.notSpecified;
+    var address = (addressInput && addressInput.value) || "{{ form_data.address_line1|default:''|escapejs }}" || requestI18n.notSpecified;
     var quantity = (quantityInput && quantityInput.value) || "1";
     var extras = [];
 
     if (!serviceOption) {
-      showRequestError("Please select a service option.");
+      showRequestError(requestI18n.selectServiceOption);
       return null;
     }
 
     if (selectedMode === "on_demand") {
       if (selectedTiming === "emergency") {
-        date = "Emergency";
-        time = "Less than 2 hours";
+        date = requestI18n.emergency;
+        time = requestI18n.lessThanTwoHours;
       } else {
-        date = "Urgent";
-        time = "Within 24 hours";
+        date = requestI18n.urgent;
+        time = requestI18n.within24Hours;
       }
     } else {
       if (!scheduledDateInput || !scheduledDateInput.value) {
-        showRequestError("Please select a service date.");
+        showRequestError(requestI18n.selectServiceDate);
         return null;
       }
       if (!scheduledTimeInput || !scheduledTimeInput.value) {
-        showRequestError("Please select a service time.");
+        showRequestError(requestI18n.selectServiceTime);
         return null;
       }
 
@@ -854,12 +966,12 @@
       var extraLabel = checkbox.closest(".request-create-extra-label");
       var quantityField = document.querySelector('[data-extra-qty="' + extraId + '"]');
       var extraQuantity = (quantityField && quantityField.value) || "1";
-      var extraName = extraLabel ? extraLabel.textContent.replace(/\s+/g, " ").trim() : "Extra";
+      var extraName = extraLabel ? extraLabel.textContent.replace(/\s+/g, " ").trim() : requestI18n.extra;
 
       extras.push(extraName + " x " + extraQuantity);
     });
 
-    var extrasText = extras.length ? extras.join(", ") : "None";
+    var extrasText = extras.length ? extras.join(", ") : requestI18n.none;
 
     return {
       service: service,
@@ -1031,16 +1143,16 @@
       var pricingData = renderPreviewPricing();
 
       openRequestModal(
-        "Confirm Request",
+        requestI18n.confirmRequest,
         buildRequestSummaryRows(confirmationData, pricingData),
         {
           description: pricingData
-            ? "Review the request details before submitting. Taxes are calculated based on service location."
-            : "Review the request details before submitting.",
-          cancelText: "Cancel",
+            ? requestI18n.reviewSubmitTaxes
+            : requestI18n.reviewSubmit,
+          cancelText: requestI18n.cancel,
           submitText: pricingData
-            ? "Confirm Request - " + formatPricingCents(pricingData.totalCents)
-            : "Confirm Request"
+            ? requestI18n.confirmRequest + " - " + formatPricingCents(pricingData.totalCents)
+            : requestI18n.confirmRequest
         }
       );
     };

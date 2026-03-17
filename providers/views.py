@@ -7,6 +7,7 @@ from django.contrib.auth.hashers import make_password
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from core.auth_session import require_role
 from core.legal_disclaimers import build_financial_disclaimer_context
@@ -129,9 +130,9 @@ def provider_register(request):
                 ).count()
 
             if recent_phone >= PASSWORD_CODE_PHONE_LIMIT:
-                form.add_error(None, "Too many attempts. Try later.")
+                form.add_error(None, _("Too many attempts. Try later."))
             elif ip and recent_ip >= PASSWORD_CODE_IP_LIMIT:
-                form.add_error(None, "Too many attempts from this network.")
+                form.add_error(None, _("Too many attempts from this network."))
                 return render(request, "providers/register.html", {"form": form})
 
             elif not form.errors:
@@ -171,10 +172,14 @@ def provider_register(request):
                         )
                         send_sms(
                             provider.phone_number,
-                            f"Your NODO verification code is: {code}",
+                            _("Your NODO verification code is: %(code)s")
+                            % {"code": code},
                         )
                 except IntegrityError:
-                    form.add_error("email", "A provider with this email already exists.")
+                    form.add_error(
+                        "email",
+                        _("A provider with this email already exists."),
+                    )
                 else:
                     request.session["verify_phone"] = provider.phone_number
                     request.session["verify_role"] = "provider"
@@ -254,7 +259,7 @@ def provider_activity(request):
         "providers/activity.html",
         {
             "provider": provider,
-            "activity_page_title": "Activity History",
+            "activity_page_title": _("Activity History"),
             **build_activity_view_context(
                 "provider",
                 provider,
@@ -293,7 +298,7 @@ def provider_financial_summary(request):
         "providers/financial_summary.html",
         {
             "provider": provider,
-            "page_title": "Financial Summary",
+            "page_title": _("Financial Summary"),
             "role": "provider",
             "show_activity_table": False,
             "activity_analytics": query.get_analytics(jobs),
@@ -351,24 +356,26 @@ def provider_compliance(request):
     operational_reasons = []
 
     if not profile_completed:
-        operational_reasons.append("Base profile is not completed yet.")
+        operational_reasons.append(_("Base profile is not completed yet."))
 
     if not billing_completed:
-        operational_reasons.append("Payment setup is not completed yet.")
+        operational_reasons.append(_("Payment setup is not completed yet."))
 
     if not phone_verified:
-        operational_reasons.append("Phone verification is still pending.")
+        operational_reasons.append(_("Phone verification is still pending."))
 
     if not accepts_terms:
-        operational_reasons.append("Terms and Conditions are not accepted yet.")
+        operational_reasons.append(_("Terms and Conditions are not accepted yet."))
 
     if not provider.has_active_service():
-        operational_reasons.append("No active services are configured yet.")
+        operational_reasons.append(_("No active services are configured yet."))
 
     # Inference from current model rules: operational status also depends on service-level compliance.
     if provider.has_active_service() and not provider.has_required_certifications:
         operational_reasons.append(
-            "Some required certificates or insurance items are still missing for your active services."
+            _(
+                "Some required certificates or insurance items are still missing for your active services."
+            )
         )
 
     context = {
@@ -432,8 +439,12 @@ def provider_edit(request):
 
     context = {
         "provider": provider,
-        "provider_type_choices": Provider.PROVIDER_TYPE_CHOICES,
-        "employee_choices": Provider.EMPLOYEE_CHOICES,
+        "provider_type_choices": [
+            (value, _(label)) for value, label in Provider.PROVIDER_TYPE_CHOICES
+        ],
+        "employee_choices": [
+            (value, _(label)) for value, label in Provider.EMPLOYEE_CHOICES
+        ],
     }
     return render(request, "providers/account.html", context)
 
@@ -454,7 +465,10 @@ def provider_insurance(request):
             insurance_obj.provider = provider
             insurance_obj.save()
 
-            messages.success(request, "Insurance information saved successfully.")
+            messages.success(
+                request,
+                _("Insurance information saved successfully."),
+            )
             return redirect("provider_insurance")
     else:
         form = ProviderInsuranceForm(instance=insurance)
@@ -507,9 +521,15 @@ def provider_certificates(request):
             certificate.save()
 
             if instance:
-                messages.success(request, "Certificate updated successfully.")
+                messages.success(
+                    request,
+                    _("Certificate updated successfully."),
+                )
             else:
-                messages.success(request, "Certificate added successfully.")
+                messages.success(
+                    request,
+                    _("Certificate added successfully."),
+                )
 
             return redirect("provider_certificates")
         edit_certificate = instance
@@ -551,7 +571,7 @@ def provider_service_areas(request):
             postal_prefix = _normalize_postal_prefix(request.POST.get("postal_prefix"))
 
             if not city or not province:
-                messages.error(request, "City and province are required.")
+                messages.error(request, _("City and province are required."))
                 return redirect("provider_service_areas")
 
             existing_filters = {
@@ -576,9 +596,9 @@ def provider_service_areas(request):
                         existing.save(update_fields=["is_active", "postal_prefix"])
                     else:
                         existing.save(update_fields=["is_active"])
-                    messages.success(request, "Service area reactivated.")
+                    messages.success(request, _("Service area reactivated."))
                 else:
-                    messages.info(request, "That service area is already active.")
+                    messages.info(request, _("That service area is already active."))
             else:
                 ProviderServiceArea.objects.create(
                     provider=provider,
@@ -587,7 +607,7 @@ def provider_service_areas(request):
                     postal_prefix=postal_prefix or None,
                     is_active=True,
                 )
-                messages.success(request, "Service area added.")
+                messages.success(request, _("Service area added."))
 
             provider.evaluate_profile_completion()
 
@@ -605,15 +625,15 @@ def provider_service_areas(request):
                 area.save(update_fields=["is_active"])
                 provider.evaluate_profile_completion()
                 if area.is_active:
-                    messages.success(request, "Service area activated.")
+                    messages.success(request, _("Service area activated."))
                 else:
-                    messages.success(request, "Service area deactivated.")
+                    messages.success(request, _("Service area deactivated."))
             else:
-                messages.error(request, "Service area not found.")
+                messages.error(request, _("Service area not found."))
 
             return redirect("provider_service_areas")
 
-        messages.error(request, "Unsupported service area action.")
+        messages.error(request, _("Unsupported service area action."))
         return redirect("provider_service_areas")
 
     active_areas = ProviderServiceArea.objects.filter(
@@ -663,7 +683,7 @@ def provider_complete_profile(request):
         if request.POST.get("area_action"):
             messages.info(
                 request,
-                "Service areas are now managed from the dedicated Manage Service Areas page.",
+                _("Service areas are now managed from the dedicated Manage Service Areas page."),
             )
             return redirect("provider_service_areas")
 
@@ -679,13 +699,15 @@ def provider_complete_profile(request):
 
             messages.success(
                 request,
-                "Terms accepted. Complete the remaining requirements below to finish your profile.",
+                _(
+                    "Terms accepted. Complete the remaining requirements below to finish your profile."
+                ),
             )
             return redirect("provider_complete_profile")
 
         messages.info(
             request,
-            "This page is now a checklist. Use the dedicated pages below to update your profile.",
+            _("This page is now a checklist. Use the dedicated pages below to update your profile."),
         )
         return redirect("provider_complete_profile")
 
@@ -695,8 +717,8 @@ def provider_complete_profile(request):
     ).order_by("province", "city")
 
     if provider.normalized_provider_type == "company":
-        profile_step_title = "Business profile details"
-        profile_step_description = (
+        profile_step_title = _("Business profile details")
+        profile_step_description = _(
             "Complete your company name, business registration number, and contact person in Edit Profile."
         )
         profile_details_complete = bool(
@@ -706,8 +728,8 @@ def provider_complete_profile(request):
             and provider.contact_last_name
         )
     else:
-        profile_step_title = "Personal profile details"
-        profile_step_description = "Complete your legal name in Edit Profile."
+        profile_step_title = _("Personal profile details")
+        profile_step_description = _("Complete your legal name in Edit Profile.")
         profile_details_complete = bool(provider.legal_name)
 
     has_active_area = active_areas.exists()
@@ -722,24 +744,33 @@ def provider_complete_profile(request):
 
     missing_required_steps = []
     if not profile_details_complete:
-        missing_required_steps.append("Complete your profile details from Edit Profile.")
+        missing_required_steps.append(
+            _("Complete your profile details from Edit Profile.")
+        )
     if not has_active_area:
-        missing_required_steps.append("Add at least one active service area.")
+        missing_required_steps.append(_("Add at least one active service area."))
     if not provider.accepts_terms:
-        missing_required_steps.append("Accept the provider terms.")
+        missing_required_steps.append(_("Accept the provider terms."))
 
     insurance = getattr(provider, "insurance", None)
     if insurance and insurance.has_insurance:
-        insurance_status = "Verified" if insurance.is_verified else "Pending verification"
+        insurance_status = (
+            _("Verified")
+            if insurance.is_verified
+            else _("Pending verification")
+        )
     else:
-        insurance_status = "Not provided"
+        insurance_status = _("Not provided")
 
     certificate_count = provider.certificates.count()
     verified_certificate_count = provider.certificates.filter(status="verified").count()
     if certificate_count:
-        certificates_status = f"{verified_certificate_count}/{certificate_count} verified"
+        certificates_status = _("%(verified)s/%(total)s verified") % {
+            "verified": verified_certificate_count,
+            "total": certificate_count,
+        }
     else:
-        certificates_status = "No certificates uploaded"
+        certificates_status = _("No certificates uploaded")
 
     return render(
         request,
@@ -800,7 +831,10 @@ def provider_complete_billing(request):
             _set_provider_session(request, provider)
             request.session.pop("verify_actor_type", None)
             request.session.pop("verify_actor_id", None)
-            messages.success(request, "Billing information saved successfully.")
+            messages.success(
+                request,
+                _("Billing information saved successfully."),
+            )
             return redirect("portal:provider_dashboard")
     else:
         form = ProviderBillingForm(instance=provider, provider=provider)

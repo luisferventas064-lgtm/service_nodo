@@ -1,16 +1,17 @@
 {% extends "ui/base.html" %}
+{% load i18n %}
 
-{% block title %}Jobs{% endblock %}
+{% block title %}{% trans "Jobs" %}{% endblock %}
 
 {% block content %}
-<h1 class="h4 mb-3">Jobs (ultimos 100)</h1>
+<h1 class="h4 mb-3">{% trans "Jobs (latest 100)" %}</h1>
 
 <table class="table table-sm table-striped align-middle">
   <thead>
     <tr>
       <th>ID</th>
-      <th>Status</th>
-      <th>Creado</th>
+      <th>{% trans "Status" %}</th>
+      <th>{% trans "Created" %}</th>
       <th></th>
     </tr>
   </thead>
@@ -22,13 +23,13 @@
         <td>{{ j.created_at|date:"Y-m-d H:i:s"|default:"-" }}</td>
         <td>
           <a class="btn btn-outline-primary btn-sm" href="{% url 'ui:job_detail' j.job_id %}">
-            Ver
+            {% trans "View" %}
           </a>
         </td>
       </tr>
     {% empty %}
       <tr>
-        <td colspan="4" class="text-muted">No hay jobs.</td>
+        <td colspan="4" class="text-muted">{% trans "No jobs." %}</td>
       </tr>
     {% endfor %}
   </tbody>

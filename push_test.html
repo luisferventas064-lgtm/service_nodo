@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NODO Push Test</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f1ea;
+      --panel: #fffaf2;
+      --ink: #1e1c1a;
+      --muted: #6b6257;
+      --accent: #0e7a5f;
+      --accent-2: #d9822b;
+      --border: #d9cdbd;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(circle at top left, rgba(217, 130, 43, 0.14), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(14, 122, 95, 0.16), transparent 28%),
+        var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(760px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 18px 50px rgba(30, 28, 26, 0.08);
+      padding: 28px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 0.95;
+    }
+
+    p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 22px 0 18px;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      cursor: pointer;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .secondary {
+      background: var(--accent-2);
+      color: white;
+    }
+
+    .panel {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .hint {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>NODO Push Test</h1>
+    <p>
+      Fill the Firebase placeholders in this file, serve it on
+      <code>http://localhost:8080</code>, then click the button to request
+      notification permission and generate a real FCM web token.
+    </p>
+    <p>
+      This page also listens for foreground messages, and the service worker in
+      <code>firebase-messaging-sw.js</code> is ready to display background
+      notifications from the current NODO data payload.
+    </p>
+
+    <section class="panel">
+      <span class="label">Status</span>
+      <pre id="status">Idle</pre>
+    </section>
+
+    <div class="actions">
+      <button class="primary" id="enable-btn">Enable Push</button>
+      <button class="secondary" id="copy-btn" disabled>Copy Token</button>
+    </div>
+
+    <section class="panel">
+      <span class="label">FCM Token</span>
+      <pre id="token-out">No token yet.</pre>
+    </section>
+
+    <section class="panel">
+      <span class="label">Foreground Message Log</span>
+      <pre id="message-log">Waiting for messages...</pre>
+    </section>
+
+    <p class="hint">
+      Keep this page open when testing browser delivery. The next step after a
+      real token is registering it in Django as platform <code>web</code>.
+    </p>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getMessaging,
+      getToken,
+      onMessage,
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+
+    const statusEl = document.getElementById("status");
+    const tokenOutEl = document.getElementById("token-out");
+    const messageLogEl = document.getElementById("message-log");
+    const enableBtn = document.getElementById("enable-btn");
+    const copyBtn = document.getElementById("copy-btn");
+
+    const firebaseConfig = {
+  apiKey: "AIzaSyB1A--6rEiGS_m1cieEJsmjdqp_thSDzJI",
+  authDomain: "nodo-9151e.firebaseapp.com",
+  projectId: "nodo-9151e",
+  storageBucket: "nodo-9151e.firebasestorage.app",
+  messagingSenderId: "16351311321",
+  appId: "1:16351311321:web:f3711be3e7f03607d495c8",
+  measurementId: "G-GZNGLYELVL"
+};
+
+    const vapidKey = "BO07kVsE66Fry5QyXBye3AbqBMxLFsGn1LHpEF-feHA-1G-9x-eyLKKw8RiF_JsdidSpkWfA1kG_EeF1oaoaXfs";
+
+    let currentToken = "";
+
+    function hasPlaceholders() {
+      const values = Object.values(firebaseConfig).concat(vapidKey);
+      return values.some((value) => String(value).startsWith("TU_"));
+    }
+
+    function setStatus(value) {
+      statusEl.textContent = value;
+    }
+
+    function setToken(value) {
+      currentToken = value || "";
+      tokenOutEl.textContent = currentToken || "No token returned.";
+      copyBtn.disabled = !currentToken;
+    }
+
+    function appendMessage(prefix, value) {
+      const serialized = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      const next = `[${new Date().toLocaleTimeString()}] ${prefix}\n${serialized}\n\n`;
+      messageLogEl.textContent = next + messageLogEl.textContent;
+    }
+
+    if (!window.isSecureContext) {
+      setStatus("This page must run in a secure context. Use http://localhost:8080.");
+      enableBtn.disabled = true;
+    } else if (!("Notification" in window)) {
+      setStatus("This browser does not support the Notifications API.");
+      enableBtn.disabled = true;
+    } else if (!("serviceWorker" in navigator)) {
+      setStatus("This browser does not support service workers.");
+      enableBtn.disabled = true;
+    } else if (hasPlaceholders()) {
+      setStatus("Replace TU_* Firebase placeholders before testing.");
+    }
+
+    copyBtn.addEventListener("click", async () => {
+      if (!currentToken) {
+        return;
+      }
+      await navigator.clipboard.writeText(currentToken);
+      setStatus("Token copied to clipboard.");
+    });
+
+    enableBtn.addEventListener("click", async () => {
+      if (hasPlaceholders()) {
+        setStatus("Replace TU_* Firebase placeholders first.");
+        return;
+      }
+
+      enableBtn.disabled = true;
+      setStatus("Requesting notification permission...");
+
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          setStatus(`Permission not granted: ${permission}`);
+          enableBtn.disabled = false;
+          return;
+        }
+
+        setStatus("Registering service worker...");
+        const registration = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+        const app = initializeApp(firebaseConfig);
+        const messaging = getMessaging(app);
+
+        onMessage(messaging, (payload) => {
+          appendMessage("Foreground message", payload);
+
+          const data = payload?.data || {};
+          const title = data.title || "NODO";
+          const body =
+            data.body ||
+            data.visible_status ||
+            data.event_type ||
+            "Foreground push received.";
+
+          if (Notification.permission === "granted") {
+            new Notification(title, { body });
+          }
+        });
+
+        setStatus("Requesting FCM token...");
+        const token = await getToken(messaging, {
+          vapidKey,
+          serviceWorkerRegistration: registration,
+        });
+
+        if (!token) {
+          setStatus("FCM returned no token.");
+          setToken("");
+          enableBtn.disabled = false;
+          return;
+        }
+
+        setToken(token);
+        setStatus("Token generated successfully.");
+      } catch (error) {
+        const details = error?.stack || error?.message || String(error);
+        setStatus(`ERROR\n${details}`);
+        appendMessage("Token error", details);
+        enableBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

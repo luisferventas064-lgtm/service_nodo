@@ -2,23 +2,25 @@ from __future__ import annotations
 
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from .models import Job, JobEvent
 
 VISIBLE_JOB_STATUS_LABELS = {
-    Job.JobStatus.DRAFT: "Waiting for provider response",
-    Job.JobStatus.POSTED: "Waiting for provider response",
-    Job.JobStatus.WAITING_PROVIDER_RESPONSE: "Waiting for provider response",
-    Job.JobStatus.HOLD: "Waiting for provider response",
-    Job.JobStatus.PENDING_PROVIDER_CONFIRMATION: "Waiting for provider response",
-    Job.JobStatus.PENDING_CLIENT_DECISION: "Accepted",
-    Job.JobStatus.PENDING_CLIENT_CONFIRMATION: "Accepted",
-    Job.JobStatus.ASSIGNED: "Accepted",
-    Job.JobStatus.IN_PROGRESS: "In progress",
-    Job.JobStatus.COMPLETED: "Completed",
-    Job.JobStatus.CONFIRMED: "Completed",
-    Job.JobStatus.CANCELLED: "Cancelled",
-    Job.JobStatus.EXPIRED: "Cancelled",
+    Job.JobStatus.DRAFT: _("Waiting for provider response"),
+    Job.JobStatus.POSTED: _("Waiting for provider response"),
+    Job.JobStatus.SCHEDULED_PENDING_ACTIVATION: _("Request submitted"),
+    Job.JobStatus.WAITING_PROVIDER_RESPONSE: _("Waiting for provider response"),
+    Job.JobStatus.HOLD: _("Waiting for provider response"),
+    Job.JobStatus.PENDING_PROVIDER_CONFIRMATION: _("Waiting for provider response"),
+    Job.JobStatus.PENDING_CLIENT_DECISION: _("Accepted"),
+    Job.JobStatus.PENDING_CLIENT_CONFIRMATION: _("Accepted"),
+    Job.JobStatus.ASSIGNED: _("Accepted"),
+    Job.JobStatus.IN_PROGRESS: _("In progress"),
+    Job.JobStatus.COMPLETED: _("Completed"),
+    Job.JobStatus.CONFIRMED: _("Completed"),
+    Job.JobStatus.CANCELLED: _("Cancelled"),
+    Job.JobStatus.EXPIRED: _("Expired"),
 }
 
 

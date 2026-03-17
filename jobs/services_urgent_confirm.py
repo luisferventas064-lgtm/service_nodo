@@ -7,30 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from jobs.models import Job
-
-
-class ConfirmConflict(Exception):
-    pass
-
-
-@dataclass(frozen=True)
-class ConfirmResult:
-    job_id: int
-    provider_id: int
-    job_status: str
-    urgent_total: Decimal
-    urgent_fee: Decimal
-
-
-from __future__ import annotations
-
-from dataclasses import dataclass
-from decimal import Decimal
-
-from django.db import transaction
-from django.utils import timezone
-
-from jobs.models import Job
+from jobs.services_state_transitions import transition_job_status
 
 
 class ConfirmConflict(Exception):
@@ -48,13 +25,13 @@ class ConfirmResult:
 
 def confirm_urgent_job(*, job_id: int, provider_id: int) -> ConfirmResult:
     """
-    Concurrency-safe confirm (DOBLE CONFIRMACIÓN):
-    - bloquea fila Job
-    - valida HOLD activo y que pertenezca al provider
-    - valida snapshot urgent price presente
-    - fija selected_provider_id (provider ganador)
-    - cambia status a pending_client_confirmation
-    - limpia HOLD
+    Concurrency-safe urgent confirm:
+    - locks the Job row
+    - validates an active hold owned by the provider
+    - requires frozen urgent pricing
+    - assigns the winning provider
+    - transitions to pending_client_confirmation
+    - clears the hold
     """
 
     now = timezone.now()
@@ -62,33 +39,33 @@ def confirm_urgent_job(*, job_id: int, provider_id: int) -> ConfirmResult:
     with transaction.atomic():
         job = Job.objects.select_for_update().get(job_id=job_id)
 
-        # HOLD debe existir
         if not job.hold_provider_id or not job.hold_expires_at:
-            raise ConfirmConflict("No hay HOLD activo para este job.")
+            raise ConfirmConflict("No active HOLD exists for this job.")
 
-        # HOLD no debe estar expirado
         if job.hold_expires_at <= now:
-            raise ConfirmConflict(f"HOLD expirado en {job.hold_expires_at}.")
+            raise ConfirmConflict(f"HOLD expired at {job.hold_expires_at}.")
 
-        # Debe ser el mismo provider
         if job.hold_provider_id != provider_id:
             raise ConfirmConflict(
-                f"Job en HOLD por provider_id={job.hold_provider_id}, no por provider_id={provider_id}."
+                f"Job is on HOLD for provider_id={job.hold_provider_id}, not provider_id={provider_id}."
             )
 
-        # Debe existir precio urgente congelado
         if job.quoted_urgent_total_price is None or job.quoted_urgent_fee_amount is None:
-            raise ConfirmConflict("Precio urgente no está congelado en el job.")
+            raise ConfirmConflict("Urgent price is not frozen on the job.")
 
-        # Estados válidos para confirmar (ajusta si lo necesitas)
-        if job.job_status not in ("posted", "hold", "pending_provider_confirmation", "pending_client_confirmation"):
-            raise ConfirmConflict(f"Estado inválido para confirmar urgencia: {job.job_status}")
+        allowed_statuses = {
+            "posted",
+            "hold",
+            "pending_provider_confirmation",
+            "pending_client_confirmation",
+        }
+        if job.job_status not in allowed_statuses:
+            raise ConfirmConflict(f"Invalid status for urgent confirmation: {job.job_status}")
 
-        # ✅ Idempotencia segura
         if job.job_status == "pending_client_confirmation":
             if job.selected_provider_id and job.selected_provider_id != provider_id:
                 raise ConfirmConflict(
-                    f"Ya existe selected_provider_id={job.selected_provider_id}, no coincide con provider_id={provider_id}."
+                    f"selected_provider_id={job.selected_provider_id} does not match provider_id={provider_id}."
                 )
             return ConfirmResult(
                 job_id=job.job_id,
@@ -98,22 +75,24 @@ def confirm_urgent_job(*, job_id: int, provider_id: int) -> ConfirmResult:
                 urgent_fee=job.quoted_urgent_fee_amount,
             )
 
-        # ✅ Fijar provider ganador (reserva real)
         job.selected_provider_id = provider_id
-
-        # Provider confirmó -> ahora espera confirmación del cliente
-        job.job_status = "pending_client_confirmation"
-
-        # Limpieza HOLD
+        transition_job_status(
+            job,
+            Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
+            actor="provider",
+            reason="confirm_urgent_job",
+            allow_legacy=True,
+        )
         job.hold_provider = None
         job.hold_expires_at = None
-
-        job.save(update_fields=[
-            "selected_provider",
-            "job_status",
-            "hold_provider",
-            "hold_expires_at",
-        ])
+        job.save(
+            update_fields=[
+                "selected_provider",
+                "hold_provider",
+                "hold_expires_at",
+                "updated_at",
+            ]
+        )
 
         return ConfirmResult(
             job_id=job.job_id,
