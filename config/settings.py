@@ -161,23 +161,34 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": os.getenv("DB_ENGINE", "mssql"),
-        "NAME": os.getenv("DB_NAME", "Nodo"),
-        "HOST": os.getenv("DB_HOST", r".\SQLEXPRESS"),
-        "PORT": os.getenv("DB_PORT", ""),
-        "USER": os.getenv("DB_USER", ""),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "OPTIONS": {
-            "driver": os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server"),
-            "TrustServerCertificate": os.getenv(
-                "DB_TRUST_SERVER_CERTIFICATE",
-                "yes",
-            ),
-        },
+USE_SQLITE = os.getenv("USE_SQLITE", "false").lower() == "true"
+DB_ENGINE = os.getenv("DB_ENGINE", "mssql")
+
+if USE_SQLITE or DB_ENGINE == "django.db.backends.sqlite3":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3")),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": DB_ENGINE,
+            "NAME": os.getenv("DB_NAME", "Nodo"),
+            "HOST": os.getenv("DB_HOST", r".\SQLEXPRESS"),
+            "PORT": os.getenv("DB_PORT", ""),
+            "USER": os.getenv("DB_USER", ""),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "OPTIONS": {
+                "driver": os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server"),
+                "TrustServerCertificate": os.getenv(
+                    "DB_TRUST_SERVER_CERTIFICATE",
+                    "yes",
+                ),
+            },
+        }
+    }
 
 
 
@@ -242,3 +253,14 @@ GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 PUSH_PROVIDER = os.getenv("PUSH_PROVIDER", "stub")
 FCM_PROJECT_ID = os.getenv("FCM_PROJECT_ID")
 FCM_CREDENTIALS_FILE = os.getenv("FCM_CREDENTIALS_FILE")
+
+FIREBASE_CONFIG = {
+    "apiKey": os.getenv("FIREBASE_API_KEY", ""),
+    "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN", ""),
+    "projectId": os.getenv("FIREBASE_PROJECT_ID", ""),
+    "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET", ""),
+    "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
+    "appId": os.getenv("FIREBASE_APP_ID", ""),
+    "measurementId": os.getenv("FIREBASE_MEASUREMENT_ID", ""),
+}
+FIREBASE_VAPID_KEY = os.getenv("FIREBASE_VAPID_KEY", "")
