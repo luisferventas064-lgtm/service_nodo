@@ -274,6 +274,7 @@ def handle_provider_accept_action(*, request, job, provider, redirect_name: str)
     return redirect(redirect_name)
 
 
+
 def handle_provider_decline_action(*, request, job, provider, redirect_name: str):
     if job.selected_provider_id != provider.pk:
         return HttpResponseForbidden(_("Not authorized."))
@@ -330,6 +331,59 @@ def handle_provider_decline_action(*, request, job, provider, redirect_name: str
     return redirect(redirect_name)
 
 
+def handle_provider_decline_scheduled_action(*, request, job, provider, redirect_name: str):
+    """
+    Provider declines a scheduled job they were assigned to but have not started yet.
+    The job returns to waiting_provider_response so the system can reassign it.
+    The job is NOT cancelled - only the provider participation ends.
+    """
+    if job.selected_provider_id != provider.pk:
+        return HttpResponseForbidden(_("Not authorized."))
+    if job.job_status != Job.JobStatus.SCHEDULED_PENDING_ACTIVATION:
+        return HttpResponseForbidden(_("Job is not in scheduled pending activation status."))
+
+    with transaction.atomic():
+        JobProviderExclusion.objects.get_or_create(
+            job=job,
+            provider=provider,
+            defaults={"reason": JobProviderExclusion.Reason.DECLINED},
+        )
+        active_assignment = (
+            job.assignments.filter(provider=provider, is_active=True)
+            .order_by("-created_at")
+            .first()
+        )
+        if active_assignment:
+            transition_assignment_status(
+                active_assignment,
+                "cancelled",
+                actor=JobEvent.ActorRole.PROVIDER,
+                reason="provider_scheduled_decline",
+            )
+
+        transition_job_status(
+            job,
+            Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            actor=JobEvent.ActorRole.PROVIDER,
+            reason="provider_scheduled_decline",
+        )
+        job.selected_provider = None
+        job.save(update_fields=["selected_provider", "updated_at"])
+
+        create_job_event(
+            job=job,
+            event_type=JobEvent.EventType.PROVIDER_DECLINED,
+            actor_role=JobEvent.ActorRole.PROVIDER,
+            provider_id=provider.provider_id,
+            payload={"source": "provider_scheduled_decline"},
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            note="provider declined scheduled job before activation",
+        )
+
+    messages.success(request, _("You have been removed from this scheduled job."))
+    return redirect(redirect_name)
+
+
 def provider_accept_job_view(request, job_id):
     if request.method != "POST":
         return redirect("ui:provider_incoming_jobs")
@@ -361,4 +415,21 @@ def provider_decline_job_view(request, job_id):
         job=job,
         provider=provider,
         redirect_name="ui:provider_incoming_jobs",
+    )
+
+
+def provider_decline_scheduled_job_view(request, job_id):
+    if request.method != "POST":
+        return redirect("ui:provider_jobs")
+
+    provider = _current_provider_from_session(request)
+    if provider is None:
+        return redirect("provider_register")
+
+    job = get_object_or_404(Job, pk=job_id)
+    return handle_provider_decline_scheduled_action(
+        request=request,
+        job=job,
+        provider=provider,
+        redirect_name="ui:provider_jobs",
     )

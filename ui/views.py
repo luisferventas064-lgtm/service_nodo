@@ -2689,6 +2689,8 @@ def request_status_view(request, job_id):
                         reason="request_status_cancel",
                     )
 
+                job.cancelled_by = Job.CancellationActor.CLIENT
+                job.cancel_reason = Job.CancelReason.CLIENT_CANCELLED
                 transition_job_status(
                     job,
                     Job.JobStatus.CANCELLED,
@@ -2696,8 +2698,6 @@ def request_status_view(request, job_id):
                     reason="request_status_cancel",
                     allow_legacy=True,
                 )
-                job.cancelled_by = Job.CancellationActor.CLIENT
-                job.cancel_reason = Job.CancelReason.CLIENT_CANCELLED
                 job.save(
                     update_fields=["cancelled_by", "cancel_reason", "updated_at"]
                 )
@@ -2821,11 +2821,10 @@ def provider_jobs_view(request):
         .filter(
             job_status__in=[
                 Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+                Job.JobStatus.SCHEDULED_PENDING_ACTIVATION,
                 Job.JobStatus.ASSIGNED,
+                Job.JobStatus.PENDING_CLIENT_CONFIRMATION,
                 Job.JobStatus.IN_PROGRESS,
-                Job.JobStatus.COMPLETED,
-                Job.JobStatus.CONFIRMED,
-                Job.JobStatus.CANCELLED,
             ]
         )
         .select_related("client", "service_type", "provider_service")
@@ -2904,10 +2903,17 @@ def provider_job_action_view(request, job_id):
             provider=provider,
             redirect_name="ui:provider_jobs",
         )
+    elif action == "decline_scheduled":
+        from .views_provider import handle_provider_decline_scheduled_action
+
+        return handle_provider_decline_scheduled_action(
+            request=request,
+            job=job,
+            provider=provider,
+            redirect_name="ui:provider_jobs",
+        )
     else:
         return HttpResponseBadRequest(_("Invalid action."))
-
-    return redirect("ui:provider_jobs")
 
 
 @staff_member_required

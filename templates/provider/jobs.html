@@ -76,9 +76,14 @@
     color: #28724c;
   }
 
-  .job-status-cancelled {
-    background: #f9ebee;
-    color: #9f4c5b;
+  .job-status-scheduled {
+    background: #f0f4ff;
+    color: #3a56a8;
+  }
+
+  .job-status-pending-confirmation {
+    background: #fff8e6;
+    color: #9a6c00;
   }
 
   .job-meta-grid {
@@ -222,7 +227,7 @@
             </div>
 
             <span
-              class="job-status{% if job.job_status == 'assigned' or job.job_status == 'in_progress' %} job-status-assigned{% elif job.job_status == 'completed' or job.job_status == 'confirmed' %} job-status-completed{% elif job.job_status == 'cancelled' %} job-status-cancelled{% endif %}"
+              class="job-status{% if job.job_status == 'assigned' or job.job_status == 'in_progress' %} job-status-assigned{% elif job.job_status == 'scheduled_pending_activation' %} job-status-scheduled{% elif job.job_status == 'pending_client_confirmation' %} job-status-pending-confirmation{% elif job.job_status == 'completed' or job.job_status == 'confirmed' %} job-status-completed{% endif %}"
             >
               {{ job.get_job_status_display }}
             </span>
@@ -392,39 +397,15 @@
             </div>
           {% endif %}
 
-          {% if job.job_status == "completed" %}
+          {% if job.job_status == "scheduled_pending_activation" %}
+            <div class="job-notes">
+              <span class="job-meta-label">{% trans "Status" %}</span>
+              <div class="job-meta-value">{% trans "Scheduled — awaiting activation window." %}</div>
+            </div>
+          {% elif job.job_status == "pending_client_confirmation" %}
             <div class="job-notes">
               <span class="job-meta-label">{% trans "Next step" %}</span>
-              <div class="job-meta-value">{% trans "Waiting client confirmation." %}</div>
-            </div>
-          {% elif job.job_status == "confirmed" %}
-            <div class="job-notes">
-              <span class="job-meta-label">{% trans "Closure" %}</span>
-              <div class="job-meta-value">
-                {% trans "Service closed." %}
-                {% if job.confirmed_event and job.confirmed_event.note == "auto_timeout_72h" %}
-                  {% trans "Closed automatically after the 72-hour timeout." %}
-                {% else %}
-                  {% trans "Closed by client confirmation." %}
-                {% endif %}
-              </div>
-            </div>
-          {% elif job.job_status == "cancelled" %}
-            <div class="job-notes">
-              <span class="job-meta-label">{% trans "Cancellation" %}</span>
-              <div class="job-meta-value">
-                {% if job.cancel_reason == "dispute_approved" %}
-                  {% trans "Cancelled after dispute approval." %}
-                {% elif job.cancel_reason == "provider_rejected" %}
-                  {% trans "Cancelled because the provider declined the request." %}
-                {% elif job.cancel_reason == "client_cancelled" %}
-                  {% trans "Cancelled by the client." %}
-                {% elif job.cancel_reason == "auto_timeout" %}
-                  {% trans "Cancelled by automatic timeout." %}
-                {% else %}
-                  {% trans "Cancelled." %}
-                {% endif %}
-              </div>
+              <div class="job-meta-value">{% trans "Waiting for client confirmation." %}</div>
             </div>
           {% endif %}
 
@@ -446,6 +427,17 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="start">
                 <button type="submit" class="btn-job btn-job-primary">{% trans "Start" %}</button>
+
+                          {% if job.job_status == "scheduled_pending_activation" %}
+                            <form method="post" action="{% url 'ui:provider_decline_scheduled_job' job.job_id %}">
+                              {% csrf_token %}
+                              <button
+                                type="submit"
+                                class="btn-job btn-job-danger"
+                                onclick="return confirm('{% trans "Are you sure you want to decline this scheduled job? The client will be notified and the job will be reassigned." %}');"
+                              >{% trans "Not available" %}</button>
+                            </form>
+                          {% endif %}
               </form>
             {% endif %}
 
