@@ -5,15 +5,18 @@ import random
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from core.auth_session import require_role
 from core.legal_disclaimers import build_financial_disclaimer_context
+from core.utils.phone import is_phone_duplicate_allowed
 from jobs.activity_query import ActivityQuery
 from core.services.sms_service import send_sms
 from jobs.activity_service import build_activity_view_context, export_activity_csv
+from jobs.models import Job
 from ui.models import PasswordResetCode
 
 from .forms import (
@@ -176,11 +179,64 @@ def provider_register(request):
                             % {"code": code},
                         )
                 except IntegrityError:
-                    form.add_error(
-                        "email",
-                        _("A provider with this email already exists."),
-                    )
+                    if is_phone_duplicate_allowed(form.cleaned_data["phone_number"]):
+                        provider = Provider.objects.filter(
+                            phone_number=form.cleaned_data["phone_number"]
+                        ).order_by("pk").first()
+                        if provider is None:
+                            form.add_error(None, _("Unable to reuse test provider account."))
+                            return render(request, "providers/register.html", {"form": form})
+
+                        provider.provider_type = provider_type
+                        provider.company_name = (
+                            business_name if provider_type == Provider.TYPE_COMPANY else None
+                        )
+                        provider.contact_first_name = contact_first_name
+                        provider.contact_last_name = contact_last_name
+                        provider.email = form.cleaned_data["email"]
+                        provider.languages_spoken = form.cleaned_data.get("languages_spoken", "")
+                        provider.password = make_password(form.cleaned_data["password"])
+                        provider.is_phone_verified = False
+                        provider.profile_completed = False
+                        provider.accepts_terms = False
+                        provider.billing_profile_completed = False
+                        provider.country = form.cleaned_data["country_name"]
+                        provider.province = "QC"
+                        provider.city = "Pending"
+                        provider.postal_code = "PENDING"
+                        provider.address_line1 = "Pending profile completion"
+                        provider.save()
+
+                        code = str(random.randint(100000, 999999))
+                        PasswordResetCode.objects.filter(
+                            phone_number=provider.phone_number,
+                            purpose="verify",
+                            used=False,
+                        ).update(used=True)
+                        PasswordResetCode.objects.create(
+                            phone_number=provider.phone_number,
+                            code=code,
+                            purpose="verify",
+                            ip_address=ip,
+                        )
+                        send_sms(
+                            provider.phone_number,
+                            _("Your NODO verification code is: %(code)s")
+                            % {"code": code},
+                        )
+                    else:
+                        form.add_error(
+                            "email",
+                            _("A provider with this email already exists."),
+                        )
                 else:
+                    request.session["verify_phone"] = provider.phone_number
+                    request.session["verify_role"] = "provider"
+                    request.session["verify_actor_type"] = "provider"
+                    request.session["verify_actor_id"] = provider.pk
+                    return redirect("verify_phone")
+
+                if not form.errors:
                     request.session["verify_phone"] = provider.phone_number
                     request.session["verify_role"] = "provider"
                     request.session["verify_actor_type"] = "provider"
@@ -237,6 +293,41 @@ def provider_profile(request):
 @require_role("provider")
 def provider_jobs(request):
     return redirect("ui:provider_jobs")
+
+
+@require_role("provider")
+def provider_missions(request):
+    provider = _get_logged_provider(request)
+    if provider is None:
+        request.session.pop("provider_id", None)
+        request.session.pop("nodo_profile_id", None)
+        return redirect("provider_register")
+
+    missions = (
+        Job.objects.filter(
+            Q(selected_provider=provider)
+            | Q(assignments__provider=provider, assignments__is_active=True)
+        )
+        .filter(
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status__in=[
+                Job.JobStatus.SCHEDULED_PENDING_ACTIVATION,
+                Job.JobStatus.ASSIGNED,
+                Job.JobStatus.IN_PROGRESS,
+            ],
+        )
+        .select_related("client", "service_type")
+        .distinct()
+        .order_by("scheduled_date", "scheduled_start_time")
+    )
+
+    return render(
+        request,
+        "providers/missions.html",
+        {
+            "missions": list(missions),
+        },
+    )
 
 
 @require_role("provider")

@@ -2,6 +2,8 @@ from django.test import SimpleTestCase
 
 from jobs.models import Job
 from jobs.services_state_transitions import (
+    _CANONICAL_ASSIGNMENT_TRANSITIONS,
+    _CANONICAL_JOB_TRANSITIONS,
     InvalidStateTransition,
     normalize_job_status,
     reactivate_assignment_legacy,
@@ -32,6 +34,19 @@ class _DummyAssignment(_DummyPersisted):
 
 
 class StateTransitionsContractTests(SimpleTestCase):
+    def test_job_graph_keeps_critical_lifecycle_edges(self):
+        self.assertIn(
+            Job.JobStatus.CONFIRMED,
+            _CANONICAL_JOB_TRANSITIONS[Job.JobStatus.IN_PROGRESS],
+        )
+        self.assertIn(
+            Job.JobStatus.CANCELLED,
+            _CANONICAL_JOB_TRANSITIONS[Job.JobStatus.COMPLETED],
+        )
+
+    def test_assignment_graph_keeps_completed_to_cancelled_edge(self):
+        self.assertIn("cancelled", _CANONICAL_ASSIGNMENT_TRANSITIONS["completed"])
+
     def test_job_transition_invalid_raises(self):
         job = _DummyJob(Job.JobStatus.WAITING_PROVIDER_RESPONSE)
 

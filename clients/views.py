@@ -2,6 +2,7 @@ from datetime import timedelta
 import random
 
 from django.contrib.auth.hashers import make_password
+from django.db import IntegrityError
 from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect, render
@@ -9,6 +10,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from core.auth_session import require_role
+from core.utils.phone import is_phone_duplicate_allowed
 from core.services.sms_service import send_sms
 from jobs.activity_service import build_activity_view_context, export_activity_csv
 from jobs.models import Job
@@ -76,39 +78,67 @@ def client_register(request):
             elif ip and recent_ip >= PASSWORD_CODE_IP_LIMIT:
                 form.add_error(None, "Too many attempts from this network.")
             else:
-                with transaction.atomic():
-                    client = Client.objects.create(
-                        first_name=first_name,
-                        last_name=last_name,
-                        email=form.cleaned_data["email"],
-                        phone_number=form.cleaned_data["phone_number"],
-                        languages_spoken=form.cleaned_data.get("languages_spoken", ""),
-                        password=make_password(form.cleaned_data["password"]),
-                        is_phone_verified=False,
-                        profile_completed=False,
-                        country=form.cleaned_data["country_name"],
-                        province="QC",
-                        city="Pending",
-                        postal_code="PENDING",
-                        address_line1="Pending profile completion",
-                    )
+                try:
+                    with transaction.atomic():
+                        client = Client.objects.create(
+                            first_name=first_name,
+                            last_name=last_name,
+                            email=form.cleaned_data["email"],
+                            phone_number=form.cleaned_data["phone_number"],
+                            languages_spoken=form.cleaned_data.get("languages_spoken", ""),
+                            password=make_password(form.cleaned_data["password"]),
+                            is_phone_verified=False,
+                            profile_completed=False,
+                            country=form.cleaned_data["country_name"],
+                            province="QC",
+                            city="Pending",
+                            postal_code="PENDING",
+                            address_line1="Pending profile completion",
+                        )
+                except IntegrityError:
+                    # In DEBUG with test phones, reuse the existing account to keep
+                    # local onboarding tests unblocked while preserving production constraints.
+                    if is_phone_duplicate_allowed(form.cleaned_data["phone_number"]):
+                        client = Client.objects.filter(
+                            phone_number=form.cleaned_data["phone_number"]
+                        ).order_by("pk").first()
+                        if client is None:
+                            form.add_error(None, "Unable to reuse test account.")
+                            return render(request, "clients/register.html", {"form": form})
 
-                    code = str(random.randint(100000, 999999))
-                    PasswordResetCode.objects.filter(
-                        phone_number=client.phone_number,
-                        purpose="verify",
-                        used=False,
-                    ).update(used=True)
-                    PasswordResetCode.objects.create(
-                        phone_number=client.phone_number,
-                        code=code,
-                        purpose="verify",
-                        ip_address=ip,
-                    )
-                    send_sms(
-                        client.phone_number,
-                        f"Your NODO verification code is: {code}",
-                    )
+                        client.first_name = first_name
+                        client.last_name = last_name
+                        client.email = form.cleaned_data["email"]
+                        client.languages_spoken = form.cleaned_data.get("languages_spoken", "")
+                        client.password = make_password(form.cleaned_data["password"])
+                        client.is_phone_verified = False
+                        client.profile_completed = False
+                        client.country = form.cleaned_data["country_name"]
+                        client.province = "QC"
+                        client.city = "Pending"
+                        client.postal_code = "PENDING"
+                        client.address_line1 = "Pending profile completion"
+                        client.save()
+                    else:
+                        form.add_error("phone_local", _("A client with this phone number already exists."))
+                        return render(request, "clients/register.html", {"form": form})
+
+                code = str(random.randint(100000, 999999))
+                PasswordResetCode.objects.filter(
+                    phone_number=client.phone_number,
+                    purpose="verify",
+                    used=False,
+                ).update(used=True)
+                PasswordResetCode.objects.create(
+                    phone_number=client.phone_number,
+                    code=code,
+                    purpose="verify",
+                    ip_address=ip,
+                )
+                send_sms(
+                    client.phone_number,
+                    f"Your NODO verification code is: {code}",
+                )
 
                 request.session["verify_phone"] = client.phone_number
                 request.session["verify_role"] = "client"

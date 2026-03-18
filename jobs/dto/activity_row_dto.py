@@ -265,7 +265,7 @@ class ActivityRowDTO:
             job_id=job.job_id,
             public_reference=job.public_reference,
             created_at=job.created_at,
-            service_name=getattr(getattr(job, "service_type", None), "name", ""),
+            service_name=getattr(getattr(job, "service_type", None), "localized_name", ""),
             service_option_name=_get_provider_service_name(job),
             city=job.city,
             province=job.province,

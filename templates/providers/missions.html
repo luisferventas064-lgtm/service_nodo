@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Missions" %}{% endblock %}
+
+{% block content %}
+<style>
+  .missions-wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
+
+  .missions-title {
+    margin: 0 0 6px;
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: #16313a;
+  }
+
+  .missions-subtitle {
+    margin: 0 0 22px;
+    color: #5f7280;
+  }
+
+  .missions-count {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 18px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #f0f4ff;
+    color: #3a56a8;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .missions-grid {
+    display: grid;
+    gap: 18px;
+  }
+
+  .mission-card {
+    background: #ffffff;
+    border: 1px solid #e7eef1;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(18, 46, 58, 0.06);
+  }
+
+  .mission-card-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .mission-title {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #16313a;
+  }
+
+  .mission-reference {
+    color: #6a7f89;
+    font-size: 0.95rem;
+  }
+
+  .mission-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #f0f4ff;
+    color: #3a56a8;
+    font-size: 0.86rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .mission-badge-in-progress {
+    background: #e8f1ff;
+    color: #285ea8;
+  }
+
+  .mission-badge-assigned {
+    background: #eaf7ee;
+    color: #28724c;
+  }
+
+  .mission-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .mission-meta-box {
+    background: #f8fbfc;
+    border: 1px solid #edf3f5;
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .mission-meta-label {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #79909b;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+
+  .mission-meta-value {
+    color: #18343d;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .empty-missions {
+    background: #ffffff;
+    border: 1px dashed #cfe1e6;
+    border-radius: 18px;
+    padding: 28px;
+    text-align: center;
+    color: #5f7280;
+  }
+
+  @media (max-width: 720px) {
+    .mission-card-top {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<div class="missions-wrap">
+  <h1 class="missions-title">{% trans "Missions" %}</h1>
+  <p class="missions-subtitle">{% trans "Scheduled and active services." %}</p>
+
+  {% if missions %}
+    <div class="missions-count">
+      {% blocktrans trimmed count count=missions|length %}
+        {{ count }} mission
+      {% plural %}
+        {{ count }} missions
+      {% endblocktrans %}
+    </div>
+
+    <div class="missions-grid">
+      {% for job in missions %}
+        <div class="mission-card">
+          <div class="mission-card-top">
+            <div>
+              <h2 class="mission-title">
+                {% if job.service_type.localized_name %}
+                  {{ job.service_type.localized_name }}
+                {% else %}
+                  {% trans "Scheduled Service" %}
+                {% endif %}
+              </h2>
+              <div class="mission-reference">
+                {% blocktrans trimmed with job_id=job.job_id %}Request #{{ job_id }}{% endblocktrans %}
+                {% if job.public_reference %}
+                  &middot; {{ job.public_reference }}
+                {% endif %}
+              </div>
+            </div>
+
+            <span class="mission-badge{% if job.job_status == 'in_progress' %} mission-badge-in-progress{% elif job.job_status == 'assigned' %} mission-badge-assigned{% endif %}">
+              {{ job.get_job_status_display }}
+            </span>
+          </div>
+
+          <div class="mission-meta-grid">
+            <div class="mission-meta-box">
+              <span class="mission-meta-label">{% trans "Client" %}</span>
+              <div class="mission-meta-value">{{ job.client|default:"-" }}</div>
+            </div>
+
+            <div class="mission-meta-box">
+              <span class="mission-meta-label">{% trans "Scheduled date" %}</span>
+              <div class="mission-meta-value">
+                {% if job.scheduled_date %}
+                  {{ job.scheduled_date|date:"M j, Y" }}
+                  {% if job.scheduled_start_time %}
+                    {% trans "at" %} {{ job.scheduled_start_time|time:"g:i A" }}
+                  {% endif %}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mission-meta-box">
+              <span class="mission-meta-label">{% trans "Estimated duration" %}</span>
+              <div class="mission-meta-value">
+                {% if job.estimated_duration_min %}
+                  {% blocktrans trimmed with duration=job.estimated_duration_min %}{{ duration }} min{% endblocktrans %}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mission-meta-box">
+              <span class="mission-meta-label">{% trans "Postal Code" %}</span>
+              <div class="mission-meta-value">{{ job.postal_code|default:"-" }}</div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-missions">
+      <p>{% trans "No scheduled services at the moment." %}</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

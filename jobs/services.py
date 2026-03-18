@@ -44,6 +44,7 @@ from jobs.models import (
     JobProviderExclusion,
     JobStatus,
 )
+from jobs.observability import log_assignment_event, log_marketplace_timeout
 from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
 from jobs.services_pricing_snapshot import (
     job_snapshot_currency,
@@ -277,6 +278,12 @@ def _deactivate_active_assignments_for_job(*, job: Job, actor_role: str, reason:
             actor=actor_role,
             reason=reason,
         )
+        log_assignment_event(
+            job.job_id,
+            assignment.assignment_id,
+            "cleared",
+            assignment.provider_id,
+        )
         deactivated += 1
     return deactivated
 
@@ -293,6 +300,7 @@ def _activate_marketplace_assignment_for_job(*, job_id: int, provider_id: int) -
         is_active=True,
     ).first()
     if existing_same:
+        log_assignment_event(job_id, existing_same.assignment_id, "already_active", provider_id)
         return existing_same.assignment_id
 
     active_other = (
@@ -315,9 +323,12 @@ def _activate_marketplace_assignment_for_job(*, job_id: int, provider_id: int) -
                 actor=JobEvent.ActorRole.SYSTEM,
                 reason="marketplace_assignment_reactivation",
             )
+            log_assignment_event(job_id, assignment.assignment_id, "reactivated", provider_id)
             Provider.objects.filter(provider_id=provider_id).update(
                 last_job_assigned_at=assigned_at
             )
+        else:
+            log_assignment_event(job_id, assignment.assignment_id, "already_active", provider_id)
         return assignment.assignment_id
 
     try:
@@ -328,6 +339,7 @@ def _activate_marketplace_assignment_for_job(*, job_id: int, provider_id: int) -
             is_active=True,
             assignment_status="assigned",
         )
+        log_assignment_event(job_id, assignment.assignment_id, "created", provider_id)
         Provider.objects.filter(provider_id=provider_id).update(last_job_assigned_at=assigned_at)
     except IntegrityError as exc:
         raise MarketplaceDecisionConflict("ASSIGNMENT_ACTIVATION_CONFLICT") from exc
@@ -443,6 +455,7 @@ def rank_broadcast_candidates_for_job(job, limit=10, attempt_number: int | None 
       - Orden deterministico + limit
     """
     from providers.models import Provider, ProviderLocation, ProviderService, ProviderServiceArea
+    from providers.availability import effective_provider_availability_q
     from providers.utils_distance import haversine_distance_km, providers_within_radius
     from providers.utils_geo_grid import grid_window_for_radius
     from providers.utils_ranking import dispatch_score_from_base, provider_runtime_dispatch_score
@@ -453,6 +466,14 @@ def rank_broadcast_candidates_for_job(job, limit=10, attempt_number: int | None 
         qs = qs.filter(is_active=True)
     if hasattr(Provider, "status"):
         qs = qs.filter(status__in=["active", "approved"])
+    qs = qs.filter(effective_provider_availability_q(now=timezone.now()))
+
+    if job.job_mode == Job.JobMode.ON_DEMAND:
+        if hasattr(Provider, "accepts_urgent"):
+            qs = qs.filter(accepts_urgent=True)
+    elif job.job_mode == Job.JobMode.SCHEDULED:
+        if hasattr(Provider, "accepts_scheduled"):
+            qs = qs.filter(accepts_scheduled=True)
 
     pst = ProviderService.objects.filter(
         provider_id=OuterRef("provider_id"),
@@ -1266,6 +1287,8 @@ def process_marketplace_client_confirmation_timeout(job_or_id, *, now=None) -> t
         if now < deadline:
             return ("not_due_client_confirmation_timeout", 0)
 
+        log_marketplace_timeout(job.job_id, "pending_client_confirmation_timeout")
+
         search_deadline = None
         if job.marketplace_search_started_at:
             search_deadline = job.marketplace_search_started_at + timedelta(
@@ -1290,6 +1313,7 @@ def process_marketplace_client_confirmation_timeout(job_or_id, *, now=None) -> t
                 provider_id=selected_provider_id,
                 note="timeout: pending_client_decision_24h",
             )
+            log_marketplace_timeout(job.job_id, "to_pending_client_decision")
             return ("timeout_to_pending_client_decision", 1)
 
         selected_provider_id = getattr(job, "selected_provider_id", None)
@@ -1319,6 +1343,7 @@ def process_marketplace_client_confirmation_timeout(job_or_id, *, now=None) -> t
             job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
             note="client confirmation timeout returned job to waiting",
         )
+        log_marketplace_timeout(job.job_id, "reopened_waiting_provider_response")
     return ("timeout_reopened_marketplace", 1)
 
 

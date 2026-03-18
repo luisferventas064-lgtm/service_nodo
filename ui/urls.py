@@ -75,13 +75,12 @@ urlpatterns = [
         views_provider.provider_decline_job_view,
         name="provider_decline_job",
     ),
+    path(
+        "provider/jobs/<int:job_id>/decline-scheduled/",
+        views_provider.provider_decline_scheduled_job_view,
+        name="provider_decline_scheduled_job",
+    ),
     path("provider/jobs/", views.provider_jobs_view, name="provider_jobs"),
-        path(
-            "provider/jobs/<int:job_id>/decline-scheduled/",
-            views_provider.provider_decline_scheduled_job_view,
-            name="provider_decline_scheduled_job",
-        ),
-        path("provider/jobs/", views.provider_jobs_view, name="provider_jobs"),
     path("provider/job/<int:job_id>/action/", views.provider_job_action_view, name="provider_job_action"),
     path("jobs/", views.jobs_list, name="jobs_list"),
     path("jobs/<int:job_id>/", views.job_detail, name="job_detail"),

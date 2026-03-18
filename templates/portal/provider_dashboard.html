@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n money %}
 
 {% block title %}{% trans "Provider Dashboard" %}{% endblock %}
 
@@ -55,14 +55,8 @@
       </div>
       <div class="kpi">
         <div class="kpi-label">{% trans "Completed revenue" %}</div>
-        <div class="kpi-value">
-          {% if revenue_cents %}
-            ${{ revenue_amount|floatformat:2 }}
-          {% else %}
-            $0
-          {% endif %}
-        </div>
-        <div class="kpi-hint">{% trans "Based on quoted totals" %}</div>
+        <div class="kpi-value">{{ revenue_amount|cad }}</div>
+        <div class="kpi-hint">{% trans "Based on finalized totals when available" %}</div>
       </div>
     </div>
 
@@ -73,7 +67,7 @@
           <div class="table-head">
             <div>{% trans "ID" %}</div>
             <div>{% trans "Status" %}</div>
-            <div>{% trans "Quoted total" %}</div>
+            <div>{% trans "Total" %}</div>
             <div></div>
           </div>
           {% for j in recent_jobs %}
@@ -81,8 +75,8 @@
               <div>#{{ j.job_id }}</div>
               <div>{{ j.get_job_status_display }}</div>
               <div>
-                {% if j.quoted_total_price_cents %}
-                  ${{ j.quoted_total_amount|floatformat:2 }}
+                {% if j.dashboard_total_amount %}
+                  {{ j.dashboard_total_amount|cad }}
                 {% else %}
                   -
                 {% endif %}

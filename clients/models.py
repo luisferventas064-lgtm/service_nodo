@@ -4,6 +4,7 @@ import json
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from core.utils.phone import is_phone_duplicate_allowed
 
 
 class Client(models.Model):
@@ -61,6 +62,25 @@ class Client(models.Model):
 
         return self.profile_completed
 
+    def clean(self):
+        """Custom validation to allow duplicate test phones in DEBUG mode."""
+        from django.conf import settings
+
+        super().clean()
+
+        # Skip unique phone check for test phones in DEBUG
+        if settings.DEBUG and is_phone_duplicate_allowed(self.phone_number):
+            return
+
+        # Validate phone uniqueness for production phones
+        if self.phone_number:
+            existing = Client.objects.filter(phone_number=self.phone_number)
+            if self.client_id:
+                existing = existing.exclude(client_id=self.client_id)
+            if existing.exists():
+                raise ValidationError(
+                    {"phone_number": f"Phone number {self.phone_number} is already in use."}
+                )
 
 class ClientServiceAddress(models.Model):
     client = models.ForeignKey(

@@ -1,3 +1,5 @@
+import re
+
 from django.db import models
 from django.utils.text import slugify
 
@@ -27,16 +29,28 @@ class ServiceType(models.Model):
         db_table = "service_type"
         ordering = ["name"]
 
+    _TRAILING_TOKEN_RE = re.compile(r"^(?P<label>.+?)\s+[0-9a-f]{8}$", re.IGNORECASE)
+
+    @classmethod
+    def _sanitize_display_name(cls, raw_name):
+        candidate = (raw_name or "").strip()
+        if not candidate:
+            return ""
+        match = cls._TRAILING_TOKEN_RE.match(candidate)
+        if match:
+            return match.group("label").strip()
+        return candidate
+
     def _get_localized_name(self):
         from django.utils.translation import get_language
 
         lang = (get_language() or "").lower()
         if lang.startswith("fr"):
-            return self.name_fr or self.name_en or self.name
+            return self._sanitize_display_name(self.name_fr or self.name_en or self.name)
         if lang.startswith("es"):
-            return self.name_es or self.name_en or self.name
+            return self._sanitize_display_name(self.name_es or self.name_en or self.name)
 
-        return self.name_en or self.name
+        return self._sanitize_display_name(self.name_en or self.name)
 
     @property
     def localized_name(self):
@@ -48,6 +62,24 @@ class ServiceType(models.Model):
 
     def __str__(self) -> str:
         return self.localized_name
+
+    def clean(self):
+        """Validate that no name fields contain trailing hash/token artifacts."""
+        from django.core.exceptions import ValidationError
+
+        errors = {}
+        for field_name in ("name", "name_en", "name_fr", "name_es"):
+            value = getattr(self, field_name, None)
+            if value and self._TRAILING_TOKEN_RE.match(value):
+                match = self._TRAILING_TOKEN_RE.match(value)
+                cleaned = match.group("label").strip()
+                errors[field_name] = (
+                    f"Name contains trailing hash/token artifact. "
+                    f"Found: '{value}'. Use cleaned form: '{cleaned}'"
+                )
+
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         """Auto-generate slug from name_en (fallback: name) on first save."""

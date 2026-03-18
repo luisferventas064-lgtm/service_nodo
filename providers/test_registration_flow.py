@@ -15,7 +15,13 @@ from service_type.models import RequiredCertification, ServiceType
 from ui.models import PasswordResetCode
 
 
-class ProviderRegistrationFlowTests(TestCase):
+class EnglishLocaleTestMixin:
+    def setUp(self):
+        super().setUp()
+        self.client.defaults["HTTP_ACCEPT_LANGUAGE"] = "en"
+
+
+class ProviderRegistrationFlowTests(EnglishLocaleTestMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.geocode_address_patcher = patch("providers.views.geocode_address", return_value=None)

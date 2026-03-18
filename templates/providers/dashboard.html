@@ -5,7 +5,7 @@
 
 {% block content %}
 <h1>{% trans "Provider Dashboard" %}</h1>
-<p>{% blocktrans with provider_name=provider %}Welcome, {{ provider_name }}.{% endblocktrans %}</p>
+<p>{% blocktrans with provider_name=provider %}Hello, {{ provider_name }}.{% endblocktrans %}</p>
 
 <div style="border:1px solid #ccc; padding:20px; margin-bottom:20px;">
   <h2>{% trans "Account Status" %}</h2>
@@ -32,7 +32,7 @@
   {% endif %}
 
   {% if not billing_ok %}
-    <p>{% trans "Complete your billing information." %}</p>
+    <p>{% trans "Complete billing information." %}</p>
   {% endif %}
 
   {% if active_services_count == 0 %}

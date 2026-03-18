@@ -315,7 +315,7 @@
       {% if selected_service_timing == "urgent" %}
         {% trans "Fast options for the next 24 hours" %}
       {% else %}
-        {% blocktrans trimmed with service_name=selected_service_type.name %}{{ service_name }} Providers{% endblocktrans %}
+        {% blocktrans trimmed with service_name=selected_service_type.localized_name %}{{ service_name }} Providers{% endblocktrans %}
       {% endif %}
     </h2>
 

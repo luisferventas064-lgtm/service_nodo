@@ -70,6 +70,18 @@ msgstr "Un client avec cet e-mail existe déjà."
 msgid "A client with this phone number already exists."
 msgstr "Un client avec ce numéro de téléphone existe déjà."
 
+#: .\core\utils\phone.py:76 .\core\utils\phone.py:81
+msgid "Invalid phone number."
+msgstr "Numéro de téléphone invalide."
+
+#: .\core\utils\phone.py:73
+msgid "Unsupported country."
+msgstr "Pays non pris en charge."
+
+#: .\core\utils\phone.py:70
+msgid "Custom country handling is not available yet."
+msgstr "La gestion personnalisée du pays n'est pas encore disponible."
+
 #: .\clients\forms.py:61 .\providers\forms.py:105 .\workers\forms.py:60
 msgid "Passwords do not match."
 msgstr "Les mots de passe ne correspondent pas."
@@ -77,47 +89,27 @@ msgstr "Les mots de passe ne correspondent pas."
 #: .\clients\views.py:252 .\providers\views.py:262
 #: .\templates\jobs\_activity_content.html:247 .\workers\views.py:191
 msgid "Activity History"
-msgstr ""
+msgstr "Historique d’activité"
 
 #: .\core\legal_disclaimers.py:6
-msgid ""
-"Financial and activity data displayed on this page is provided for "
-"informational and operational purposes only. NODO does not provide "
-"accounting, tax, payroll, or legal services and does not file, calculate, "
-"collect, or pay taxes on behalf of clients, providers, or workers. Each user "
-"is solely responsible for maintaining their own records and complying with "
-"all applicable tax, accounting, and legal obligations."
-msgstr ""
+msgid "Displayed data is provided for informational purposes."
+msgstr "Les données affichées sont fournies à titre informatif."
 
 #: .\core\legal_disclaimers.py:15
-msgid "Financial Reporting and Tax Responsibility"
-msgstr ""
+msgid "Tax responsibility"
+msgstr "Responsabilité fiscale"
 
 #: .\core\legal_disclaimers.py:19
 msgid ""
-"Any financial, revenue, earnings, or activity information displayed on the "
-"NODO platform is provided solely for informational and operational "
-"convenience. Such information may include summaries, analytics, exports, "
-"reports, or other data derived from platform activity.\n"
-"\n"
-"NODO does not provide accounting, tax, payroll, or legal services. NODO does "
-"not calculate, collect, remit, report, or pay taxes on behalf of clients, "
-"providers, or workers unless explicitly stated in a separate written "
-"agreement.\n"
-"\n"
-"All clients, providers, and workers using the platform remain solely "
-"responsible for maintaining accurate financial records, determining their "
-"tax obligations, filing required tax returns, and complying with all "
-"applicable federal, provincial, state, or local laws and regulations.\n"
-"\n"
-"The information provided by the platform should not be relied upon as "
-"professional accounting, tax, or legal advice. Users should consult their "
-"own accountants, tax advisors, or legal professionals when necessary."
+"NODO provides operational data only. Each user remains responsible for "
+"bookkeeping and tax obligations."
 msgstr ""
+"NODO fournit des données opérationnelles uniquement. Chaque utilisateur reste "
+"responsable de sa comptabilité et de ses obligations fiscales."
 
 #: .\jobs\activity_query.py:19
 msgid "All"
-msgstr ""
+msgstr "Tous"
 
 #: .\jobs\activity_query.py:20 .\jobs\models.py:92
 msgid "Posted"
@@ -159,35 +151,31 @@ msgstr "Client"
 
 #: .\jobs\activity_query.py:45
 msgid "All time"
-msgstr ""
+msgstr "Toute la période"
 
 #: .\jobs\activity_query.py:46
 msgid "Today"
-msgstr ""
+msgstr "Aujourd'hui"
 
 #: .\jobs\activity_query.py:47
-#, fuzzy
-#| msgid "Last name"
 msgid "Last 7 days"
-msgstr "Nom"
+msgstr "7 derniers jours"
 
 #: .\jobs\activity_query.py:48
 msgid "Last 30 days"
-msgstr ""
+msgstr "30 derniers jours"
 
 #: .\jobs\activity_query.py:51
 msgid "Newest first"
-msgstr ""
+msgstr "Plus recent d'abord"
 
 #: .\jobs\activity_query.py:52
 msgid "Oldest first"
-msgstr ""
+msgstr "Plus ancien d'abord"
 
 #: .\jobs\activity_query.py:53
-#, fuzzy
-#| msgid "Status"
 msgid "Status A-Z"
-msgstr "Statut"
+msgstr "Statut A-Z"
 
 #: .\jobs\events.py:10 .\jobs\events.py:11 .\jobs\events.py:13
 #: .\jobs\events.py:14 .\jobs\events.py:15
@@ -589,7 +577,7 @@ msgstr ""
 
 #: .\providers\views.py:301
 msgid "Financial Summary"
-msgstr ""
+msgstr "Résumé financier"
 
 #: .\providers\views.py:359
 msgid "Base profile is not completed yet."
@@ -1037,18 +1025,18 @@ msgstr "Masquer le mot de passe"
 
 #: .\templates\clients\account.html:4
 msgid "Client Account Settings"
-msgstr ""
+msgstr "Parametres du compte client"
 
 #: .\templates\clients\account.html:7 .\templates\clients\profile.html:27
 #: .\templates\partials\worker_nav.html:8 .\templates\workers\profile.html:57
 msgid "Account Settings"
-msgstr ""
+msgstr "Parametres du compte"
 
 #: .\templates\clients\account.html:8 .\templates\clients\billing.html:8
 #: .\templates\providers\billing.html:8 .\templates\providers\jobs.html:8
 #: .\templates\workers\account.html:6 .\templates\workers\jobs.html:6
 msgid "Coming soon."
-msgstr ""
+msgstr "Bientot disponible."
 
 #: .\templates\clients\activity.html:4
 msgid "Client Activity"
@@ -2217,40 +2205,40 @@ msgstr "Aucune mission disponible pour le moment."
 
 #: .\templates\providers\account.html:4 .\templates\providers\account.html:187
 msgid "Edit Provider Profile"
-msgstr ""
+msgstr "Modifier le profil prestataire"
 
 #: .\templates\providers\account.html:188
-msgid "Update your provider account information."
-msgstr ""
+msgid "Update your account information."
+msgstr "Mettez a jour les informations de votre compte."
 
 #: .\templates\providers\account.html:195
 #: .\templates\providers\account.html:200
 msgid "Provider Type"
-msgstr ""
+msgstr "Type de prestataire"
 
 #: .\templates\providers\account.html:196
-msgid "Choose how your business is registered in the platform."
-msgstr ""
+msgid "How your business is registered."
+msgstr "Comment votre entreprise est enregistree."
 
 #: .\templates\providers\account.html:213
 msgid "Company Information"
-msgstr ""
+msgstr "Informations de l'entreprise"
 
 #: .\templates\providers\account.html:214
-msgid "Business details stored directly in your provider profile."
-msgstr ""
+msgid "Business details in your profile."
+msgstr "Informations de votre entreprise dans votre profil."
 
 #: .\templates\providers\account.html:218
 msgid "Company Name"
-msgstr ""
+msgstr "Nom de l'entreprise"
 
 #: .\templates\providers\account.html:228
 msgid "Business Registration Number"
-msgstr ""
+msgstr "Numero d'enregistrement de l'entreprise"
 
 #: .\templates\providers\account.html:233
 msgid "Employee Count"
-msgstr ""
+msgstr "Nombre d'employes"
 
 #: .\templates\providers\account.html:235 .\templates\request\create.html:493
 #: .\templates\request\create.html:510
@@ -2259,39 +2247,39 @@ msgstr "Sélectionner"
 
 #: .\templates\providers\account.html:247
 msgid "Contact Information"
-msgstr ""
+msgstr "Coordonnees"
 
 #: .\templates\providers\account.html:248
-msgid "Primary contact details for your account."
-msgstr ""
+msgid "Primary account contact."
+msgstr "Contact principal du compte."
 
 #: .\templates\providers\account.html:252
 msgid "Contact First Name"
-msgstr ""
+msgstr "Prenom du contact"
 
 #: .\templates\providers\account.html:257
 msgid "Contact Last Name"
-msgstr ""
+msgstr "Nom du contact"
 
 #: .\templates\providers\account.html:262
 msgid "Phone Number"
-msgstr ""
+msgstr "Numero de telephone"
 
 #: .\templates\providers\account.html:272
 msgid "Languages Spoken"
-msgstr ""
+msgstr "Langues parlees"
 
 #: .\templates\providers\account.html:274
 msgid "Example: English, French, Spanish"
-msgstr ""
+msgstr "Exemple : anglais, francais, espagnol"
 
 #: .\templates\providers\account.html:280
 msgid "Business Address"
-msgstr ""
+msgstr "Adresse de l'entreprise"
 
 #: .\templates\providers\account.html:281
-msgid "Your main business location and service radius."
-msgstr ""
+msgid "Main business location and service radius."
+msgstr "Emplacement principal et rayon de service."
 
 #: .\templates\providers\account.html:305
 #: .\templates\providers\account.html:306
@@ -2300,62 +2288,60 @@ msgstr ""
 
 #: .\templates\providers\account.html:310
 msgid "Service Radius (km)"
-msgstr ""
+msgstr "Rayon de service (km)"
 
 #: .\templates\providers\account.html:311
 msgid "Service Radius in km"
-msgstr ""
+msgstr "Rayon de service en km"
 
 #: .\templates\providers\account.html:317
 msgid "Availability"
-msgstr ""
+msgstr "Disponibilite"
 
 #: .\templates\providers\account.html:318
-msgid "Operational status stored directly in your provider profile."
-msgstr ""
+msgid "Current operational availability."
+msgstr "Disponibilite operationnelle actuelle."
 
 #: .\templates\providers\account.html:322
 msgid "Availability Mode"
-msgstr ""
+msgstr "Mode de disponibilite"
 
 #: .\templates\providers\account.html:324
 msgid "Manual"
-msgstr ""
+msgstr "Manuel"
 
 #: .\templates\providers\account.html:325
 msgid "Auto"
-msgstr ""
+msgstr "Auto"
 
 #: .\templates\providers\account.html:333
 msgid "Available Now"
-msgstr ""
+msgstr "Disponible maintenant"
 
 #: .\templates\providers\account.html:340
 #: .\templates\providers\certificates.html:195
 #: .\templates\providers\service_form.html:15
 msgid "Save Changes"
-msgstr ""
+msgstr "Enregistrer les modifications"
 
 #: .\templates\providers\activity.html:4
 msgid "Provider Activity"
-msgstr ""
+msgstr "Activité du prestataire"
 
 #: .\templates\providers\billing.html:4
 msgid "Provider Billing"
-msgstr ""
+msgstr "Facturation prestataire"
 
 #: .\templates\providers\certificates.html:4
 #: .\templates\providers\certificates.html:14
 #: .\templates\providers\complete_profile.html:547
 #: .\templates\providers\compliance.html:211
 msgid "Manage Certificates"
-msgstr ""
+msgstr "Gerer les certificats"
 
 #: .\templates\providers\certificates.html:16
-msgid ""
-"Providers can register certificates here even when they are not required "
-"globally."
-msgstr ""
+msgid "Register and manage your certificates."
+msgstr "Enregistrez et gerez vos certificats."
 
 #: .\templates\providers\certificates.html:20
 #: .\templates\providers\compliance.html:16
@@ -2363,17 +2349,15 @@ msgstr ""
 #: .\templates\providers\service_areas.html:270
 #: .\templates\ui\terms_and_conditions.html:41
 msgid "Back to Profile"
-msgstr ""
+msgstr "Retour au profil"
 
 #: .\templates\providers\certificates.html:33
-msgid ""
-"This section is open and available. Certificate requirements will later "
-"depend on service type and jurisdiction."
-msgstr ""
+msgid "Certificate requirements depend on service type and jurisdiction."
+msgstr "Les exigences de certificats dependent du type de service et de la juridiction."
 
 #: .\templates\providers\certificates.html:37
 msgid "Total certificates"
-msgstr ""
+msgstr "Total des certificats"
 
 #: .\templates\providers\certificates.html:46
 #: .\templates\providers\compliance.html:173
@@ -2397,42 +2381,40 @@ msgstr ""
 
 #: .\templates\providers\certificates.html:87
 msgid "No certificates added yet."
-msgstr ""
+msgstr "Aucun certificat ajoute pour le moment."
 
 #: .\templates\providers\certificates.html:98
 msgid "Edit Certificate"
-msgstr ""
+msgstr "Modifier le certificat"
 
 #: .\templates\providers\certificates.html:100
 msgid "Current status:"
-msgstr ""
+msgstr "Statut actuel :"
 
 #: .\templates\providers\certificates.html:103
 #: .\templates\providers\certificates.html:195
 msgid "Add Certificate"
-msgstr ""
+msgstr "Ajouter un certificat"
 
 #: .\templates\providers\certificates.html:114
 msgid "Certificate type"
-msgstr ""
+msgstr "Type de certificat"
 
 #: .\templates\providers\certificates.html:130
 msgid "Taken at"
-msgstr ""
+msgstr "Obtenu a"
 
 #: .\templates\providers\certificates.html:164
 msgid "Issued date"
-msgstr ""
+msgstr "Date d'emission"
 
 #: .\templates\providers\certificates.html:171
 msgid "Expires date"
-msgstr ""
+msgstr "Date d'expiration"
 
 #: .\templates\providers\certificates.html:207
-msgid ""
-"This page does not handle uploads yet. It stores certificate details and "
-"status only."
-msgstr ""
+msgid "This page stores certificate details and status only."
+msgstr "Cette page enregistre uniquement les details et le statut des certificats."
 
 #: .\templates\providers\complete_billing.html:4
 msgid "Complete Provider Billing"
@@ -2440,93 +2422,87 @@ msgstr ""
 
 #: .\templates\providers\complete_billing.html:8
 msgid "Complete Billing Information"
-msgstr ""
+msgstr "Completer les informations de facturation"
 
 #: .\templates\providers\complete_billing.html:12
 msgid "Save Billing Info"
-msgstr ""
+msgstr "Enregistrer les informations de facturation"
 
 #: .\templates\providers\complete_profile.html:4
 msgid "Complete Provider Profile"
-msgstr ""
+msgstr "Completer le profil prestataire"
 
 #: .\templates\providers\complete_profile.html:351
 msgid "Complete Your Profile"
-msgstr ""
+msgstr "Completer votre profil"
 
 #: .\templates\providers\complete_profile.html:353
-msgid ""
-"Finish the remaining requirements to activate your provider account and "
-"unlock the provider dashboard."
-msgstr ""
+msgid "Complete the remaining steps to activate your account."
+msgstr "Completez les etapes restantes pour activer votre compte."
 
 #: .\templates\providers\complete_profile.html:366
 msgid "Completion Status"
-msgstr ""
+msgstr "Statut de completion"
 
 #: .\templates\providers\complete_profile.html:368
-msgid ""
-"This page is now a checklist only. Profile details, service areas, and "
-"insurance are managed in their own pages."
-msgstr ""
+msgid "Use this checklist to complete activation."
+msgstr "Utilisez cette liste pour finaliser l'activation."
 
 #: .\templates\providers\complete_profile.html:375
 msgid "Required steps completed"
-msgstr ""
+msgstr "Etapes requises completees"
 
 #: .\templates\providers\complete_profile.html:380
 msgid "Phone verification"
-msgstr ""
+msgstr "Verification du telephone"
 
 #: .\templates\providers\complete_profile.html:391
 #: .\templates\providers\compliance.html:93
 msgid "Insurance"
-msgstr ""
+msgstr "Assurance"
 
 #: .\templates\providers\complete_profile.html:396
 #: .\templates\providers\compliance.html:138
 msgid "Certificates"
-msgstr ""
+msgstr "Certificats"
 
 #: .\templates\providers\complete_profile.html:403
 msgid "Still missing:"
-msgstr ""
+msgstr "Encore manquant :"
 
 #: .\templates\providers\complete_profile.html:414
 msgid "Required Steps"
-msgstr ""
+msgstr "Etapes requises"
 
 #: .\templates\providers\complete_profile.html:416
-msgid ""
-"These are the actual requirements currently used to mark your provider "
-"profile as complete."
-msgstr ""
+msgid "Requirements used for profile completion."
+msgstr "Exigences utilisees pour la completion du profil."
 
 #: .\templates\providers\complete_profile.html:431
 #: .\templates\providers\complete_profile.html:458
 msgid "Complete"
-msgstr ""
+msgstr "Complet"
 
 #: .\templates\providers\complete_profile.html:433
 #: .\templates\providers\complete_profile.html:460
 #: .\templates\providers\complete_profile.html:516
 msgid "Missing"
-msgstr ""
+msgstr "Manquant"
 
 #: .\templates\providers\complete_profile.html:436
 #: .\templates\providers\complete_profile.html:530
 #: .\templates\providers\compliance.html:57
 msgid "Edit Profile"
-msgstr ""
+msgstr "Modifier le profil"
 
 #: .\templates\providers\complete_profile.html:442
 #: .\templates\providers\compliance.html:39
 msgid "Active service areas"
-msgstr ""
+msgstr "Zones de service actives"
 
 #: .\templates\providers\complete_profile.html:444
-msgid "At least one active service area is required for profile completion."
-msgstr ""
+msgid "At least one active service area is required."
+msgstr "Au moins une zone de service active est requise."
 
 #: .\templates\providers\complete_profile.html:463
 #: .\templates\providers\complete_profile.html:535
@@ -2534,193 +2510,184 @@ msgstr ""
 #: .\templates\providers\service_areas.html:4
 #: .\templates\providers\service_areas.html:233
 msgid "Manage Service Areas"
-msgstr ""
+msgstr "Gerer les zones de service"
 
 #: .\templates\providers\complete_profile.html:469
 #: .\templates\providers\complete_profile.html:490
 #: .\templates\ui\terms_and_conditions.html:4
 #: .\templates\ui\terms_and_conditions.html:12
 msgid "Terms and Conditions"
-msgstr ""
+msgstr "Conditions generales"
 
 #: .\templates\providers\complete_profile.html:471
-msgid ""
-"You must review and accept the Terms and Conditions before completing your "
-"provider profile."
-msgstr ""
+msgid "Accept the Terms and Conditions to complete your profile."
+msgstr "Acceptez les conditions generales pour completer votre profil."
 
 #: .\templates\providers\complete_profile.html:488
 msgid "I have read and accept the"
-msgstr ""
+msgstr "J'ai lu et j'accepte les"
 
 #: .\templates\providers\complete_profile.html:497
 msgid "Terms already accepted."
-msgstr ""
+msgstr "Conditions deja acceptees."
 
 #: .\templates\providers\complete_profile.html:501
 msgid "Acceptance is required to complete your base provider profile."
-msgstr ""
+msgstr "L'acceptation est requise pour completer votre profil prestataire de base."
 
 #: .\templates\providers\complete_profile.html:504
 msgid "Save Terms Acceptance"
-msgstr ""
+msgstr "Enregistrer l'acceptation"
 
 #: .\templates\providers\complete_profile.html:525
 msgid "Manage Profile Modules"
-msgstr ""
+msgstr "Gerer les modules du profil"
 
 #: .\templates\providers\complete_profile.html:526
-msgid "Use these dedicated pages to update each module directly."
-msgstr ""
+msgid "Use these pages to update each module."
+msgstr "Utilisez ces pages pour mettre a jour chaque module."
 
 #: .\templates\providers\complete_profile.html:531
-msgid "Update business details, address, and availability."
-msgstr ""
+msgid "Update business details and availability."
+msgstr "Mettez a jour les informations de l'entreprise et la disponibilite."
 
 #: .\templates\providers\complete_profile.html:536
-msgid "Add, activate, or deactivate the cities where you work."
-msgstr ""
+msgid "Manage the cities where you work."
+msgstr "Gerez les villes ou vous travaillez."
 
 #: .\templates\providers\complete_profile.html:540
 #: .\templates\providers\compliance.html:128
 #: .\templates\providers\insurance.html:4
 #: .\templates\providers\insurance.html:14
 msgid "Manage Insurance"
-msgstr ""
+msgstr "Gerer l'assurance"
 
 #: .\templates\providers\complete_profile.html:542
-msgid "Create or update your insurance details and review verification status."
-msgstr ""
+msgid "Update insurance details and verification."
+msgstr "Mettez a jour les informations d'assurance et la verification."
 
 #: .\templates\providers\complete_profile.html:548
-msgid "Manage your certificates from the dedicated certificates page."
-msgstr ""
+msgid "Manage certificates from the certificates page."
+msgstr "Gerez les certificats depuis la page des certificats."
 
 #: .\templates\providers\compliance.html:12
-msgid "Review your provider readiness and compliance-related status."
-msgstr ""
+msgid "Review your compliance status."
+msgstr "Consultez votre statut de conformite."
 
 #: .\templates\providers\compliance.html:24
 msgid "Base Profile"
-msgstr ""
+msgstr "Profil de base"
 
 #: .\templates\providers\compliance.html:27
 msgid "Phone verified"
-msgstr ""
+msgstr "Telephone verifie"
 
 #: .\templates\providers\compliance.html:31
 msgid "Terms acceptance status"
-msgstr ""
+msgstr "Statut d'acceptation des conditions"
 
 #: .\templates\providers\compliance.html:35
 msgid "Profile completed"
-msgstr ""
+msgstr "Profil complete"
 
 #: .\templates\providers\compliance.html:45
 msgid "Current active areas"
-msgstr ""
+msgstr "Zones actives actuelles"
 
 #: .\templates\providers\compliance.html:67
 msgid "Payment Setup"
-msgstr ""
+msgstr "Configuration des paiements"
 
 #: .\templates\providers\compliance.html:70
 msgid "Billing completed"
-msgstr ""
+msgstr "Facturation completee"
 
 #: .\templates\providers\compliance.html:75
-msgid ""
-"Payment and payout setup will be handled through an external provider. "
-"Sensitive payment details are not stored directly in this provider profile "
-"flow."
-msgstr ""
+msgid "Billing setup is handled by an external provider."
+msgstr "La configuration de facturation est geree par un fournisseur externe."
 
 #: .\templates\providers\compliance.html:83
 msgid "View Billing"
-msgstr ""
+msgstr "Voir la facturation"
 
 #: .\templates\providers\compliance.html:96
 msgid "Has insurance"
-msgstr ""
+msgstr "Assurance active"
 
 #: .\templates\providers\compliance.html:112
 #: .\templates\providers\insurance.html:95
 msgid "Expiry date"
-msgstr ""
+msgstr "Date d'expiration"
 
 #: .\templates\providers\compliance.html:116
 msgid "Verification"
-msgstr ""
+msgstr "Verification"
 
 #: .\templates\providers\compliance.html:121
 #: .\templates\providers\insurance.html:38
 msgid "Not verified"
-msgstr ""
+msgstr "Non verifie"
 
 #: .\templates\providers\compliance.html:155
 msgid "Pending / other"
-msgstr ""
+msgstr "En attente / autre"
 
 #: .\templates\providers\compliance.html:168
 msgid "Recent certificates"
-msgstr ""
+msgstr "Certificats recents"
 
 #: .\templates\providers\compliance.html:186
 msgid "Declared"
-msgstr ""
+msgstr "Declare"
 
 #: .\templates\providers\compliance.html:188
 msgid "Rejected"
-msgstr ""
+msgstr "Rejete"
 
 #: .\templates\providers\compliance.html:201
 msgid "No certificates registered yet."
-msgstr ""
+msgstr "Aucun certificat enregistre pour le moment."
 
 #: .\templates\providers\compliance.html:206
 msgid "Certificate requirements may vary by service type and jurisdiction."
-msgstr ""
+msgstr "Les exigences de certificats peuvent varier selon le type de service et la juridiction."
 
 #: .\templates\providers\compliance.html:221
 msgid "Operational Status"
-msgstr ""
+msgstr "Statut operationnel"
 
 #: .\templates\providers\compliance.html:224
 msgid "Operational"
-msgstr ""
+msgstr "Operationnel"
 
 #: .\templates\providers\compliance.html:230
-msgid ""
-"Your current provider status is operational based on the rules currently "
-"applied by the system."
-msgstr ""
+msgid "Your provider status is operational."
+msgstr "Votre statut prestataire est operationnel."
 
 #: .\templates\providers\compliance.html:236
 msgid "Your provider account is not fully operational yet."
-msgstr ""
+msgstr "Votre compte prestataire n'est pas encore pleinement operationnel."
 
 #: .\templates\providers\compliance.html:240
 msgid "Current known reasons"
-msgstr ""
+msgstr "Raisons actuelles connues"
 
 #: .\templates\providers\compliance.html:248
-msgid ""
-"Operational status may also depend on other internal rules that will be "
-"reviewed next."
-msgstr ""
+msgid "Operational status may depend on additional internal rules."
+msgstr "Le statut operationnel peut dependre de regles internes supplementaires."
 
 #: .\templates\providers\dashboard.html:8
 #, python-format
-msgid "Welcome, %(provider_name)s."
-msgstr ""
+msgid "Hello, %(provider_name)s."
+msgstr "Bonjour, %(provider_name)s."
 
 #: .\templates\providers\dashboard.html:11
 msgid "Account Status"
-msgstr ""
+msgstr "Statut du compte"
 
 #: .\templates\providers\dashboard.html:13
 msgid "Phone Verification:"
-msgstr ""
+msgstr "Verification du telephone :"
 
 #: .\templates\providers\dashboard.html:13
 #: .\templates\providers\dashboard.html:14
@@ -2730,104 +2697,128 @@ msgstr "OK"
 
 #: .\templates\providers\dashboard.html:14
 msgid "Profile Completed:"
-msgstr ""
+msgstr "Profil complete :"
 
 #: .\templates\providers\dashboard.html:15
 msgid "Billing Completed:"
-msgstr ""
+msgstr "Facturation completee :"
 
 #: .\templates\providers\dashboard.html:16
 msgid "Active Services:"
-msgstr ""
+msgstr "Services actifs :"
 
 #: .\templates\providers\dashboard.html:21
 msgid "Your account is operational."
-msgstr ""
+msgstr "Votre compte est operationnel."
 
 #: .\templates\providers\dashboard.html:23
 msgid "Setup in progress."
-msgstr ""
+msgstr "Configuration en cours."
 
 #: .\templates\providers\dashboard.html:27
 msgid "Verify your phone number."
-msgstr ""
+msgstr "Verifiez votre numero de telephone."
 
 #: .\templates\providers\dashboard.html:31
 msgid "Complete your profile."
-msgstr ""
+msgstr "Completez votre profil."
 
 #: .\templates\providers\dashboard.html:35
-msgid "Complete your billing information."
-msgstr ""
+msgid "Complete billing information."
+msgstr "Completez les informations de facturation."
 
 #: .\templates\providers\dashboard.html:39
 msgid "Add at least one active service."
-msgstr ""
+msgstr "Ajoutez au moins un service actif."
 
 #: .\templates\providers\dashboard.html:43
 msgid "Manage Services"
-msgstr ""
+msgstr "Gerer les services"
 
 #: .\templates\providers\dashboard.html:44
 msgid "View Profile"
-msgstr ""
+msgstr "Voir le profil"
 
 #: .\templates\providers\dashboard.html:46
 msgid "Complete Billing"
-msgstr ""
+msgstr "Completer la facturation"
 
 #: .\templates\providers\financial_summary.html:102
-msgid ""
-"Operational financial summary based on your provider jobs, pricing "
-"snapshots, tickets, and ledger records."
-msgstr ""
+msgid "Financial summary of your services and operations."
+msgstr "Résumé financier de vos services et opérations."
+
+#: .\templates\providers\financial_summary.html:109
+msgid "This data is provided for informational purposes only."
+msgstr "Ces données sont fournies à titre informatif uniquement."
+
+#: .\templates\providers\missions.html:141
+msgid "Scheduled and active services."
+msgstr "Services programmés et en cours."
+
+#: .\templates\providers\missions.html:218
+msgid "No scheduled services at the moment."
+msgstr "Aucun service programme pour le moment."
 
 #: .\templates\providers\financial_summary.html:127
 #: .\templates\providers\financial_summary.html:146
 msgid "Gross"
-msgstr ""
+msgstr "Brut"
 
 #: .\templates\providers\financial_summary.html:131
 #: .\templates\providers\financial_summary.html:147
 msgid "Platform fees"
-msgstr ""
+msgstr "Frais plateforme"
 
 #: .\templates\providers\financial_summary.html:135
 #: .\templates\providers\financial_summary.html:148
 msgid "Provider net"
-msgstr ""
+msgstr "Net prestataire"
 
 #: .\templates\providers\financial_summary.html:141
 msgid "Monthly breakdown"
-msgstr ""
+msgstr "Repartition mensuelle"
 
 #: .\templates\providers\financial_summary.html:145
 msgid "Month"
-msgstr ""
+msgstr "Mois"
 
 #: .\templates\providers\financial_summary.html:161
 msgid "No data"
-msgstr ""
+msgstr "Aucune donnee"
+
+#: .\templates\provider\jobs.html:402
+msgid "Scheduled — awaiting activation window."
+msgstr "Planifie - en attente d'activation."
+
+#: .\templates\provider\jobs.html:440
+msgid "Not available"
+msgstr "Non disponible"
+
+msgid "Are you sure you want to decline this scheduled job? The client will be notified and the job will be reassigned."
+msgstr "Etes-vous sur de vouloir refuser cette mission planifiee ? Le client sera informe et la mission sera reattribuee."
+
+msgid "Based on finalized totals when available"
+msgstr "Base sur les totaux finalises lorsqu'ils sont disponibles"
 
 #: .\templates\providers\insurance.html:15
-msgid "Create or update your insurance information."
-msgstr ""
+msgid "Update your insurance information."
+msgstr "Mettez a jour vos informations d'assurance."
 
 #: .\templates\providers\insurance.html:33
 msgid "Verification status"
-msgstr ""
+msgstr "Statut de verification"
 
 #: .\templates\providers\insurance.html:43
 msgid "Provider ID"
-msgstr ""
+msgstr "ID prestataire"
 
 #: .\templates\providers\insurance.html:55
 msgid "I have active insurance"
-msgstr ""
+msgstr "J'ai une assurance active"
 
 #: .\templates\providers\insurance.html:112
 msgid "Save Insurance"
-msgstr ""
+msgstr "Enregistrer l'assurance"
 
 #: .\templates\providers\nearby.html:4
 msgid "Providers Nearby"
@@ -3921,19 +3912,19 @@ msgstr ""
 
 #: .\ui\views.py:624
 msgid "Invalid credentials."
-msgstr ""
+msgstr "Identifiants invalides."
 
 #: .\ui\views.py:702
 msgid "Verification code not found."
-msgstr ""
+msgstr "Code de verification introuvable."
 
 #: .\ui\views.py:706 .\ui\views.py:712
 msgid "Code expired."
-msgstr ""
+msgstr "Code expire."
 
 #: .\ui\views.py:715
 msgid "Invalid verification code."
-msgstr ""
+msgstr "Code de verification invalide."
 
 #: .\ui\views.py:729
 msgid "No account is linked to this phone number."

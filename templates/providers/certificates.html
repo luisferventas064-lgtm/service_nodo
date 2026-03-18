@@ -13,7 +13,7 @@
                         <div>
                             <h1 class="h3 mb-1">{% trans "Manage Certificates" %}</h1>
                             <p class="text-muted mb-0">
-                                {% trans "Providers can register certificates here even when they are not required globally." %}
+                                {% trans "Register and manage your certificates." %}
                             </p>
                         </div>
                         <a href="{% url 'provider_profile' %}" class="btn btn-outline-secondary">
@@ -30,7 +30,7 @@
                     {% endif %}
 
                     <div class="alert alert-info mb-4">
-                        {% trans "This section is open and available. Certificate requirements will later depend on service type and jurisdiction." %}
+                        {% trans "Certificate requirements depend on service type and jurisdiction." %}
                     </div>
 
                     <div class="mb-3">
@@ -204,7 +204,7 @@
                     </form>
 
                     <div class="small text-muted mt-4">
-                        {% trans "This page does not handle uploads yet. It stores certificate details and status only." %}
+                        {% trans "This page stores certificate details and status only." %}
                     </div>
                 </div>
             </div>

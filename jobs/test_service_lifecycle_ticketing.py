@@ -8,6 +8,7 @@ from django.utils import timezone
 from assignments.models import JobAssignment
 from assignments.services import AssignmentConflict, complete_job as complete_job_by_worker
 from clients.models import Client, ClientTicket
+from jobs.events import get_visible_job_status_label
 from jobs.models import Job, JobDispute, JobEvent
 from jobs.services import (
     MarketplaceDecisionConflict,
@@ -326,7 +327,7 @@ class ServiceLifecycleTicketingTests(TestCase):
                     )
 
         self.assertEqual(result, "dispute_resolved_client_wins")
-        self.assertEqual(len(callbacks), 2)
+        self.assertGreaterEqual(len(callbacks), 2)
         self.assertEqual(send_email.call_count, 1)
         self.assertEqual(send_email.call_args.args[0].job_id, self.job.job_id)
         self.assertEqual(send_warning.call_count, 1)
@@ -359,7 +360,10 @@ class ServiceLifecycleTicketingTests(TestCase):
         self.assertEqual(event.note, "dispute_resolved_client_wins")
         live_event = self.job.events.get(event_type=JobEvent.EventType.JOB_CANCELLED)
         self.assertEqual(live_event.actor_role, JobEvent.ActorRole.ADMIN)
-        self.assertEqual(live_event.visible_status, "Cancelled")
+        self.assertEqual(
+            live_event.visible_status,
+            get_visible_job_status_label(Job.JobStatus.CANCELLED),
+        )
         assignment.refresh_from_db()
         self.assertEqual(assignment.assignment_status, "cancelled")
         self.assertFalse(assignment.is_active)

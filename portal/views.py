@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 
 from compliance.services import evaluate_provider_compliance
 from core.auth_session import LEGACY_ROLE_SESSION_KEYS, SESSION_KEY_ROLE, require_role, set_session
+from jobs.activity_financials import build_financial_snapshot_map
 from jobs.models import Job
 from providers.models import Provider, ProviderService
 from service_type.models import ServiceType
@@ -108,22 +109,23 @@ def provider_dashboard_view(request):
         cancelled=Count("job_id", filter=Q(job_status__in=cancelled_statuses)),
     )
 
-    revenue_cents = (
-        qs.filter(job_status__in=done_statuses)
-        .aggregate(total=Sum("quoted_total_price_cents"))
-        .get("total")
-        or 0
+    completed_jobs = list(qs.filter(job_status__in=done_statuses))
+    completed_financials = build_financial_snapshot_map(completed_jobs)
+    revenue_amount = sum(
+        (completed_financials.get(job.job_id, {}).get("total_amount") or 0)
+        for job in completed_jobs
     )
-    revenue_amount = revenue_cents / 100
 
     recent_jobs = list(qs.order_by("-job_id")[:10])
+    recent_financials = build_financial_snapshot_map(recent_jobs)
     for job in recent_jobs:
         job.quoted_total_amount = (job.quoted_total_price_cents or 0) / 100
+        job.actual_total_amount = recent_financials.get(job.job_id, {}).get("total_amount")
+        job.dashboard_total_amount = job.actual_total_amount or job.quoted_total_amount
 
     context = {
         "provider": provider,
         "counts": counts,
-        "revenue_cents": revenue_cents,
         "revenue_amount": revenue_amount,
         "recent_jobs": recent_jobs,
     }

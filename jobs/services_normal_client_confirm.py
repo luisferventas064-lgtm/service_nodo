@@ -6,6 +6,7 @@ from clients.lines import ensure_client_base_line
 from clients.lines_fee import ensure_client_fee_line
 from clients.ticketing import ensure_client_ticket
 from jobs.models import Job, JobEvent
+from jobs.observability import log_assignment_event
 from jobs.services_fee import recompute_on_demand_fee_for_open_tickets
 from jobs.services_state_transitions import transition_job_status
 from jobs.services_state_transitions import reactivate_assignment_legacy
@@ -41,7 +42,15 @@ def _activate_assignment_for_job(job: Job):
     assigned_at = timezone.now()
 
     # Desactiva cualquier assignment activo previo para este job
+    previously_active = list(
+        JobAssignment.objects.filter(job=job, is_active=True).values_list(
+            "assignment_id",
+            "provider_id",
+        )
+    )
     JobAssignment.objects.filter(job=job, is_active=True).update(is_active=False)
+    for assignment_id, provider_id in previously_active:
+        log_assignment_event(job.job_id, assignment_id, "cleared", provider_id)
 
     # Activa/crea el assignment para el provider seleccionado
     assignment, created = JobAssignment.objects.get_or_create(
@@ -49,6 +58,8 @@ def _activate_assignment_for_job(job: Job):
         provider=job.selected_provider,
         defaults={"is_active": True},
     )
+    if created:
+        log_assignment_event(job.job_id, assignment.assignment_id, "created", assignment.provider_id)
 
     if not created and not assignment.is_active:
         reactivate_assignment_legacy(
@@ -56,6 +67,7 @@ def _activate_assignment_for_job(job: Job):
             actor=JobEvent.ActorRole.CLIENT,
             reason="confirm_normal_job_by_client",
         )
+        log_assignment_event(job.job_id, assignment.assignment_id, "reactivated", assignment.provider_id)
 
     if job.selected_provider_id:
         from providers.models import Provider

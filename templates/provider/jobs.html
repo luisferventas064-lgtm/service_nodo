@@ -212,8 +212,8 @@
           <div class="job-card-top">
             <div>
               <h2 class="job-title">
-                {% if job.service_type.name %}
-                  {{ job.service_type.name }}
+                {% if job.service_type.localized_name %}
+                  {{ job.service_type.localized_name }}
                 {% else %}
                   {% trans "Service Request" %}
                 {% endif %}
@@ -427,17 +427,17 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="start">
                 <button type="submit" class="btn-job btn-job-primary">{% trans "Start" %}</button>
+              </form>
+            {% endif %}
 
-                          {% if job.job_status == "scheduled_pending_activation" %}
-                            <form method="post" action="{% url 'ui:provider_decline_scheduled_job' job.job_id %}">
-                              {% csrf_token %}
-                              <button
-                                type="submit"
-                                class="btn-job btn-job-danger"
-                                onclick="return confirm('{% trans "Are you sure you want to decline this scheduled job? The client will be notified and the job will be reassigned." %}');"
-                              >{% trans "Not available" %}</button>
-                            </form>
-                          {% endif %}
+            {% if job.job_status == "scheduled_pending_activation" %}
+              <form method="post" action="{% url 'ui:provider_decline_scheduled_job' job.job_id %}">
+                {% csrf_token %}
+                <button
+                  type="submit"
+                  class="btn-job btn-job-danger"
+                  onclick="return confirm('{% trans "Are you sure you want to decline this scheduled job? The client will be notified and the job will be reassigned." %}');"
+                >{% trans "Not available" %}</button>
               </form>
             {% endif %}
 

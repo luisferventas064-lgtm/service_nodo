@@ -33,6 +33,10 @@ class MarketplaceMatchingLoadTests(TestCase):
             city="Laval",
             postal_code="H7N1A1",
             address_line1=f"{n} Provider St",
+            availability_mode="manual",
+            is_available_now=True,
+            accepts_urgent=True,
+            accepts_scheduled=True,
         )
         ProviderService.objects.create(
             provider=provider,
@@ -51,9 +55,9 @@ class MarketplaceMatchingLoadTests(TestCase):
         )
         return provider
 
-    def _make_job(self, *, status=Job.JobStatus.POSTED) -> Job:
+    def _make_job(self, *, status=Job.JobStatus.POSTED, mode=Job.JobMode.SCHEDULED) -> Job:
         return Job.objects.create(
-            job_mode=Job.JobMode.SCHEDULED,
+            job_mode=mode,
             job_status=status,
             is_asap=False,
             scheduled_date=timezone.localdate() + timedelta(days=3),
@@ -84,6 +88,69 @@ class MarketplaceMatchingLoadTests(TestCase):
         candidates = get_broadcast_candidates_for_job(target_job, limit=10)
         self.assertNotIn(saturated.provider_id, candidates)
         self.assertIn(available.provider_id, candidates)
+
+    def test_provider_excluded_when_not_available_now(self):
+        unavailable = self._make_provider(8)
+        unavailable.is_available_now = False
+        unavailable.save(update_fields=["is_available_now", "updated_at"])
+
+        available = self._make_provider(9)
+        target_job = self._make_job()
+
+        candidates = get_broadcast_candidates_for_job(target_job, limit=10)
+
+        self.assertNotIn(unavailable.provider_id, candidates)
+        self.assertIn(available.provider_id, candidates)
+
+    def test_provider_excluded_when_temporarily_unavailable(self):
+        paused = self._make_provider(10)
+        paused.temporary_unavailable_until = timezone.now() + timedelta(hours=2)
+        paused.save(update_fields=["temporary_unavailable_until", "updated_at"])
+
+        available = self._make_provider(11)
+        target_job = self._make_job()
+
+        candidates = get_broadcast_candidates_for_job(target_job, limit=10)
+
+        self.assertNotIn(paused.provider_id, candidates)
+        self.assertIn(available.provider_id, candidates)
+
+    def test_provider_included_when_temporary_pause_expired(self):
+        resumed = self._make_provider(12)
+        resumed.temporary_unavailable_until = timezone.now() - timedelta(minutes=1)
+        resumed.save(update_fields=["temporary_unavailable_until", "updated_at"])
+
+        target_job = self._make_job()
+
+        candidates = get_broadcast_candidates_for_job(target_job, limit=10)
+
+        self.assertIn(resumed.provider_id, candidates)
+
+    def test_provider_excluded_from_on_demand_job_when_accepts_urgent_false(self):
+        rejects_urgent = self._make_provider(13)
+        rejects_urgent.accepts_urgent = False
+        rejects_urgent.save(update_fields=["accepts_urgent", "updated_at"])
+
+        accepts_all = self._make_provider(14)
+        on_demand_job = self._make_job(mode=Job.JobMode.ON_DEMAND)
+
+        candidates = get_broadcast_candidates_for_job(on_demand_job, limit=10)
+
+        self.assertNotIn(rejects_urgent.provider_id, candidates)
+        self.assertIn(accepts_all.provider_id, candidates)
+
+    def test_provider_excluded_from_scheduled_job_when_accepts_scheduled_false(self):
+        rejects_scheduled = self._make_provider(15)
+        rejects_scheduled.accepts_scheduled = False
+        rejects_scheduled.save(update_fields=["accepts_scheduled", "updated_at"])
+
+        accepts_all = self._make_provider(16)
+        scheduled_job = self._make_job(mode=Job.JobMode.SCHEDULED)
+
+        candidates = get_broadcast_candidates_for_job(scheduled_job, limit=10)
+
+        self.assertNotIn(rejects_scheduled.provider_id, candidates)
+        self.assertIn(accepts_all.provider_id, candidates)
 
     def test_provider_penalized_but_not_excluded_if_below_capacity(self):
         loaded = self._make_provider(1)
@@ -242,3 +309,32 @@ class MarketplaceMatchingLoadTests(TestCase):
         candidates = get_broadcast_candidates_for_job(target_job, limit=10)
 
         self.assertEqual(candidates, [remote.provider_id])
+
+    def test_provider_temporary_pause_excludes_from_broadcast_candidates_and_restores_after_expiry(self):
+        """
+        Ciclo completo de pausa temporal sobre matching real.
+        Validado manualmente contra DB el 2026-03-17 (provider 1591, job seed #919).
+        Protege: effective_provider_availability_q(), rank_broadcast_candidates_for_job().
+        """
+        provider = self._make_provider(20)
+        target_job = self._make_job()
+
+        # ── ANTES: sin pausa, el provider es candidato ──────────────────────────
+        candidates_before = get_broadcast_candidates_for_job(target_job, limit=50)
+        self.assertIn(provider.provider_id, candidates_before, "Provider debe aparecer antes de la pausa")
+
+        # ── DURANTE: pausa activa (30 min futuro) ───────────────────────────────
+        provider.temporary_unavailable_until = timezone.now() + timedelta(minutes=30)
+        provider.save(update_fields=["temporary_unavailable_until", "updated_at"])
+        provider.refresh_from_db()
+
+        candidates_during = get_broadcast_candidates_for_job(target_job, limit=50)
+        self.assertNotIn(provider.provider_id, candidates_during, "Provider no debe aparecer con pausa activa")
+
+        # ── DESPUÉS: pausa expirada (1 min pasado) ───────────────────────────────
+        provider.temporary_unavailable_until = timezone.now() - timedelta(minutes=1)
+        provider.save(update_fields=["temporary_unavailable_until", "updated_at"])
+        provider.refresh_from_db()
+
+        candidates_after = get_broadcast_candidates_for_job(target_job, limit=50)
+        self.assertIn(provider.provider_id, candidates_after, "Provider debe volver a aparecer tras expirar la pausa")

@@ -1,9 +1,11 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from django.urls import reverse
 
 from clients.models import Client
 from jobs.models import Job
-from providers.models import Provider, ProviderService, ProviderServiceArea
+from providers.models import Provider, ProviderService, ProviderServiceArea, ProviderTicket
 from service_type.models import ServiceType
 from workers.models import Worker
 
@@ -216,6 +218,80 @@ class PortalRoutingTests(TestCase):
 
         html = response.content.decode()
         self.assertLess(html.find('class="nodo-subnav"'), html.find("Provider Dashboard"))
+
+    def test_provider_dashboard_uses_finalized_totals_over_quoted_amounts(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            contact_first_name="Revenue",
+            contact_last_name="Provider",
+            phone_number="5550002022",
+            email="portal.dashboard.provider.revenue@test.local",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            billing_profile_completed=True,
+            province="QC",
+            city="Montreal",
+            postal_code="H1A1A1",
+            address_line1="2022 Provider St",
+        )
+        client_obj = Client.objects.create(
+            first_name="Revenue",
+            last_name="Client",
+            phone_number="5550002023",
+            email="portal.dashboard.client.revenue@test.local",
+            country="Canada",
+            province="QC",
+            city="Montreal",
+            postal_code="H1A1A1",
+            address_line1="2023 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="Dashboard Revenue Service",
+            description="Dashboard Revenue Service",
+        )
+        job = Job.objects.create(
+            client=client_obj,
+            selected_provider=provider,
+            service_type=service_type,
+            provider_service_name_snapshot="Revenue Offer",
+            requested_total_snapshot=Decimal("120.00"),
+            quoted_total_price_cents=12000,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.COMPLETED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Montreal",
+            postal_code="H1A1A1",
+            address_line1="2024 Job St",
+        )
+        ProviderTicket.objects.create(
+            provider=provider,
+            ref_type="job",
+            ref_id=job.job_id,
+            ticket_no="PT-2024-0001",
+            subtotal_cents=14500,
+            tax_cents=2171,
+            total_cents=16671,
+            currency="CAD",
+            tax_region_code="CA-QC",
+        )
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        response = self.client.get(reverse("portal:provider_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["revenue_amount"], Decimal("166.71"))
+        self.assertContains(response, "166,71 $")
+        self.assertContains(response, "Base sur les totaux finalises lorsqu'ils sont disponibles")
+        self.assertNotContains(response, "Based on quoted totals")
 
     def test_worker_dashboard_alias_redirects_to_worker_jobs(self):
         worker = Worker.objects.create(

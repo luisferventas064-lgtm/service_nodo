@@ -83,7 +83,7 @@ SECRET_KEY = 'django-insecure-d%3ebi)1nzk6*y3!mtijivxes#c7u)_%whx!05w^3g2gqhq!q)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", os.getenv("DEBUG", "True")).lower() == "true"
 ALLOW_LEDGER_REBUILD = False
-DEV_OTP_CODE = os.getenv("DEV_OTP_CODE", "12345")
+DEV_OTP_CODE = os.getenv("DEV_OTP_CODE", "123456")
 
 def _csv_env(name, default):
     raw = os.getenv(name, default)
@@ -264,3 +264,20 @@ FIREBASE_CONFIG = {
     "measurementId": os.getenv("FIREBASE_MEASUREMENT_ID", ""),
 }
 FIREBASE_VAPID_KEY = os.getenv("FIREBASE_VAPID_KEY", "")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "nodo.lifecycle": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

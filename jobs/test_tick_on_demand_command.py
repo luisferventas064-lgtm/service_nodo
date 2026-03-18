@@ -4,9 +4,10 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from jobs.events import get_visible_job_status_label
 from clients.models import Client
 from jobs.models import Job, JobBroadcastAttempt, JobEvent, JobProviderExclusion
 from notifications.models import PushDevice, PushDispatchAttempt
@@ -14,8 +15,16 @@ from providers.models import Provider, ProviderService, ProviderServiceArea, Pro
 from service_type.models import ServiceType
 
 
-class TickOnDemandCommandTest(TestCase):
+class EnglishLocaleTestMixin:
     def setUp(self):
+        super().setUp()
+        self.client.defaults["HTTP_ACCEPT_LANGUAGE"] = "en"
+
+
+@override_settings(PUSH_PROVIDER="stub")
+class TickOnDemandCommandTest(EnglishLocaleTestMixin, TestCase):
+    def setUp(self):
+        super().setUp()
         self.service_type = ServiceType.objects.create(
             name="Tick Command Test",
             description="Tick command test service type",
@@ -32,6 +41,10 @@ class TickOnDemandCommandTest(TestCase):
             city="Laval",
             postal_code="H7N1A1",
             address_line1=f"{n} Provider St",
+            availability_mode="manual",
+            is_available_now=True,
+            accepts_urgent=True,
+            accepts_scheduled=True,
         )
         ProviderService.objects.create(
             provider=provider,
@@ -243,7 +256,7 @@ class TickOnDemandCommandTest(TestCase):
 
         event = job.events.get(event_type=JobEvent.EventType.JOB_EXPIRED)
         self.assertEqual(event.actor_role, JobEvent.ActorRole.SYSTEM)
-        self.assertEqual(event.visible_status, "Expired")
+        self.assertEqual(event.visible_status, get_visible_job_status_label(Job.JobStatus.EXPIRED))
         self.assertEqual(event.payload_json, {"reason": "timeout"})
 
         attempts = list(

@@ -131,6 +131,8 @@ def build_financial_snapshot_map(jobs):
 
         if client_ticket is not None:
             total_amount = cents_to_decimal(client_ticket.total_cents)
+        elif provider_ticket is not None:
+            total_amount = cents_to_decimal(provider_ticket.total_cents)
         elif job.requested_total_snapshot is not None:
             total_amount = normalize_money(job.requested_total_snapshot)
         elif job.quoted_total_price_cents is not None:

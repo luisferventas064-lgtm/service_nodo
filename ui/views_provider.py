@@ -19,6 +19,7 @@ from jobs.services_state_transitions import (
     transition_job_status,
 )
 from providers.models import Provider, ProviderService
+from providers.availability import is_provider_effectively_available
 
 from .views import (
     REQUEST_SERVICE_TIMING_LABELS,
@@ -138,6 +139,12 @@ def _job_is_ready_for_provider_incoming(job) -> bool:
 
 
 def _provider_is_eligible_for_incoming_job(*, provider, job) -> bool:
+    if not is_provider_effectively_available(provider):
+        return False
+    if job.job_mode == Job.JobMode.ON_DEMAND and not getattr(provider, "accepts_urgent", True):
+        return False
+    if job.job_mode == Job.JobMode.SCHEDULED and not getattr(provider, "accepts_scheduled", True):
+        return False
     if job.job_status != Job.JobStatus.WAITING_PROVIDER_RESPONSE:
         return False
     if job.selected_provider_id != provider.pk:
@@ -302,7 +309,7 @@ def handle_provider_decline_action(*, request, job, provider, redirect_name: str
 
         transition_job_status(
             job,
-            Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            Job.JobStatus.POSTED,
             actor=JobEvent.ActorRole.PROVIDER,
             reason="provider_incoming_decline",
         )
@@ -323,7 +330,7 @@ def handle_provider_decline_action(*, request, job, provider, redirect_name: str
             actor_role=JobEvent.ActorRole.PROVIDER,
             provider_id=provider.provider_id,
             payload={"source": "provider_incoming_decline"},
-            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            job_status=Job.JobStatus.POSTED,
             note="provider declined incoming job",
         )
 

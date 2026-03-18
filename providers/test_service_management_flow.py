@@ -6,8 +6,15 @@ from providers.models import Provider, ProviderCertificate, ProviderService, Pro
 from service_type.models import ServiceType
 
 
-class ProviderServiceManagementFlowTests(TestCase):
+class EnglishLocaleTestMixin:
     def setUp(self):
+        super().setUp()
+        self.client.defaults["HTTP_ACCEPT_LANGUAGE"] = "en"
+
+
+class ProviderServiceManagementFlowTests(EnglishLocaleTestMixin, TestCase):
+    def setUp(self):
+        super().setUp()
         self.provider = Provider.objects.create(
             provider_type=Provider.TYPE_SELF_EMPLOYED,
             company_name=None,

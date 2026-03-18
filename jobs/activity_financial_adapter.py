@@ -5,6 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from clients.models import ClientTicket
+from providers.models import ProviderTicket
 
 from .models import Job, JobFinancial, PlatformLedgerEntry
 
@@ -69,6 +70,16 @@ def _build_job_financial_map(job_ids):
     }
 
 
+def _sum_fee_net_from_lines(lines):
+    fee_net = 0
+    for line in lines:
+        if getattr(line, "line_type", "") == "fee":
+            gross = int(getattr(line, "line_total_cents", 0) or 0)
+            tax = int(getattr(line, "tax_cents", 0) or 0)
+            fee_net += gross - tax
+    return fee_net
+
+
 class ActivityFinancialAdapter:
     def __init__(
         self,
@@ -77,12 +88,14 @@ class ActivityFinancialAdapter:
         *,
         ledger=None,
         client_ticket=None,
+        provider_ticket=None,
         job_financial=None,
     ):
         self.job = job
         self.role = role
         self.ledger = ledger
         self.client_ticket = client_ticket
+        self.provider_ticket = provider_ticket
         self.job_financial = job_financial
 
     def get_client_total_cents(self):
@@ -104,21 +117,41 @@ class ActivityFinancialAdapter:
 
     def get_provider_gross_cents(self):
         ledger = self.get_platform_ledger_entry()
-        if ledger is None:
-            return None
-        return int(ledger.gross_cents or 0)
+        if ledger is not None:
+            return int(ledger.gross_cents or 0)
+
+        provider_ticket = self.get_provider_ticket()
+        if provider_ticket is not None and provider_ticket.total_cents is not None:
+            return int(provider_ticket.total_cents or 0)
+
+        return None
 
     def get_provider_fee_cents(self):
         ledger = self.get_platform_ledger_entry()
-        if ledger is None:
+        if ledger is not None:
+            return int(ledger.fee_cents or 0)
+
+        provider_ticket = self.get_provider_ticket()
+        if provider_ticket is None:
             return None
-        return int(ledger.fee_cents or 0)
+
+        return _sum_fee_net_from_lines(list(provider_ticket.lines.all()))
 
     def get_provider_net_cents(self):
         ledger = self.get_platform_ledger_entry()
-        if ledger is None:
+        if ledger is not None:
+            return int(ledger.net_provider_cents or 0)
+
+        provider_ticket = self.get_provider_ticket()
+        if provider_ticket is None:
             return None
-        return int(ledger.net_provider_cents or 0)
+
+        fee_cents = self.get_provider_fee_cents() or 0
+        subtotal_ex_tax = sum(
+            int(getattr(line, "line_total_cents", 0) or 0) - int(getattr(line, "tax_cents", 0) or 0)
+            for line in provider_ticket.lines.all()
+        )
+        return int(subtotal_ex_tax - fee_cents)
 
     def get_client_ticket(self) -> Optional[ClientTicket]:
         if self.client_ticket is not None or hasattr(self, "_client_ticket_loaded"):
@@ -154,6 +187,30 @@ class ActivityFinancialAdapter:
         ).first()
         self._job_financial_loaded = True
         return self.job_financial
+
+    def get_provider_ticket(self) -> Optional[ProviderTicket]:
+        if self.provider_ticket is not None or hasattr(self, "_provider_ticket_loaded"):
+            return self.provider_ticket
+
+        self.provider_ticket = (
+            ProviderTicket.objects.filter(
+                ref_type="job",
+                ref_id=self.job.job_id,
+                provider_id=self.job.selected_provider_id,
+            )
+            .prefetch_related("lines")
+            .only(
+                "provider_id",
+                "ref_id",
+                "total_cents",
+                "created_at",
+                "provider_ticket_id",
+            )
+            .order_by("-created_at", "-provider_ticket_id")
+            .first()
+        )
+        self._provider_ticket_loaded = True
+        return self.provider_ticket
 
     def get_platform_ledger_entry(self) -> Optional[PlatformLedgerEntry]:
         if self.ledger is not None or hasattr(self, "_platform_ledger_entry_loaded"):
@@ -210,6 +267,7 @@ def build_activity_financial_data_map(jobs, role):
 
     latest_ledgers = {}
     latest_client_tickets = {}
+    latest_provider_tickets = {}
     job_financials = {}
 
     if role == "client":
@@ -233,6 +291,22 @@ def build_activity_financial_data_map(jobs, role):
 
     if role == "provider":
         latest_ledgers = _build_latest_ledger_map(job_ids)
+        provider_tickets = list(
+            ProviderTicket.objects.filter(ref_type="job", ref_id__in=job_ids)
+            .prefetch_related("lines")
+            .only(
+                "ref_id",
+                "provider_id",
+                "total_cents",
+                "created_at",
+                "provider_ticket_id",
+            )
+            .order_by("ref_id", "-created_at", "-provider_ticket_id")
+        )
+        latest_provider_tickets = _build_latest_ticket_map(
+            provider_tickets,
+            owner_id_attr="provider_id",
+        )
 
     financial_data_by_job = {}
     for job in jobs:
@@ -241,6 +315,7 @@ def build_activity_financial_data_map(jobs, role):
             role,
             ledger=latest_ledgers.get(job.job_id),
             client_ticket=latest_client_tickets.get((job.job_id, job.client_id)),
+            provider_ticket=latest_provider_tickets.get((job.job_id, job.selected_provider_id)),
             job_financial=job_financials.get(job.job_id),
         )
         financial_data_by_job[job.job_id] = adapter.build()

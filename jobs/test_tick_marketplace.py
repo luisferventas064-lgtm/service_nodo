@@ -29,6 +29,10 @@ class MarketplaceTickTests(TestCase):
             city="Laval",
             postal_code="H7N1A1",
             address_line1=f"{n} Provider St",
+            availability_mode="manual",
+            is_available_now=True,
+            accepts_urgent=True,
+            accepts_scheduled=True,
         )
         ProviderService.objects.create(
             provider=provider,

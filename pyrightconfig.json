@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
+  "include": [
+    "assignments",
+    "clients",
+    "compliance",
+    "config",
+    "core",
+    "evidence",
+    "job_assignments",
+    "job_media",
+    "jobs",
+    "notifications",
+    "payments",
+    "portal",
+    "providers",
+    "reports",
+    "service_type",
+    "settlements",
+    "ui",
+    "verifications",
+    "workers"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/migrations"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": "none"
+}

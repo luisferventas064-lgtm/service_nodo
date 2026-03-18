@@ -6,11 +6,17 @@ from django.utils import timezone
 
 from clients.models import Client
 from jobs.models import Job
-from providers.models import Provider
+from providers.models import Provider, ProviderTicket
 from service_type.models import ServiceType
 
 
-class ProviderActivityViewTests(TestCase):
+class EnglishLocaleTestMixin:
+    def setUp(self):
+        super().setUp()
+        self.client.defaults["HTTP_ACCEPT_LANGUAGE"] = "en"
+
+
+class ProviderActivityViewTests(EnglishLocaleTestMixin, TestCase):
     def test_provider_activity_uses_shared_activity_context(self):
         provider = Provider.objects.create(
             provider_type=Provider.TYPE_SELF_EMPLOYED,
@@ -314,3 +320,135 @@ class ProviderActivityViewTests(TestCase):
         self.assertIn("Export", content)
         self.assertIn("informational and operational purposes only", content)
         self.assertNotIn("Export Client", content)
+
+    def test_provider_activity_uses_provider_ticket_totals_when_ledger_is_missing(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="Ticket Provider",
+            contact_first_name="Ticket",
+            contact_last_name="Provider",
+            phone_number="+15145551051",
+            email="ticket.activity.provider@test.local",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            billing_profile_completed=True,
+            province="QC",
+            city="Montreal",
+            postal_code="H1A1A1",
+            address_line1="51 Provider St",
+        )
+        client = Client.objects.create(
+            first_name="Ticket",
+            last_name="Client",
+            email="ticket.activity.client@test.local",
+            phone_number="+15145551052",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="52 Client St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Provider Ticket Activity Service",
+            description="Provider Ticket Activity Service",
+        )
+        job = Job.objects.create(
+            client=client,
+            selected_provider=provider,
+            service_type=service_type,
+            provider_service_name_snapshot="Provider Ticket Offer",
+            requested_total_snapshot=120,
+            quoted_total_price_cents=12000,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.COMPLETED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Montreal",
+            postal_code="H1A1A1",
+            address_line1="53 Job St",
+        )
+        ProviderTicket.objects.create(
+            provider=provider,
+            ref_type="job",
+            ref_id=job.job_id,
+            ticket_no="PT-ACT-0001",
+            subtotal_cents=14500,
+            tax_cents=2171,
+            total_cents=16671,
+            currency="CAD",
+            tax_region_code="CA-QC",
+        )
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        response = self.client.get(reverse("provider_activity"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "166.71")
+
+    def test_completed_job_is_visible_in_activity_but_not_in_active_board(self):
+        provider = Provider.objects.create(
+            provider_type=Provider.TYPE_SELF_EMPLOYED,
+            legal_name="Contract Provider",
+            contact_first_name="Contract",
+            contact_last_name="Provider",
+            phone_number="+15145551041",
+            email="contract.activity.provider@test.local",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            billing_profile_completed=True,
+            province="QC",
+            city="Montreal",
+            postal_code="H1A1A1",
+            address_line1="41 Provider St",
+        )
+        client = Client.objects.create(
+            first_name="Contract",
+            last_name="Client",
+            email="contract.activity.client@test.local",
+            phone_number="+15145551042",
+            is_phone_verified=True,
+            profile_completed=True,
+            accepts_terms=True,
+            province="QC",
+            city="Laval",
+            postal_code="H7A1A1",
+            address_line1="42 Client St",
+        )
+        service_type = ServiceType.objects.create(
+            name="Contract Activity Service",
+            description="Contract Activity Service",
+        )
+        completed_job = Job.objects.create(
+            client=client,
+            selected_provider=provider,
+            service_type=service_type,
+            provider_service_name_snapshot="Contract Completed Offer",
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.COMPLETED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Montreal",
+            postal_code="H1A1A1",
+            address_line1="43 Job St",
+        )
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        activity_response = self.client.get(reverse("provider_activity"))
+        board_response = self.client.get(reverse("ui:provider_jobs"))
+
+        self.assertEqual(activity_response.status_code, 200)
+        self.assertEqual(board_response.status_code, 200)
+        self.assertContains(activity_response, completed_job.public_reference)
+        self.assertNotContains(board_response, completed_job.public_reference)

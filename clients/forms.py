@@ -1,7 +1,12 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from core.utils.phone import PHONE_COUNTRY_CHOICES, PHONE_COUNTRY_NAMES, normalize_phone
+from core.utils.phone import (
+    PHONE_COUNTRY_CHOICES,
+    PHONE_COUNTRY_NAMES,
+    is_phone_duplicate_allowed,
+    normalize_phone,
+)
 
 from .models import Client
 
@@ -49,7 +54,10 @@ class ClientRegisterForm(forms.Form):
             except ValueError as exc:
                 self.add_error("phone_local", str(exc))
             else:
-                if Client.objects.filter(phone_number=phone_number).exists():
+                if (
+                    Client.objects.filter(phone_number=phone_number).exists()
+                    and not is_phone_duplicate_allowed(phone_number)
+                ):
                     self.add_error("phone_local", _("A client with this phone number already exists."))
                 else:
                     cleaned_data["phone_number"] = phone_number

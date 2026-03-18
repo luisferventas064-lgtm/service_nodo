@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
+from django.utils import translation
 from django.utils import timezone
 
 from assignments.models import JobAssignment
@@ -15,8 +16,20 @@ from service_type.models import ServiceType
 from workers.models import Worker
 
 
-class ActivityQueryTests(TestCase):
+class EnglishLocaleTestMixin:
     def setUp(self):
+        super().setUp()
+        self._language_override = translation.override("en")
+        self._language_override.__enter__()
+
+    def tearDown(self):
+        self._language_override.__exit__(None, None, None)
+        super().tearDown()
+
+
+class ActivityQueryTests(EnglishLocaleTestMixin, TestCase):
+    def setUp(self):
+        super().setUp()
         self.client_obj = Client.objects.create(
             first_name="Query",
             last_name="Client",
@@ -51,6 +64,7 @@ class ActivityQueryTests(TestCase):
             name="Query Service",
             description="Query Service",
         )
+
  
     def _create_job(self, *, status, offer_name, city="Montreal", cancelled=False):
         job_kwargs = {

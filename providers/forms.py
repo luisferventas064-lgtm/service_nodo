@@ -1,7 +1,12 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from core.utils.phone import PHONE_COUNTRY_CHOICES, PHONE_COUNTRY_NAMES, normalize_phone
+from core.utils.phone import (
+    PHONE_COUNTRY_CHOICES,
+    PHONE_COUNTRY_NAMES,
+    is_phone_duplicate_allowed,
+    normalize_phone,
+)
 from service_type.models import ServiceType
 
 from .models import (
@@ -87,7 +92,10 @@ class ProviderRegisterForm(forms.Form):
             except ValueError as exc:
                 self.add_error("phone_local", str(exc))
             else:
-                if Provider.objects.filter(phone_number=phone_number).exists():
+                if (
+                    Provider.objects.filter(phone_number=phone_number).exists()
+                    and not is_phone_duplicate_allowed(phone_number)
+                ):
                     self.add_error(
                         "phone_local",
                         _("A provider with this phone number already exists."),

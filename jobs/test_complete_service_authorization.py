@@ -4,6 +4,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from assignments.models import JobAssignment
+from jobs.events import get_visible_job_status_label
 from clients.models import Client
 from jobs.models import Job, JobEvent
 from jobs.services import complete_service_by_provider
@@ -103,5 +104,8 @@ class CompleteServiceAuthorizationTests(TestCase):
         self.assertIsNotNone(assignment.completed_at)
         event = self.job.events.get(event_type=JobEvent.EventType.JOB_COMPLETED)
         self.assertEqual(event.actor_role, JobEvent.ActorRole.PROVIDER)
-        self.assertEqual(event.visible_status, "Completed")
+        self.assertEqual(
+            event.visible_status,
+            get_visible_job_status_label(Job.JobStatus.COMPLETED),
+        )
         self.assertEqual(event.assignment_id, assignment.assignment_id)

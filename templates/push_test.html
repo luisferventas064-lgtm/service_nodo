@@ -122,19 +122,29 @@
       color: var(--muted);
       margin-top: 12px;
     }
+
+    select {
+      width: 100%;
+      max-width: 240px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: white;
+      color: var(--ink);
+      padding: 10px 12px;
+      font: inherit;
+    }
   </style>
 </head>
 <body>
   <main class="card">
     <h1>NODO Push Test</h1>
     <p>
-      Fill the Firebase placeholders in this file, serve it on
-      <code>http://localhost:8080</code>, then click the button to request
-      notification permission and generate a real FCM web token.
+      This page is served by Django and reads Firebase config from backend
+      settings.
     </p>
     <p>
-      This page also listens for foreground messages, and the service worker in
-      <code>firebase-messaging-sw.js</code> is ready to display background
+      It also listens for foreground messages, and
+      <code>/firebase-messaging-sw.js</code> is ready to display background
       notifications from the current NODO data payload.
     </p>
 
@@ -149,6 +159,16 @@
     </div>
 
     <section class="panel">
+      <span class="label">Device Role</span>
+      <select id="role-select">
+        <option value="client" selected>client</option>
+        <option value="provider">provider</option>
+        <option value="worker">worker</option>
+      </select>
+      <p class="hint">Used to register this web token in Django.</p>
+    </section>
+
+    <section class="panel">
       <span class="label">FCM Token</span>
       <pre id="token-out">No token yet.</pre>
     </section>
@@ -159,10 +179,16 @@
     </section>
 
     <p class="hint">
-      Keep this page open when testing browser delivery. The next step after a
+      Keep this page open while testing browser delivery. The next step after a
       real token is registering it in Django as platform <code>web</code>.
     </p>
   </main>
+
+  {{ firebase_config|json_script:"firebase-config" }}
+  <script>
+    const firebaseConfig = JSON.parse(document.getElementById("firebase-config").textContent);
+    const vapidKey = "{{ vapid_key|escapejs }}";
+  </script>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -177,24 +203,13 @@
     const messageLogEl = document.getElementById("message-log");
     const enableBtn = document.getElementById("enable-btn");
     const copyBtn = document.getElementById("copy-btn");
-
-    const firebaseConfig = {
-      apiKey: "TU_FIREBASE_API_KEY",
-      authDomain: "TU_FIREBASE_AUTH_DOMAIN",
-      projectId: "TU_FIREBASE_PROJECT_ID",
-      storageBucket: "TU_FIREBASE_STORAGE_BUCKET",
-      messagingSenderId: "TU_FIREBASE_MESSAGING_SENDER_ID",
-      appId: "TU_FIREBASE_APP_ID",
-      measurementId: "TU_FIREBASE_MEASUREMENT_ID",
-    };
-
-    const vapidKey = "TU_FIREBASE_VAPID_KEY";
+    const roleSelect = document.getElementById("role-select");
 
     let currentToken = "";
 
     function hasPlaceholders() {
       const values = Object.values(firebaseConfig).concat(vapidKey);
-      return values.some((value) => String(value).startsWith("TU_"));
+      return values.some((value) => !value || String(value).startsWith("TU_"));
     }
 
     function setStatus(value) {
@@ -213,8 +228,46 @@
       messageLogEl.textContent = next + messageLogEl.textContent;
     }
 
+    function getCookie(name) {
+      const cookies = document.cookie ? document.cookie.split(";") : [];
+      for (const cookie of cookies) {
+        const trimmed = cookie.trim();
+        if (trimmed.startsWith(`${name}=`)) {
+          return decodeURIComponent(trimmed.slice(name.length + 1));
+        }
+      }
+      return "";
+    }
+
+    async function registerTokenInDjango(token) {
+      const response = await fetch("/api/push/devices/register/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({
+          role: roleSelect.value,
+          platform: "web",
+          token,
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 403) {
+        throw new Error(
+          "Authentication required. Log in at /login/ on the same host you use for /push-test/ (127.0.0.1 vs localhost matters)."
+        );
+      }
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || `Device registration failed (${response.status}).`);
+      }
+      return result;
+    }
+
     if (!window.isSecureContext) {
-      setStatus("This page must run in a secure context. Use http://localhost:8080.");
+      setStatus("This page must run in a secure context. Use http://localhost:8000/push-test/.");
       enableBtn.disabled = true;
     } else if (!("Notification" in window)) {
       setStatus("This browser does not support the Notifications API.");
@@ -223,7 +276,7 @@
       setStatus("This browser does not support service workers.");
       enableBtn.disabled = true;
     } else if (hasPlaceholders()) {
-      setStatus("Replace TU_* Firebase placeholders before testing.");
+      setStatus("Set FIREBASE_* and FIREBASE_VAPID_KEY values in .env before testing.");
     }
 
     copyBtn.addEventListener("click", async () => {
@@ -236,7 +289,7 @@
 
     enableBtn.addEventListener("click", async () => {
       if (hasPlaceholders()) {
-        setStatus("Replace TU_* Firebase placeholders first.");
+        setStatus("Set FIREBASE_* and FIREBASE_VAPID_KEY values first.");
         return;
       }
 
@@ -252,7 +305,7 @@
         }
 
         setStatus("Registering service worker...");
-        const registration = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+        const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
         const app = initializeApp(firebaseConfig);
         const messaging = getMessaging(app);
 
@@ -286,7 +339,11 @@
         }
 
         setToken(token);
-        setStatus("Token generated successfully.");
+        setStatus("Token generated successfully. Registering in Django...");
+
+        const registered = await registerTokenInDjango(token);
+        const action = registered.created ? "created" : "updated";
+        setStatus(`Token generated and ${action} in Django (device_id=${registered.device_id}).`);
       } catch (error) {
         const details = error?.stack || error?.message || String(error);
         setStatus(`ERROR\n${details}`);

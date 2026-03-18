@@ -19,7 +19,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import connection
-from django.http import JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.timezone import now
 from django.urls import path, include
@@ -72,12 +72,30 @@ def dashboard_view(request):
     return render(request, "dashboard/index.html", context)
 
 
+def push_test_view(request):
+    return render(
+        request,
+        "push_test.html",
+        {
+            "firebase_config": settings.FIREBASE_CONFIG,
+            "vapid_key": settings.FIREBASE_VAPID_KEY,
+        },
+    )
+
+
+def firebase_messaging_sw_view(request):
+    sw_path = settings.BASE_DIR / "firebase-messaging-sw.js"
+    return FileResponse(sw_path.open("rb"), content_type="application/javascript")
+
+
 health_business_view = staff_member_required(health_business_view)
 
 urlpatterns = [
     path("admin/quality/providers/", ui_views.quality_providers_dashboard_view, name="quality_providers_dashboard"),
     path("admin/", admin.site.urls),
     path("i18n/", include("django.conf.urls.i18n")),
+    path("push-test/", push_test_view, name="push_test"),
+    path("firebase-messaging-sw.js", firebase_messaging_sw_view, name="firebase_messaging_sw"),
     path("health/", health_view),
     path("dashboard/", dashboard_view),
     path("portal/", include(("portal.urls", "portal"), namespace="portal")),

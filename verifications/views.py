@@ -8,6 +8,8 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from core.utils.phone import is_test_phone
+
 from .models import PhoneVerification, SecurityEvent
 from .services import (
     create_phone_verification,
@@ -26,6 +28,14 @@ OTP_PHONE_RATE_LIMIT = 3
 OTP_PHONE_RATE_WINDOW_SECONDS = 60
 OTP_PHONE_DAILY_LIMIT = 10
 OTP_PHONE_DAILY_WINDOW_SECONDS = 86400
+
+
+def _is_debug_test_phone(phone_number: str) -> bool:
+    from django.conf import settings
+
+    return bool(settings.DEBUG and is_test_phone(phone_number))
+
+
 def _get_payload(request):
     if request.body:
         try:
@@ -63,19 +73,6 @@ def _rate_limited(request, *, scope: str, limit: int, window_seconds: int) -> bo
 @require_POST
 def request_phone_verification(request):
     ip_address = _get_client_ip(request)
-    if _rate_limited(
-        request,
-        scope="request",
-        limit=OTP_REQUEST_RATE_LIMIT,
-        window_seconds=OTP_REQUEST_WINDOW_SECONDS,
-    ):
-        record_security_event(
-            event_type=SecurityEvent.EventType.OTP_IP_RATE_LIMIT,
-            ip_address=ip_address,
-            metadata={"scope": "request"},
-        )
-        return JsonResponse({"detail": "Too many requests."}, status=429)
-
     payload = _get_payload(request)
     if payload is None:
         return JsonResponse({"detail": "Invalid payload."}, status=400)
@@ -86,6 +83,21 @@ def request_phone_verification(request):
 
     if not all([actor_type, actor_id_raw, phone_number]):
         return JsonResponse({"detail": "Invalid payload."}, status=400)
+
+    # Allow relaxed throttling for local test phones in DEBUG mode.
+    if not _is_debug_test_phone(str(phone_number).strip()):
+        if _rate_limited(
+            request,
+            scope="request",
+            limit=OTP_REQUEST_RATE_LIMIT,
+            window_seconds=OTP_REQUEST_WINDOW_SECONDS,
+        ):
+            record_security_event(
+                event_type=SecurityEvent.EventType.OTP_IP_RATE_LIMIT,
+                ip_address=ip_address,
+                metadata={"scope": "request"},
+            )
+            return JsonResponse({"detail": "Too many requests."}, status=429)
 
     try:
         actor_id = int(actor_id_raw)
@@ -115,34 +127,35 @@ def request_phone_verification(request):
         )
         return JsonResponse({"detail": "Too many requests. Try later."}, status=429)
 
-    phone_key = f"otp_phone_rate:{phone_number}"
-    phone_requests = cache.get(phone_key, 0)
-    if phone_requests >= OTP_PHONE_RATE_LIMIT:
-        record_security_event(
-            event_type=SecurityEvent.EventType.OTP_PHONE_RATE_LIMIT,
-            phone_number=phone_number,
-            actor_type=normalized_actor_type,
-            actor_id=actor_id,
-            ip_address=ip_address,
-            metadata={"window_seconds": OTP_PHONE_RATE_WINDOW_SECONDS},
-        )
-        return JsonResponse({"detail": "Too many requests. Try later."}, status=429)
+    if not _is_debug_test_phone(phone_number):
+        phone_key = f"otp_phone_rate:{phone_number}"
+        phone_requests = cache.get(phone_key, 0)
+        if phone_requests >= OTP_PHONE_RATE_LIMIT:
+            record_security_event(
+                event_type=SecurityEvent.EventType.OTP_PHONE_RATE_LIMIT,
+                phone_number=phone_number,
+                actor_type=normalized_actor_type,
+                actor_id=actor_id,
+                ip_address=ip_address,
+                metadata={"window_seconds": OTP_PHONE_RATE_WINDOW_SECONDS},
+            )
+            return JsonResponse({"detail": "Too many requests. Try later."}, status=429)
 
-    daily_key = f"otp_daily:{phone_number}:{timezone.now().date()}"
-    daily_count = cache.get(daily_key, 0)
-    if daily_count >= OTP_PHONE_DAILY_LIMIT:
-        record_security_event(
-            event_type=SecurityEvent.EventType.OTP_DAILY_LIMIT,
-            phone_number=phone_number,
-            actor_type=normalized_actor_type,
-            actor_id=actor_id,
-            ip_address=ip_address,
-            metadata={"date": str(timezone.now().date())},
-        )
-        return JsonResponse({"detail": "Daily limit reached."}, status=429)
+        daily_key = f"otp_daily:{phone_number}:{timezone.now().date()}"
+        daily_count = cache.get(daily_key, 0)
+        if daily_count >= OTP_PHONE_DAILY_LIMIT:
+            record_security_event(
+                event_type=SecurityEvent.EventType.OTP_DAILY_LIMIT,
+                phone_number=phone_number,
+                actor_type=normalized_actor_type,
+                actor_id=actor_id,
+                ip_address=ip_address,
+                metadata={"date": str(timezone.now().date())},
+            )
+            return JsonResponse({"detail": "Daily limit reached."}, status=429)
 
-    cache.set(phone_key, phone_requests + 1, timeout=OTP_PHONE_RATE_WINDOW_SECONDS)
-    cache.set(daily_key, daily_count + 1, timeout=OTP_PHONE_DAILY_WINDOW_SECONDS)
+        cache.set(phone_key, phone_requests + 1, timeout=OTP_PHONE_RATE_WINDOW_SECONDS)
+        cache.set(daily_key, daily_count + 1, timeout=OTP_PHONE_DAILY_WINDOW_SECONDS)
 
     now = timezone.now()
     latest_pending = (

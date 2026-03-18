@@ -2,6 +2,7 @@ from decimal import Decimal
 from datetime import timedelta
 
 from django.test import TestCase
+from django.utils import translation
 from django.utils import timezone
 
 from core.legal_disclaimers import FINANCIAL_DISCLAIMER_SHORT
@@ -16,7 +17,18 @@ from service_type.models import ServiceType
 from workers.models import Worker
 
 
-class ActivityServiceTests(TestCase):
+class EnglishLocaleTestMixin:
+    def setUp(self):
+        super().setUp()
+        self._language_override = translation.override("en")
+        self._language_override.__enter__()
+
+    def tearDown(self):
+        self._language_override.__exit__(None, None, None)
+        super().tearDown()
+
+
+class ActivityServiceTests(EnglishLocaleTestMixin, TestCase):
     def test_build_activity_view_context_returns_activity_row_dtos(self):
         client = Client.objects.create(
             first_name="DTO",

@@ -5,8 +5,9 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
 
+from django.utils.translation import gettext_lazy as _
+from core.utils.phone import is_phone_duplicate_allowed
 
 class Provider(models.Model):
     provider_id = models.AutoField(primary_key=True)
@@ -88,6 +89,9 @@ class Provider(models.Model):
 
     availability_mode = models.CharField(max_length=20, default="manual")
     is_available_now = models.BooleanField(default=False)
+    temporary_unavailable_until = models.DateTimeField(null=True, blank=True)
+    accepts_urgent = models.BooleanField(default=True)
+    accepts_scheduled = models.BooleanField(default=True)
 
     is_active = models.BooleanField(default=True)
 
@@ -137,6 +141,24 @@ class Provider(models.Model):
             }
 
         return super().save(*args, **kwargs)
+
+    def clean(self):
+        """Custom validation to allow duplicate test phones in DEBUG mode."""
+        super().clean()
+
+        # Skip unique phone check for test phones in DEBUG
+        if settings.DEBUG and is_phone_duplicate_allowed(self.phone_number):
+            return
+
+        # Validate phone uniqueness for production phones
+        if self.phone_number:
+            existing = Provider.objects.filter(phone_number=self.phone_number)
+            if self.provider_id:
+                existing = existing.exclude(provider_id=self.provider_id)
+            if existing.exists():
+                raise ValidationError(
+                    {"phone_number": f"Phone number {self.phone_number} is already in use."}
+                )
 
     @property
     def normalized_provider_type(self) -> str:

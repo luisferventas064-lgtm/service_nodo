@@ -99,14 +99,14 @@
   <div class="card provider-financial-hero">
     <h2 class="card-title">{{ page_title }}</h2>
     <p class="muted" style="margin: 0;">
-      {% trans "Operational financial summary based on your provider jobs, pricing snapshots, tickets, and ledger records." %}
+      {% trans "Financial summary of your services and operations." %}
     </p>
     <div class="provider-financial-actions">
       <a class="btn primary" href="?{{ export_querystring }}">{% trans "Export CSV" %}</a>
       <a class="btn" href="{% url 'provider_activity' %}">{% trans "View Activity" %}</a>
     </div>
     <p class="provider-financial-note">
-      {{ financial_disclaimer_short }}
+      {% trans "This data is provided for informational purposes only." %}
     </p>
   </div>
 

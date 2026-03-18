@@ -40,7 +40,11 @@ from clients.models import ClientTicket
 from clients.models import Client
 from core.auth_session import clear_session, require_role, set_session
 from core.legal_disclaimers import build_financial_disclaimer_context
-from core.utils.phone import best_effort_normalize_phone, phone_lookup_candidates
+from core.utils.phone import (
+    best_effort_normalize_phone,
+    is_test_phone,
+    phone_lookup_candidates,
+)
 from jobs import services as job_services
 from jobs.events import create_job_event, get_visible_job_status_label
 from jobs.models import (
@@ -692,6 +696,13 @@ def verify_phone(request):
     error = None
     if request.method == "POST":
         code_input = (request.POST.get("code") or "").strip()
+        dev_otp_code = str(getattr(settings, "DEV_OTP_CODE", "") or "")
+        is_debug_bypass = bool(
+            settings.DEBUG
+            and dev_otp_code
+            and code_input == dev_otp_code
+            and is_test_phone(phone)
+        )
         record = (
             PasswordResetCode.objects.filter(
                 phone_number=phone,
@@ -702,7 +713,9 @@ def verify_phone(request):
             .first()
         )
 
-        if not record:
+        if is_debug_bypass:
+            record = record
+        elif not record:
             error = _("Verification code not found.")
         elif not record.is_valid():
             record.used = True

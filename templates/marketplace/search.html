@@ -13,7 +13,7 @@
       <select id="service_type" name="service_type" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:6px;">
         <option value="">Select</option>
         {% for service_type in service_types %}
-          <option value="{{ service_type.service_type_id }}" {% if selected_service_type == service_type.service_type_id|stringformat:"s" %}selected{% endif %}>{{ service_type.name }}</option>
+          <option value="{{ service_type.service_type_id }}" {% if selected_service_type == service_type.service_type_id|stringformat:"s" %}selected{% endif %}>{{ service_type.localized_name }}</option>
         {% endfor %}
       </select>
     </div>

@@ -36,6 +36,12 @@ def _set(obj, name: str, value):
     setattr(obj, name, value)
 
 
+def _job_localdate(job):
+    province_code = (getattr(job, "province", None) or "").strip().upper()
+    tz_name = PROVINCE_TIMEZONE_MAP.get(province_code, timezone.get_current_timezone_name())
+    return timezone.now().astimezone(zoneinfo.ZoneInfo(tz_name)).date()
+
+
 def normalize_job_kind_and_schedule(job) -> None:
     """
     Invariantes:
@@ -43,7 +49,7 @@ def normalize_job_kind_and_schedule(job) -> None:
     2) ON_DEMAND requiere scheduled_date = None.
     3) scheduled_date en pasado se normaliza a ON_DEMAND y se limpia.
     """
-    today = timezone.localdate()
+    today = _job_localdate(job)
     kind = _get(job, FIELD_KIND)
     sd = _get(job, FIELD_SCHEDULED)
 

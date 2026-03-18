@@ -350,9 +350,7 @@
   <div class="page-header">
     <h1>{% trans "Complete Your Profile" %}</h1>
     <p>
-      {% blocktrans trimmed %}
-      Finish the remaining requirements to activate your provider account and unlock the provider dashboard.
-      {% endblocktrans %}
+      {% trans "Complete the remaining steps to activate your account." %}
     </p>
   </div>
 
@@ -365,9 +363,7 @@
   <div class="card">
     <h2>{% trans "Completion Status" %}</h2>
     <p class="muted">
-      {% blocktrans trimmed %}
-      This page is now a checklist only. Profile details, service areas, and insurance are managed in their own pages.
-      {% endblocktrans %}
+      {% trans "Use this checklist to complete activation." %}
     </p>
 
     <div class="status-grid">
@@ -413,9 +409,7 @@
   <div class="card">
     <h2>{% trans "Required Steps" %}</h2>
     <p class="muted">
-      {% blocktrans trimmed %}
-      These are the actual requirements currently used to mark your provider profile as complete.
-      {% endblocktrans %}
+      {% trans "Requirements used for profile completion." %}
     </p>
 
     <div class="checklist">
@@ -441,7 +435,7 @@
         <div class="check-copy">
           <div class="check-title">{% trans "Active service areas" %}</div>
           <div class="check-description">
-            {% trans "At least one active service area is required for profile completion." %}
+            {% trans "At least one active service area is required." %}
           </div>
           {% if active_areas %}
             <div class="check-detail">
@@ -468,9 +462,7 @@
         <div class="check-copy">
           <div class="check-title">{% trans "Terms and Conditions" %}</div>
           <div class="check-description">
-            {% blocktrans trimmed %}
-            You must review and accept the Terms and Conditions before completing your provider profile.
-            {% endblocktrans %}
+            {% trans "Accept the Terms and Conditions to complete your profile." %}
           </div>
 
           <div class="terms-panel">
@@ -523,29 +515,29 @@
 
   <div class="card">
     <h2>{% trans "Manage Profile Modules" %}</h2>
-    <p class="muted">{% trans "Use these dedicated pages to update each module directly." %}</p>
+    <p class="muted">{% trans "Use these pages to update each module." %}</p>
 
     <div class="action-grid">
       <a href="{% url 'provider_edit' %}" class="action-card">
         <div class="action-title">{% trans "Edit Profile" %}</div>
-        <div class="action-copy">{% trans "Update business details, address, and availability." %}</div>
+        <div class="action-copy">{% trans "Update business details and availability." %}</div>
       </a>
 
       <a href="{% url 'provider_service_areas' %}" class="action-card">
         <div class="action-title">{% trans "Manage Service Areas" %}</div>
-        <div class="action-copy">{% trans "Add, activate, or deactivate the cities where you work." %}</div>
+        <div class="action-copy">{% trans "Manage the cities where you work." %}</div>
       </a>
 
       <a href="{% url 'provider_insurance' %}" class="action-card">
         <div class="action-title">{% trans "Manage Insurance" %}</div>
         <div class="action-copy">
-          {% trans "Create or update your insurance details and review verification status." %}
+          {% trans "Update insurance details and verification." %}
         </div>
       </a>
 
       <a href="{% url 'provider_certificates' %}" class="action-card">
         <div class="action-title">{% trans "Manage Certificates" %}</div>
-        <div class="action-copy">{% trans "Manage your certificates from the dedicated certificates page." %}</div>
+        <div class="action-copy">{% trans "Manage certificates from the certificates page." %}</div>
       </a>
     </div>
   </div>

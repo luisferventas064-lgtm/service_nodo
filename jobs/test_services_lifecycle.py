@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from jobs.events import get_visible_job_status_label
 from assignments.models import JobAssignment
 from jobs.models import Job, JobEvent
 from jobs.services_lifecycle import accept_job_by_provider
@@ -63,5 +64,8 @@ class ServicesLifecycleTests(TestCase):
         self.assertIsNotNone(provider.last_job_assigned_at)
         event = job.events.get(event_type=JobEvent.EventType.JOB_ACCEPTED)
         self.assertEqual(event.actor_role, JobEvent.ActorRole.PROVIDER)
-        self.assertEqual(event.visible_status, "Accepted")
+        self.assertEqual(
+            event.visible_status,
+            get_visible_job_status_label(Job.JobStatus.ASSIGNED),
+        )
         self.assertEqual(event.provider_id, provider.provider_id)

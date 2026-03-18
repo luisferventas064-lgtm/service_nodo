@@ -10,7 +10,7 @@ $patterns = @(
     'update\(\s*assignment_status\s*='
 )
 
-$matches = Get-ChildItem -Path jobs, ui, assignments -Recurse -Filter *.py |
+$statusWriteMatches = Get-ChildItem -Path jobs, ui, assignments -Recurse -Filter *.py |
     Where-Object {
         $_.FullName -notmatch '\\test' -and
         $_.FullName -notmatch '\\tests\\' -and
@@ -18,9 +18,9 @@ $matches = Get-ChildItem -Path jobs, ui, assignments -Recurse -Filter *.py |
     } |
     Select-String -Pattern $patterns
 
-if ($matches) {
+if ($statusWriteMatches) {
     Write-Host "Direct status writes detected outside jobs/services_state_transitions.py:" -ForegroundColor Red
-    $matches | ForEach-Object {
+    $statusWriteMatches | ForEach-Object {
         $relativePath = $_.Path.Replace($repoRoot + '\\', '')
         Write-Host ("{0}:{1}:{2}" -f $relativePath, $_.LineNumber, $_.Line.Trim()) -ForegroundColor Yellow
     }

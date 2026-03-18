@@ -9,6 +9,7 @@ from django.utils import timezone
 from assignments.models import AssignmentFee, JobAssignment
 from jobs.events import create_job_event
 from jobs.models import Job, JobDispute, JobEvent, JobStatus
+from jobs.observability import log_assignment_event
 from jobs.services_state_transitions import (
     normalize_job_status,
     transition_assignment_status,
@@ -64,6 +65,7 @@ def activate_assignment_for_job(
         is_active=ACTIVE_VALUE,
     ).first()
     if existing:
+        log_assignment_event(job_id, existing.assignment_id, "already_active", provider_id)
         transition_job_status(
             job,
             JobStatus.ASSIGNED,
@@ -101,6 +103,7 @@ def activate_assignment_for_job(
             assignment_status="accepted",
             accepted_at=assigned_at,
         )
+        log_assignment_event(job_id, assignment.assignment_id, "created", provider_id)
 
         transition_job_status(
             job,

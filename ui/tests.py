@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils.formats import date_format, time_format
 from django.utils import timezone
 
@@ -6208,6 +6208,10 @@ class ProviderIncomingJobsViewTests(EnglishLocaleTestMixin, TestCase):
             profile_completed=True,
             billing_profile_completed=True,
             accepts_terms=True,
+            availability_mode="manual",
+            is_available_now=True,
+            accepts_urgent=True,
+            accepts_scheduled=True,
         )
         ProviderService.objects.create(
             provider=provider,
@@ -6374,6 +6378,67 @@ class ProviderIncomingJobsViewTests(EnglishLocaleTestMixin, TestCase):
             reverse("ui:provider_accept_job", args=[completed_job.job_id]),
         )
 
+    def test_provider_incoming_jobs_includes_only_waiting_status(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Status Contract",
+            description="Incoming Status Contract",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.status.contract@test.local",
+            phone_number="5550000395",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.status.contract@test.local",
+            phone_number="5550000396",
+        )
+        waiting_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="937 Waiting St",
+            requested_subservice_name="Waiting Contract Service",
+            quoted_base_price="150.00",
+            quoted_base_price_cents=15000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingStatusContract",
+            quoted_total_price_cents=15000,
+            requested_total_snapshot=Decimal("150.00"),
+        )
+        assigned_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.ASSIGNED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="938 Assigned St",
+            requested_subservice_name="Assigned Contract Service",
+            requested_total_snapshot=Decimal("155.00"),
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Waiting Contract Service")
+        self.assertNotContains(response, "Assigned Contract Service")
+        self.assertContains(response, reverse("ui:provider_accept_job", args=[waiting_job.job_id]))
+        self.assertNotContains(response, reverse("ui:provider_accept_job", args=[assigned_job.job_id]))
+
     def test_provider_incoming_jobs_hides_job_when_provider_already_declined_it(self):
         service_type = ServiceType.objects.create(
             name="Incoming Excluded",
@@ -6415,6 +6480,215 @@ class ProviderIncomingJobsViewTests(EnglishLocaleTestMixin, TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Excluded Cleaning")
+        self.assertEqual(response.context["incoming_jobs_count"], 0)
+
+    def test_provider_incoming_jobs_hides_job_when_provider_temporarily_unavailable(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Temporary Pause",
+            description="Incoming Temporary Pause",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.temp.pause@test.local",
+            phone_number="5550000391",
+            service_type=service_type,
+        )
+        provider.temporary_unavailable_until = timezone.now() + timedelta(hours=1)
+        provider.save(update_fields=["temporary_unavailable_until", "updated_at"])
+
+        client = self._create_client(
+            email="client.incoming.temp.pause@test.local",
+            phone_number="5550000392",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="940 Pause St",
+            requested_subservice_name="Paused Cleaning",
+            quoted_base_price="140.00",
+            quoted_base_price_cents=14000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingPauseTest",
+            quoted_total_price_cents=14000,
+        )
+
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            reverse("ui:provider_accept_job", args=[job.job_id]),
+        )
+        self.assertNotContains(response, "Paused Cleaning")
+        self.assertEqual(response.context["incoming_jobs_count"], 0)
+
+    def test_provider_incoming_jobs_temporary_pause_cycle_hides_then_restores(self):
+        """
+        Ciclo completo de pausa temporal en Incoming:
+        1. sin pausa -> job visible
+        2. temporary_unavailable_until = futuro -> job oculto
+        3. temporary_unavailable_until = pasado (expirada) -> job visible de nuevo
+        Complementa test_provider_incoming_jobs_hides_job_when_provider_temporarily_unavailable.
+        """
+        service_type = ServiceType.objects.create(
+            name="Incoming Pause Cycle",
+            description="Incoming Pause Cycle",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.pause.cycle@test.local",
+            phone_number="5550000401",
+            service_type=service_type,
+        )
+        client = self._create_client(
+            email="client.incoming.pause.cycle@test.local",
+            phone_number="5550000402",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="401 Pause Cycle St",
+            requested_subservice_name="Pause Cycle Service",
+            quoted_base_price="120.00",
+            quoted_base_price_cents=12000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingPauseCycle",
+            quoted_total_price_cents=12000,
+        )
+        self._login_provider(provider)
+
+        # ── ANTES: sin pausa, job visible ──────────────────────────────────────
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pause Cycle Service")
+        self.assertEqual(response.context["incoming_jobs_count"], 1)
+
+        # ── DURANTE: pausa activa (30 min futuro) -> job oculto ─────────────────
+        provider.temporary_unavailable_until = timezone.now() + timedelta(minutes=30)
+        provider.save(update_fields=["temporary_unavailable_until", "updated_at"])
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Pause Cycle Service")
+        self.assertEqual(response.context["incoming_jobs_count"], 0)
+
+        # ── DESPUÉS: pausa expirada (1 min pasado) -> job visible de nuevo ──────
+        provider.temporary_unavailable_until = timezone.now() - timedelta(minutes=1)
+        provider.save(update_fields=["temporary_unavailable_until", "updated_at"])
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pause Cycle Service")
+        self.assertEqual(response.context["incoming_jobs_count"], 1)
+
+    def test_provider_incoming_jobs_hides_on_demand_job_when_accepts_urgent_false(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Urgent Rejected",
+            description="Incoming Urgent Rejected",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.urgent.rejected@test.local",
+            phone_number="5550000411",
+            service_type=service_type,
+        )
+        provider.accepts_urgent = False
+        provider.save(update_fields=["accepts_urgent", "updated_at"])
+
+        client = self._create_client(
+            email="client.incoming.urgent.rejected@test.local",
+            phone_number="5550000412",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="411 Urgent Rejected St",
+            requested_subservice_name="Urgent Rejected Service",
+            quoted_base_price="130.00",
+            quoted_base_price_cents=13000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingUrgentRejected",
+            quoted_total_price_cents=13000,
+        )
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Urgent Rejected Service")
+        self.assertEqual(response.context["incoming_jobs_count"], 0)
+
+    def test_provider_incoming_jobs_hides_scheduled_job_when_accepts_scheduled_false(self):
+        service_type = ServiceType.objects.create(
+            name="Incoming Scheduled Rejected",
+            description="Incoming Scheduled Rejected",
+        )
+        provider = self._create_operational_provider(
+            email="provider.incoming.scheduled.rejected@test.local",
+            phone_number="5550000413",
+            service_type=service_type,
+        )
+        provider.accepts_scheduled = False
+        provider.save(update_fields=["accepts_scheduled", "updated_at"])
+
+        client = self._create_client(
+            email="client.incoming.scheduled.rejected@test.local",
+            phone_number="5550000414",
+        )
+        job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=False,
+            scheduled_date=timezone.localdate() + timedelta(days=1),
+            scheduled_start_time="10:00",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="413 Scheduled Rejected St",
+            requested_subservice_name="Scheduled Rejected Service",
+            quoted_base_price="140.00",
+            quoted_base_price_cents=14000,
+            quoted_currency_code="CAD",
+            quoted_currency="CAD",
+            quoted_pricing_source="IncomingScheduledRejected",
+            quoted_total_price_cents=14000,
+        )
+        self._login_provider(provider)
+
+        response = self.client.get(reverse("ui:provider_incoming_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Scheduled Rejected Service")
         self.assertEqual(response.context["incoming_jobs_count"], 0)
 
     def test_provider_incoming_jobs_hides_waiting_job_without_pricing_snapshot(self):
@@ -6835,7 +7109,7 @@ class ProviderIncomingJobsViewTests(EnglishLocaleTestMixin, TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Request declined.")
-        self.assertEqual(job.job_status, Job.JobStatus.WAITING_PROVIDER_RESPONSE)
+        self.assertEqual(job.job_status, Job.JobStatus.POSTED)
         self.assertIsNone(job.selected_provider_id)
         self.assertEqual(job.cancelled_by, Job.CancellationActor.PROVIDER)
         self.assertEqual(job.cancel_reason, Job.CancelReason.PROVIDER_REJECTED)
@@ -7204,6 +7478,178 @@ class ProviderJobsViewTests(EnglishLocaleTestMixin, TestCase):
                 reason=JobProviderExclusion.Reason.DECLINED,
             ).exists()
         )
+
+    def test_provider_jobs_board_shows_active_states_and_excludes_terminal_states(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Board",
+            contact_last_name="Provider",
+            phone_number="5550000290",
+            email="provider.board.contract@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="290 Provider St",
+        )
+        client = Client.objects.create(
+            first_name="Board",
+            last_name="Client",
+            phone_number="5550000291",
+            email="client.board.contract@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="291 Client St",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="Board Contract Service",
+            description="Board Contract Service",
+        )
+
+        active_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="292 Active St",
+        )
+        completed_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.COMPLETED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="293 Completed St",
+        )
+        cancelled_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.CANCELLED,
+            cancelled_by=Job.CancellationActor.PROVIDER,
+            cancel_reason=Job.CancelReason.PROVIDER_REJECTED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="294 Cancelled St",
+        )
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        response = self.client.get(reverse("ui:provider_jobs"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Request #{active_job.job_id}")
+        self.assertNotContains(response, f"Request #{completed_job.job_id}")
+        self.assertNotContains(response, f"Request #{cancelled_job.job_id}")
+
+    def test_provider_missions_redirects_to_login_without_provider_session(self):
+        response = self.client.get(reverse("provider_missions"))
+
+        self.assertRedirects(response, reverse("ui:root_login"))
+
+    def test_provider_missions_shows_only_scheduled_committed_jobs(self):
+        provider = Provider.objects.create(
+            provider_type="self_employed",
+            contact_first_name="Missions",
+            contact_last_name="Provider",
+            phone_number="5550010101",
+            email="provider.missions@test.local",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="100 Mission St",
+        )
+        client = Client.objects.create(
+            first_name="Mission",
+            last_name="Client",
+            phone_number="5550010102",
+            email="client.missions@test.local",
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="200 Mission Ave",
+            is_phone_verified=True,
+            profile_completed=True,
+        )
+        service_type = ServiceType.objects.create(
+            name="Mission Service",
+            description="Mission Service",
+        )
+        scheduled_committed = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.SCHEDULED_PENDING_ACTIVATION,
+            scheduled_date=timezone.localdate() + timedelta(days=3),
+            scheduled_start_time="10:00",
+            is_asap=False,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="200 Mission Ave",
+        )
+        on_demand_job = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.ON_DEMAND,
+            job_status=Job.JobStatus.ASSIGNED,
+            is_asap=True,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="200 Mission Ave",
+        )
+        pending_decision = Job.objects.create(
+            selected_provider=provider,
+            client=client,
+            service_type=service_type,
+            job_mode=Job.JobMode.SCHEDULED,
+            job_status=Job.JobStatus.WAITING_PROVIDER_RESPONSE,
+            scheduled_date=timezone.localdate() + timedelta(days=5),
+            scheduled_start_time="14:00",
+            is_asap=False,
+            country="Canada",
+            province="QC",
+            city="Laval",
+            postal_code="H7W4A2",
+            address_line1="200 Mission Ave",
+        )
+
+        session = self.client.session
+        session["provider_id"] = provider.pk
+        session.save()
+
+        response = self.client.get(reverse("provider_missions"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Request #{scheduled_committed.job_id}")
+        self.assertNotContains(response, f"Request #{on_demand_job.job_id}")
+        self.assertNotContains(response, f"Request #{pending_decision.job_id}")
 
 
 class MarketplaceSearchViewTests(EnglishLocaleTestMixin, TestCase):
